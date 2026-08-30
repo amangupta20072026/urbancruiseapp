@@ -166,20 +166,20 @@ export function useMoreActions() {
           return 'inline';
 
         /* ---- UC ---- */
-        case 'uc.customers':
-          navigate('CustomersList');
-          return 'navigated';
-
-        case 'uc.vendors':
-          navigate('VendorsList');
+        /**
+         * The old Customers / Vendors / Drivers cases were folded into
+         * a single Directory hub — a top-tabs screen at route
+         * 'Directory'. The stack screens (CustomersList, VendorsList,
+         * DriversList) are still registered in UcNavigator so deep
+         * links keep working, but the More sheet only exposes the
+         * Directory entry now.
+         */
+        case 'uc.directory':
+          navigate('Directory');
           return 'navigated';
 
         case 'uc.payments':
           navigate('Payments');
-          return 'navigated';
-
-        case 'uc.drivers':
-          navigate('DriversList');
           return 'navigated';
 
         case 'uc.issues':

@@ -123,7 +123,21 @@ export const queryKeys = {
     },
     vendors: {
       all: () => ['uc', 'vendors'] as const,
+      list: (filters: Record<string, unknown>) =>
+        ['uc', 'vendors', 'list', filters] as const,
       detail: (id: VendorId) => ['uc', 'vendors', id] as const,
+    },
+    staff: {
+      all: () => ['uc', 'staff'] as const,
+      list: (filters: Record<string, unknown>) =>
+        ['uc', 'staff', 'list', filters] as const,
+      detail: (id: string) => ['uc', 'staff', 'detail', id] as const,
+    },
+    drivers: {
+      all: () => ['uc', 'drivers'] as const,
+      list: (filters: Record<string, unknown>) =>
+        ['uc', 'drivers', 'list', filters] as const,
+      detail: (id: string) => ['uc', 'drivers', 'detail', id] as const,
     },
   },
 

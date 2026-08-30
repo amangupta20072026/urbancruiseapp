@@ -123,6 +123,14 @@ export const endpoints = {
       list: () => '/uc/vendors',
       approve: (id: VendorId) => `/uc/vendors/${id}/approve`,
     },
+    staff: {
+      list: () => '/uc/staff',
+      detail: (id: string) => `/uc/staff/${id}`,
+    },
+    drivers: {
+      list: () => '/uc/drivers',
+      detail: (id: DriverId) => `/uc/drivers/${id}`,
+    },
     finance: {
       payins: () => '/uc/finance/payins',
       payouts: () => '/uc/finance/payouts',

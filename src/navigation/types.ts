@@ -166,6 +166,12 @@ export type UcStackParamList = {
   Issues: undefined;
   Performance: undefined;
   Feedback: undefined;
+
+  /**
+   * Directory hub — hosts the Customers / Vendors / UC Staff / Drivers
+   * top tabs. Replaces the four separate More-sheet entries.
+   */
+  Directory: undefined;
 };
 
 export type UcTabParamList = {

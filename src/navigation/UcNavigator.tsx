@@ -36,6 +36,7 @@ import { DriversListScreen } from '@features/uc/drivers';
 import { IssuesScreen } from '@features/uc/issues';
 import { PerformanceScreen } from '@features/uc/performance';
 import { FeedbackScreen } from '@features/shared/feedbacks';
+import DirectoryScreen from '@features/uc/_directory/screens/DirectoryScreen';
 import type { UcStackParamList } from './types';
 import { NotImplementedScreen } from '@features/shared/screens';
 import SupportScreen from '@features/shared/support/screens/SupportScreen';
@@ -70,6 +71,9 @@ const UcNavigator: React.FC = () => {
       <Stack.Screen name="Issues" component={IssuesScreen} />
       <Stack.Screen name="Performance" component={PerformanceScreen} />
       <Stack.Screen name="Feedback" component={FeedbackScreen} />
+
+      {/* Directory hub — Customers / Vendors / UC Staff / Drivers */}
+      <Stack.Screen name="Directory" component={DirectoryScreen} />
 
       {/* Registered ghost routes — real screens land later. */}
       <Stack.Screen name="EnquiryDetail" component={NotImplementedScreen} />

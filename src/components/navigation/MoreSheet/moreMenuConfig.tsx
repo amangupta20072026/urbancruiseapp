@@ -43,7 +43,6 @@ import {
   ShieldAlert,
   Award,
   Users,
-  Building2,
   Wallet,
   AlertTriangle,
   TrendingUp,
@@ -62,6 +61,7 @@ export type MoreRole = 'customer' | 'vendor' | 'driver' | 'uc';
 
 export type MoreGroup =
   | 'account'
+  | 'directory'
   | 'business'
   | 'operations'
   | 'insights'
@@ -86,10 +86,8 @@ export type MoreActionId =
   | 'driver.fuelLog'
   | 'driver.incidents'
   | 'driver.rewards'
-  | 'uc.customers'
-  | 'uc.vendors'
+  | 'uc.directory'
   | 'uc.payments'
-  | 'uc.drivers'
   | 'uc.issues'
   | 'uc.performance';
 
@@ -123,6 +121,7 @@ const Palette = {
 
 export const MORE_GROUP_ORDER: MoreGroup[] = [
   'account',
+  'directory',
   'business',
   'operations',
   'insights',
@@ -132,6 +131,7 @@ export const MORE_GROUP_ORDER: MoreGroup[] = [
 
 export const MORE_GROUP_LABEL: Record<MoreGroup, string> = {
   account: 'Account',
+  directory: 'Directory',
   business: 'Business',
   operations: 'Operations',
   insights: 'Insights',
@@ -393,21 +393,20 @@ const ucMore: MoreItem[] = [
   },
 
   {
-    key: 'customers',
-    label: 'Customers',
+    /**
+     * Single "Directory" entry replaces the four scattered entries
+     * (Customers / Vendors / Drivers were split across Business +
+     * Operations, and UC Staff didn't exist). Directory opens a
+     * top-tab screen that hosts all four — one place, four tabs.
+     */
+    key: 'directory',
+    label: 'Directory',
     Icon: Users,
     color: Palette.blue,
-    actionId: 'uc.customers',
-    group: 'business',
+    actionId: 'uc.directory',
+    group: 'directory',
   },
-  {
-    key: 'vendors',
-    label: 'Vendors',
-    Icon: Building2,
-    color: Palette.orange,
-    actionId: 'uc.vendors',
-    group: 'business',
-  },
+
   {
     key: 'payments',
     label: 'Payments',
@@ -417,14 +416,6 @@ const ucMore: MoreItem[] = [
     group: 'business',
   },
 
-  {
-    key: 'drivers',
-    label: 'Drivers',
-    Icon: UserCheck,
-    color: Palette.blue,
-    actionId: 'uc.drivers',
-    group: 'operations',
-  },
   {
     key: 'issues',
     label: 'Issues',
@@ -476,6 +467,7 @@ export function groupMoreMenu(
 ): Record<MoreGroup, MoreItem[]> {
   const buckets: Record<MoreGroup, MoreItem[]> = {
     account: [],
+    directory: [],
     business: [],
     operations: [],
     insights: [],

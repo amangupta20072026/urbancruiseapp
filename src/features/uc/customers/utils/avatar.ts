@@ -4,7 +4,10 @@ export function initials(name: string): string {
     .split(/\s+/)
     .map(w => w.replace(/[^A-Za-z]/g, ''))
     .filter(Boolean);
-  const two = letters.slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  const two = letters
+    .slice(0, 2)
+    .map(w => w[0].toUpperCase())
+    .join('');
   return two || '?';
 }
 
