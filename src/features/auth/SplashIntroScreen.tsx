@@ -41,6 +41,7 @@ import Animated, {
 import { Colors } from '../../theme';
 import { useAppDispatch } from '../../store/hooks';
 import { runBootstrap } from '@app/bootstrap';
+import { markAppReady } from '@/native/splashReady';
 
 /* ------------------------------------------------------------------
  * Assets
@@ -121,6 +122,12 @@ const SplashIntroScreen: React.FC = () => {
     void runBootstrap(dispatch).finally(() => {
       setBootstrapResolved(true);
     });
+
+    // Tell native it's safe to dismiss the system splash — this
+    // screen has now mounted and rendered a frame that visually
+    // matches the native launch theme (same background + icon),
+    // so the handoff is invisible. See MainActivity.kt.
+    markAppReady();
 
     const minTimer = setTimeout(() => {
       setMinDurationElapsed(true);

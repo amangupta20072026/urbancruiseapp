@@ -35,7 +35,7 @@ import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, type Theme } from '@react-navigation/native';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -47,8 +47,28 @@ import { navigationRef } from './src/navigation/NavigationService';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from '@components/ErrorBoundary';
 import { enableGlobalBlock } from '@services/screenshot';
+import { Colors } from '@theme';
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
+
+/**
+ * Explicit navigation theme, independent of the device's system
+ * color scheme. Without this, NavigationContainer/native-stack can
+ * paint each screen's underlying container with a dark background
+ * when the device is in dark mode — visible as a brief dark-gray
+ * blank screen between the native splash handoff and SplashIntroScreen
+ * painting its own (white) content on top. Card/background are locked
+ * to the brand background so that gap can never show a mismatched
+ * color, in light or dark system mode.
+ */
+const AppNavigationTheme: Theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: Colors.background,
+    card: Colors.background,
+  },
+};
 
 const App: React.FC = () => {
   /* -----------------------------------------------------------------
@@ -98,7 +118,7 @@ const App: React.FC = () => {
                   and TanStack Query for any recovery actions.
                 */}
                 <ErrorBoundary name="RootBoundary">
-                  <NavigationContainer ref={navigationRef}>
+                  <NavigationContainer ref={navigationRef} theme={AppNavigationTheme}>
                     <RootNavigator />
                   </NavigationContainer>
                 </ErrorBoundary>
@@ -117,5 +137,5 @@ void shouldPersistQuery;
 export default App;
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: Colors.background },
 });
