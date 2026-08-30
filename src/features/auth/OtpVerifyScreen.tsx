@@ -59,12 +59,11 @@ import {
   Spacing,
   Typography,
 } from '../../theme';
-import { useAppDispatch } from '../../store/hooks';
-import { loginSuccess } from '../../store/slices/appSlice';
-import { saveTokens } from '../../services/storage/secureStorage';
 import type { AuthParamList } from '../../navigation/types';
 import { withAlpha } from '../../components/roles';
 import { SafeScreen, ScreenHeader } from '@shared/components';
+import { ApiError } from '@api/errors';
+import { useRequestOtp, useVerifyOtp } from './hooks';
 
 /* -----------------------------------------------------------------
  * Constants
@@ -295,16 +294,25 @@ const OtpBoxesInput: React.FC<OtpBoxesInputProps> = ({
 
 const OtpVerifyScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const dispatch = useAppDispatch();
   const { params } = useRoute<OtpVerifyRoute>();
   const navigation = useNavigation<OtpVerifyNavProp>();
-  const { role, phone } = params;
+  const { role, phone, resendAfterSeconds } = params;
+
+  // Local ref that we can update on resend without re-navigating.
+  // Route params are immutable per screen instance, so we mirror
+  // requestId in a ref (see handleResend below).
+  const requestIdRef = useRef<string | undefined>(params.requestId);
+
+  const { verifyOtp, isPending: verifying } = useVerifyOtp();
+  const { requestOtp, isPending: resending } = useRequestOtp();
 
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
+  const [secondsLeft, setSecondsLeft] = useState(
+    // Prefer the server's cooldown when we have it, so the timer
+    // matches what the backend will actually accept on resend.
+    resendAfterSeconds ?? RESEND_SECONDS,
+  );
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -333,75 +341,77 @@ const OtpVerifyScreen: React.FC = () => {
 
   const handleVerify = useCallback(async () => {
     if (!canVerify) return;
-    setVerifying(true);
     setError(null);
     try {
-      // TODO: replace with real OTP verify mutation, e.g.:
-      //   const { data } = await apiClient.post(endpoints.auth.verifyOtp(), {
-      //     phone,
-      //     otp,
-      //     role,
-      //   });
-      //   await saveTokens({
-      //     accessToken: data.accessToken,
-      //     refreshToken: data.refreshToken,
-      //   });
-      //   dispatch(loginSuccess({
-      //     userId: data.userId,
-      //     role: data.role,
-      //     subRole: data.subRole,
-      //     entityId: data.entityId,
-      //   }));
-      //
-      // Until the endpoint is live, we mock both the tokens AND the
-      // identity that /me would return. Replace both blocks when
-      // wiring the real API.
-      await new Promise<void>(resolve => {
-        setTimeout(() => resolve(), 500);
+      // The hook handles saveTokens + dispatch(loginSuccess) on
+      // success. RootNavigator will then swap to the role's
+      // navigator on its next render — no navigation call needed.
+      await verifyOtp({
+        phone,
+        countryCode: COUNTRY_CODE,
+        otp,
+        role,
+        requestId: requestIdRef.current,
       });
-
-      // 1. Save mock tokens to Keychain — this is what makes login
-      //    persist across app kills. On next cold start, bootstrap's
-      //    readKeychainTokens() finds these, calls /me (which fails
-      //    since backend is mocked), falls back to 'provisional' auth,
-      //    and RootNavigator lands the user on their role home.
-      await saveTokens({
-        accessToken: `mock-access-${role}-${Date.now()}`,
-        refreshToken: `mock-refresh-${role}-${Date.now()}`,
-      });
-
-      // 2. Update Redux with identity for the current session.
-      dispatch(
-        loginSuccess({
-          userId: `mock-${role}-user`,
-          role,
-          subRole: null,
-          entityId: `mock-${role}-entity`,
-        }),
-      );
-    } catch {
-      setError('That code didn\u2019t work. Please try again.');
-    } finally {
-      setVerifying(false);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        switch (err.kind) {
+          case 'unauthorized':
+            setError('That code didn\u2019t work. Please try again.');
+            break;
+          case 'rateLimited':
+            setError('Too many attempts. Please wait and try again.');
+            break;
+          case 'network':
+            setError('Network error. Check your connection.');
+            break;
+          case 'timeout':
+            setError('Request timed out. Please try again.');
+            break;
+          case 'validation':
+            setError(err.message);
+            break;
+          default:
+            setError('Something went wrong. Please try again.');
+        }
+      } else {
+        setError('That code didn\u2019t work. Please try again.');
+      }
     }
-  }, [canVerify, dispatch, role]);
+  }, [canVerify, otp, phone, role, verifyOtp]);
 
   const handleResend = useCallback(async () => {
     if (resending || secondsLeft > 0) return;
-    setResending(true);
     setError(null);
     try {
-      // TODO: replace with real OTP resend mutation
-      //   (apiClient.post(endpoints.auth.requestOtp(), { phone, role }))
-      await new Promise<void>(resolve => {
-        setTimeout(() => resolve(), 400);
+      const res = await requestOtp({
+        phone,
+        countryCode: COUNTRY_CODE,
+        role,
       });
+      // Update the requestId ref so the NEXT verify sends the
+      // freshly issued handle rather than the stale one from the
+      // original send.
+      requestIdRef.current = res.requestId;
       setOtp('');
-      setSecondsLeft(RESEND_SECONDS);
-    } finally {
-      setResending(false);
+      setSecondsLeft(res.resendAfterSeconds ?? RESEND_SECONDS);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        switch (err.kind) {
+          case 'rateLimited':
+            setError('Too many requests. Please wait a moment.');
+            break;
+          case 'network':
+            setError('Network error. Check your connection.');
+            break;
+          default:
+            setError('Couldn\u2019t resend the code. Please try again.');
+        }
+      } else {
+        setError('Couldn\u2019t resend the code. Please try again.');
+      }
     }
-  }, [resending, secondsLeft]);
+  }, [phone, requestOtp, resending, role, secondsLeft]);
 
   const formattedPhone = useMemo(() => formatPhone(phone), [phone]);
   // Bottom pad on the scroll content only — SafeScreen owns the top

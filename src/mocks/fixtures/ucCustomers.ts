@@ -1,4 +1,3 @@
-/* eslint-disable import-x/no-unresolved */
 /**
  * Fixture transform: adapts legacy mock rows (from mocks/data/customers.ts)
  * to the new Customer schema (category / customerType / phoneIndia /

@@ -23,6 +23,11 @@ export const queryKeys = {
   auth: {
     all: ['auth'] as const,
     me: () => ['auth', 'me'] as const,
+    // Mutation keys — used by useMutation's `mutationKey` and read by
+    // useIsMutating() elsewhere (e.g. a global "logging you in" banner).
+    requestOtp: () => ['auth', 'requestOtp'] as const,
+    verifyOtp: () => ['auth', 'verifyOtp'] as const,
+    logout: () => ['auth', 'logout'] as const,
   },
 
   customer: {

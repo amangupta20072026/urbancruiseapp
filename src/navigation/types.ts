@@ -36,7 +36,14 @@ export type OnboardingParamList = {
 /* --------------------- Auth ------------------------- */
 export type AuthParamList = {
   Login: { role: UserRole };
-  OtpVerify: { role: UserRole; phone: string };
+  OtpVerify: {
+    role: UserRole;
+    phone: string;
+    /** Handle returned by /auth/otp/request; echoed back on verify. */
+    requestId?: string;
+    /** Server-suggested resend cooldown; overrides RESEND_SECONDS if present. */
+    resendAfterSeconds?: number;
+  };
   Support: undefined;
 };
 

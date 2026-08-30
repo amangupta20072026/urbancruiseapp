@@ -51,10 +51,7 @@ import {
   Typography,
 } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import {
-  selectRole,
-  type UserRole,
-} from '../../store/slices/appSlice';
+import { selectRole, type UserRole } from '../../store/slices/appSlice';
 import type { AuthParamList } from '../../navigation/types';
 import {
   ROLE_MAP,
@@ -62,13 +59,15 @@ import {
   type RoleSelectionSheetRef,
   withAlpha,
 } from '../../components/roles';
+import { ApiError } from '@api/errors';
+import { useRequestOtp } from './hooks';
 
 /* -----------------------------------------------------------------
  * Types & schema
  * ----------------------------------------------------------------- */
 
-type LoginRoute = RouteProp<AuthParamList , 'Login'>;
-type LoginNavProp = NativeStackNavigationProp<AuthParamList , 'Login'>;
+type LoginRoute = RouteProp<AuthParamList, 'Login'>;
+type LoginNavProp = NativeStackNavigationProp<AuthParamList, 'Login'>;
 
 const phoneSchema = z.object({
   phone: z
@@ -211,7 +210,9 @@ const LoginScreen: React.FC = () => {
   };
 
   const sheetRef = useRef<RoleSelectionSheetRef>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const { requestOtp, isPending: submitting } = useRequestOtp();
 
   const {
     control,
@@ -242,19 +243,50 @@ const LoginScreen: React.FC = () => {
     () =>
       handleSubmit(async ({ phone }) => {
         if (submitting) return;
-        setSubmitting(true);
+        setServerError(null);
         try {
-          // TODO: replace with real OTP send mutation
-          //   (apiClient.post(endpoints.auth.requestOtp(), { phone, role }))
-          await new Promise<void>(resolve => {
-            setTimeout(() => resolve(), 400);
+          const res = await requestOtp({
+            phone,
+            countryCode: COUNTRY_CODE,
+            role,
           });
-          navigation.navigate('OtpVerify', { role, phone });
-        } finally {
-          setSubmitting(false);
+          navigation.navigate('OtpVerify', {
+            role,
+            phone,
+            // Passed through so verify can echo it back to the server
+            // and the timer can align with server-side throttling.
+            requestId: res.requestId,
+            resendAfterSeconds: res.resendAfterSeconds,
+          });
+        } catch (err) {
+          // apiClient's error interceptor normalises everything to
+          // ApiError, but keep the instanceof check for the case where
+          // something upstream throws a plain Error.
+          if (err instanceof ApiError) {
+            switch (err.kind) {
+              case 'rateLimited':
+                setServerError(
+                  'Too many requests. Please wait a moment and try again.',
+                );
+                break;
+              case 'network':
+                setServerError('Network error. Check your connection.');
+                break;
+              case 'timeout':
+                setServerError('Request timed out. Please try again.');
+                break;
+              case 'validation':
+                setServerError(err.message);
+                break;
+              default:
+                setServerError('Something went wrong. Please try again.');
+            }
+          } else {
+            setServerError('Something went wrong. Please try again.');
+          }
         }
       }),
-    [handleSubmit, navigation, role, submitting],
+    [handleSubmit, navigation, requestOtp, role, submitting],
   );
 
   const canSubmit = isValid && !submitting;
@@ -377,6 +409,12 @@ const LoginScreen: React.FC = () => {
             {errors.phone && (
               <Text style={styles.errorText} accessibilityLiveRegion="polite">
                 {errors.phone.message}
+              </Text>
+            )}
+
+            {!errors.phone && serverError && (
+              <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                {serverError}
               </Text>
             )}
 
