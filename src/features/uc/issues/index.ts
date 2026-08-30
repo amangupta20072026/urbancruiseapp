@@ -1,0 +1,1 @@
+export { default as IssuesScreen } from './screens/IssuesScreen';

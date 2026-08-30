@@ -1,0 +1,85 @@
+# macOS
+.DS_Store
+
+# Environment
+.env*
+!.env.example
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Android
+.gradle/
+.cxx/
+.kotlin/
+.idea/
+local.properties
+*.iml
+*.keystore
+!debug.keystore
+*.hprof
+**/build/
+
+# Android signing
+android/keystore.properties
+*.keystore
+*.jks
+
+# iOS
+DerivedData/
+xcuserdata/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+*.hmap
+*.ipa
+**/.xcode.env.local
+**/Pods/
+
+# Metro
+.metro-health-check*
+
+# Testing
+coverage/
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Fastlane
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
+
+# Bundles
+*.jsbundle
+*.bundle
+*.map
+
+# Ruby
+/vendor/bundle/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Temporary files
+*.tmp
+*.temp

@@ -1,0 +1,1 @@
+export { FilterChips, type ChipOption } from './FilterChips';

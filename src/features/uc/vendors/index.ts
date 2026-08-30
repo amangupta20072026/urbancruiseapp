@@ -1,0 +1,1 @@
+export { default as VendorsListScreen } from './screens/VendorsListScreen';
