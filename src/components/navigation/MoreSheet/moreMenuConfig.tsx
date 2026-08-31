@@ -395,18 +395,18 @@ const ucMore: MoreItem[] = [
   {
     /**
      * Single "Directory" entry replaces the four scattered entries
-     * (Customers / Vendors / Drivers were split across Business +
-     * Operations, and UC Staff didn't exist). Directory opens a
-     * top-tab screen that hosts all four — one place, four tabs.
+     * (Customers / Vendors / Drivers / Staff). It opens a top-tab
+     * screen that hosts all four — one place, four tabs. Grouped
+     * under Business so UC's menu collapses to the documented
+     * 3-group model (Account / Business / Support).
      */
     key: 'directory',
     label: 'Directory',
     Icon: Users,
     color: Palette.blue,
     actionId: 'uc.directory',
-    group: 'directory',
+    group: 'business',
   },
-
   {
     key: 'payments',
     label: 'Payments',
@@ -415,23 +415,13 @@ const ucMore: MoreItem[] = [
     actionId: 'uc.payments',
     group: 'business',
   },
-
-  {
-    key: 'issues',
-    label: 'Issues',
-    Icon: AlertTriangle,
-    color: Palette.red,
-    actionId: 'uc.issues',
-    group: 'operations',
-  },
-
   {
     key: 'performance',
     label: 'Performance',
     Icon: TrendingUp,
     color: Palette.purple,
     actionId: 'uc.performance',
-    group: 'operations',
+    group: 'business',
   },
 
   {
@@ -440,6 +430,14 @@ const ucMore: MoreItem[] = [
     Icon: MessageSquare,
     color: Palette.orange,
     actionId: 'feedback',
+    group: 'support',
+  },
+  {
+    key: 'issues',
+    label: 'Issues',
+    Icon: AlertTriangle,
+    color: Palette.red,
+    actionId: 'uc.issues',
     group: 'support',
   },
   {
