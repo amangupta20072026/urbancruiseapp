@@ -36,6 +36,8 @@ import VendorsTabScreen from '@features/uc/vendors/screens/VendorsTabScreen';
 import StaffTabScreen from '@features/uc/staff/screens/StaffTabScreen';
 import DriversTabScreen from '@features/uc/drivers/screens/DriversTabScreen';
 
+import { DIRECTORY_TAB_LABEL } from '../types';
+
 /**
  * Local param list — the Directory tabs live entirely inside this
  * screen, so they don't need to be part of UcStackParamList.
@@ -91,22 +93,22 @@ const DirectoryScreen: React.FC = () => {
         <Tab.Screen
           name="DirectoryCustomers"
           component={CustomersTabScreen}
-          options={{ tabBarLabel: 'Customers' }}
+          options={{ tabBarLabel: DIRECTORY_TAB_LABEL.customers }}
         />
         <Tab.Screen
           name="DirectoryVendors"
           component={VendorsTabScreen}
-          options={{ tabBarLabel: 'Vendors' }}
+          options={{ tabBarLabel: DIRECTORY_TAB_LABEL.vendors }}
         />
         <Tab.Screen
           name="DirectoryStaff"
           component={StaffTabScreen}
-          options={{ tabBarLabel: 'UC Staff' }}
+          options={{ tabBarLabel: DIRECTORY_TAB_LABEL.staff }}
         />
         <Tab.Screen
           name="DirectoryDrivers"
           component={DriversTabScreen}
-          options={{ tabBarLabel: 'Drivers' }}
+          options={{ tabBarLabel: DIRECTORY_TAB_LABEL.drivers }}
         />
       </Tab.Navigator>
     </SafeScreen>

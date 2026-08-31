@@ -52,12 +52,22 @@ import {
 } from 'lucide-react-native';
 
 import { Colors } from '@theme';
+import type { UserRole } from '@rbac/roles';
 
 /* -----------------------------------------------------------------
  * Types
  * ----------------------------------------------------------------- */
 
-export type MoreRole = 'customer' | 'vendor' | 'driver' | 'uc';
+/**
+ * The set of roles the More sheet renders content for.
+ *
+ * Aliased to the canonical `UserRole` from `@rbac/roles` so there's
+ * exactly ONE source of truth for the app's role union. Extending
+ * `UserRole` (e.g. adding a 5th role) automatically extends the
+ * `MORE_MAP` exhaustiveness check below — TypeScript will error
+ * until a menu is provided for the new role.
+ */
+export type MoreRole = UserRole;
 
 export type MoreGroup =
   | 'account'

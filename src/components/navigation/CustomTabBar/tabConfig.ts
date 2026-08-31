@@ -32,12 +32,22 @@ import {
 } from 'lucide-react-native';
 
 import { Colors } from '@theme';
+import type { UserRole } from '@rbac/roles';
 
 /* -----------------------------------------------------------------
  * Types
  * ----------------------------------------------------------------- */
 
-export type TabRoleName = 'customer' | 'vendor' | 'driver' | 'uc';
+/**
+ * The set of roles the tab bar renders for.
+ *
+ * Aliased to the canonical `UserRole` from `@rbac/roles` so there's
+ * exactly ONE source of truth for the app's role union. Extending
+ * `UserRole` (e.g. adding a 5th role) automatically extends the
+ * `CONFIG_MAP` exhaustiveness check below — TypeScript will error
+ * until a tab config is provided for the new role.
+ */
+export type TabRoleName = UserRole;
 
 export type TabMeta = {
   Icon: ComponentType<LucideProps>;
