@@ -1,90 +1,58 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { TrendingUp, TrendingDown } from 'lucide-react-native';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import type { StatMetric } from '../types';
+
+/**
+ * StatCard — compact vertical layout for a 4-column row on phones.
+ *
+ * Layout (matches reference mock):
+ *   [icon bubble]
+ *   Label (single line, small caps-like)
+ *   Big value
+ *   ↑ 12.5%
+ *   vs yesterday
+ *
+ * `accent` colors the trend arrow + %; delta stays green/red by trend
+ * so a wrong-direction move still reads correctly.
+ */
 
 type Props = {
   metric: StatMetric;
   icon: React.ReactNode;
   iconBg: string;
-  sparkline: number[];
-  sparkColor: string;
+  accent: string;
 };
 
-const SPARK_W = 48;
-const SPARK_H = 22;
-
-const buildSparkPath = (values: number[], w: number, h: number) => {
-  if (!values.length) return '';
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
-  const step = w / (values.length - 1);
-  return values
-    .map((v, i) => {
-      const x = i * step;
-      const y = h - ((v - min) / span) * h;
-      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(' ');
-};
-
-export const StatCard: React.FC<Props> = ({
-  metric,
-  icon,
-  iconBg,
-  sparkline,
-  sparkColor,
-}) => {
-  const d = buildSparkPath(sparkline, SPARK_W, SPARK_H);
-  const gradientId = `spark-${metric.key}`;
+export const StatCard: React.FC<Props> = ({ metric, icon, iconBg }) => {
   const TrendIcon = metric.trend === 'up' ? TrendingUp : TrendingDown;
   const trendColor = metric.trend === 'up' ? Colors.success : Colors.error;
 
   return (
     <View style={styles.card}>
-      {/* Row 1: icon + (label, value) */}
-      <View style={styles.topRow}>
-        <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
-          {icon}
-        </View>
-        <View style={styles.textCol}>
-          <Text style={styles.label} numberOfLines={1}>
-            {metric.label}
-          </Text>
-          <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
-            {metric.value}
-          </Text>
-        </View>
+      <View style={[styles.iconBubble, { backgroundColor: iconBg }]}>
+        {icon}
       </View>
 
-      {/* Row 2: trend % + compare + sparkline */}
-      <View style={styles.bottomRow}>
-        <TrendIcon size={12} color={trendColor} />
-        <Text style={[styles.delta, { color: trendColor }]} numberOfLines={1}>
+      <Text style={styles.label} numberOfLines={1}>
+        {metric.label}
+      </Text>
+
+      <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
+        {metric.value}
+      </Text>
+
+      <View style={styles.trendRow}>
+        <TrendIcon size={10} color={trendColor} />
+        <Text style={[styles.delta, { color: trendColor }]}>
           {metric.deltaPct}%
         </Text>
-        <Text style={styles.compare} numberOfLines={1}>
-          {metric.compareLabel}
-        </Text>
-        <View style={styles.spark}>
-          <Svg width={SPARK_W} height={SPARK_H}>
-            <Defs>
-              <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={sparkColor} stopOpacity="0.25" />
-                <Stop offset="1" stopColor={sparkColor} stopOpacity="0" />
-              </LinearGradient>
-            </Defs>
-            <Path
-              d={`${d} L${SPARK_W},${SPARK_H} L0,${SPARK_H} Z`}
-              fill={`url(#${gradientId})`}
-            />
-            <Path d={d} stroke={sparkColor} strokeWidth={2} fill="none" />
-          </Svg>
-        </View>
       </View>
+
+      <Text style={styles.compare} numberOfLines={1}>
+        {metric.compareLabel}
+      </Text>
     </View>
   );
 };
@@ -93,55 +61,45 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
-    paddingVertical: Spacing.md, // 12
-    paddingHorizontal: Spacing.md, // 12
     borderWidth: 1,
     borderColor: Colors.borderLight,
+    paddingHorizontal: 10,
+    paddingVertical: Spacing.sm + 2,
+    alignItems: 'flex-start',
+    gap: 4,
     ...Shadows.xs,
   },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm, // 8
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  iconBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  textCol: {
-    flex: 1,
-    minWidth: 0, // lets flex children shrink instead of overflowing
+    marginBottom: 2,
   },
   label: {
-    fontSize: 11,
+    fontSize: 10,
     color: Colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   value: {
-    ...Typography.h5, // 22
+    ...Typography.h4,
     color: Colors.textPrimary,
-    marginTop: 2,
+    fontWeight: '800',
+    marginTop: 1,
   },
-  bottomRow: {
+  trendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: Spacing.md, // 12
-    gap: 4,
+    gap: 3,
+    marginTop: 2,
   },
   delta: {
     fontSize: 11,
     fontWeight: '700',
   },
   compare: {
-    fontSize: 10,
+    fontSize: 9,
     color: Colors.textSecondary,
-    flexShrink: 1, // KEY: lets it shrink instead of wrapping vertically
-  },
-  spark: {
-    width: SPARK_W,
-    height: SPARK_H,
   },
 });

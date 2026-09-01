@@ -1,66 +1,122 @@
 import React from 'react';
-import { StyleSheet, Text, View, Pressable } from 'react-native';
-import { Calendar, ChevronDown } from 'lucide-react-native';
-import { Colors, Dimensions, Radius, Spacing, Typography } from '@theme';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Calendar } from 'lucide-react-native';
+import { Colors, Radius, Spacing, Typography } from '@theme';
 
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+/**
+ * GreetingBlock — big greeting on the left, date "card" on the right.
+ * Matches the reference mock: bold "Good morning, {name} 👋", muted
+ * caption underneath, and a right-aligned framed date with day-number
+ * / month-year / weekday stacked.
+ */
 
-type Props = { name: string; dateISO: string; onPickDate?: () => void };
+const partsOfDay = (d: Date) => {
+  const h = d.getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
+type Props = {
+  name: string;
+  dateISO: string;
+  onPickDate?: () => void;
+};
 
 export const GreetingBlock: React.FC<Props> = ({
   name,
   dateISO,
   onPickDate,
-}) => (
-  <View style={styles.row}>
-    <View style={styles.left}>
-      <Text style={styles.eyebrow}>SIGNED IN</Text>
-      <Text style={styles.hello} numberOfLines={1} adjustsFontSizeToFit>
-        Hello, {name} 👋
-      </Text>
-      <Text style={styles.sub}>Here's what's happening today.</Text>
+}) => {
+  const date = new Date(dateISO);
+  const day = date.toLocaleDateString('en-GB', { day: '2-digit' });
+  const monthYear = date.toLocaleDateString('en-GB', {
+    month: 'short',
+    year: 'numeric',
+  });
+  const weekday = date.toLocaleDateString('en-GB', { weekday: 'long' });
+
+  return (
+    <View style={styles.row}>
+      <View style={styles.left}>
+        <Text style={styles.hello} numberOfLines={1} adjustsFontSizeToFit>
+          {partsOfDay(date)}, {name} 👋
+        </Text>
+        <Text style={styles.sub}>
+          Here's what's happening with your business today.
+        </Text>
+      </View>
+
+      <Pressable
+        onPress={onPickDate}
+        style={styles.datePill}
+        accessibilityRole="button"
+        accessibilityLabel="Change date"
+      >
+        <View style={styles.dateTextCol}>
+          <Text style={styles.dateDay}>{day}</Text>
+          <Text style={styles.dateMonth}>{monthYear}</Text>
+          <Text style={styles.dateWeekday}>{weekday}</Text>
+        </View>
+        <View style={styles.calWrap}>
+          <Calendar size={16} color={Colors.textSecondary} />
+        </View>
+      </Pressable>
     </View>
-    <Pressable onPress={onPickDate} style={styles.pill}>
-      <Calendar size={Dimensions.iconSm} color={Colors.iconSecondary} />
-      <Text style={styles.pillText}>{fmtDate(dateISO)}</Text>
-      <ChevronDown size={Dimensions.iconSm} color={Colors.iconSecondary} />
-    </Pressable>
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.md,
   },
   left: { flex: 1 },
-  eyebrow: { ...Typography.label, color: Colors.primary, letterSpacing: 0.6 },
-  hello: { ...Typography.h3, color: Colors.textPrimary, marginTop: Spacing.xs },
-  sub: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xs,
+  hello: {
+    ...Typography.h3,
+    color: Colors.textPrimary,
+    fontWeight: '800',
   },
-  pill: {
+  sub: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+
+  datePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs, // was Spacing.sm
-    paddingHorizontal: Spacing.sm, // was Spacing.md
-    paddingVertical: 6, // was Spacing.sm
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
     backgroundColor: Colors.surface,
-    borderRadius: Radius.pill,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
   },
-  pillText: {
-    fontSize: 12, // was Typography.bodySmall (14)
-    color: Colors.textPrimary,
+  dateTextCol: {
+    alignItems: 'flex-end',
+  },
+  dateDay: {
+    ...Typography.h4,
+    color: Colors.primary,
+    fontWeight: '800',
+    lineHeight: 22,
+  },
+  dateMonth: {
+    fontSize: 11,
+    color: Colors.textSecondary,
     fontWeight: '600',
+    marginTop: -1,
+  },
+  dateWeekday: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    marginTop: 1,
+  },
+  calWrap: {
+    width: 20,
+    alignItems: 'center',
   },
 });

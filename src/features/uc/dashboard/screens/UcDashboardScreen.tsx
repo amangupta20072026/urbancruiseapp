@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import { Car, Users, CalendarCheck, IndianRupee } from 'lucide-react-native';
 import { SafeScreen } from '@shared/components/SafeScreen';
@@ -13,46 +12,39 @@ import { Colors, Spacing } from '@theme';
 import { DashboardHeader } from '../components/DashboardHeader';
 import { GreetingBlock } from '../components/GreetingBlock';
 import { StatCard } from '../components/StatCard';
-import { RevenueChart } from '../components/RevenueChart';
+// eslint-disable-next-line import-x/no-unresolved
+import { InsightsBanner } from '../components/InsightsBanner';
 import { RecentBookings } from '../components/RecentBookings';
 import { useDashboard } from '../hooks/useDashboard';
 
+/**
+ * Per-stat visual config. Keeps the screen dumb about theme and lets
+ * StatCard render pure props.
+ */
 const statVisual = {
   trips: {
-    icon: <Car size={22} color={Colors.primary} />,
+    icon: <CalendarCheck size={18} color="#16A34A" />,
     bg: '#E7F7EC',
-    spark: '#22C55E',
+    fg: '#16A34A',
   },
   customers: {
-    icon: <Users size={22} color={Colors.primary} />,
-    bg: '#E7F7EC',
-    spark: '#22C55E',
+    icon: <Car size={18} color="#2563EB" />,
+    bg: '#E6F0FE',
+    fg: '#2563EB',
   },
   bookings: {
-    icon: <CalendarCheck size={22} color={Colors.secondary} />,
-    bg: '#FFF3D6',
-    spark: '#F59E0B',
+    icon: <IndianRupee size={18} color="#7C3AED" />,
+    bg: '#EEE7FA',
+    fg: '#7C3AED',
   },
   revenue: {
-    icon: <IndianRupee size={22} color="#7C3AED" />,
-    bg: '#EEE7FA',
-    spark: '#7C3AED',
+    icon: <Users size={18} color="#F97316" />,
+    bg: '#FFE9D6',
+    fg: '#F97316',
   },
 } as const;
 
-const spark = (seed: number) =>
-  Array.from(
-    { length: 8 },
-    (_, i) => Math.sin((i + seed) / 1.7) * 8 + i * 3 + seed,
-  );
-
-const H_PADDING = 16;
-const GAP = Spacing.md; // 12
-
 const UcDashboardScreen: React.FC = () => {
-  const { width } = useWindowDimensions();
-  const cardWidth = (width - H_PADDING * 2 - GAP) / 2; // exactly 2 per row
-
   const { data, isLoading, refetch, isRefetching } = useDashboard();
 
   if (isLoading || !data) {
@@ -78,30 +70,36 @@ const UcDashboardScreen: React.FC = () => {
           />
         }
       >
-        <DashboardHeader title="UC Home" subtitle="Admin Dashboard" hasUnread />
+        <DashboardHeader hasUnread />
+
         <GreetingBlock
           name={data.greeting.name}
           dateISO={data.greeting.dateISO}
         />
 
-        <View style={styles.statsGrid}>
-          {data.stats.map((m, idx) => {
+        {/* 4-up horizontal stat cards */}
+        <View style={styles.statsRow}>
+          {data.stats.map(m => {
             const v = statVisual[m.key];
             return (
-              <View key={m.key} style={{ width: cardWidth }}>
+              <View key={m.key} style={styles.statCell}>
                 <StatCard
                   metric={m}
                   icon={v.icon}
                   iconBg={v.bg}
-                  sparkColor={v.spark}
-                  sparkline={spark(idx + 1)}
+                  accent={v.fg}
                 />
               </View>
             );
           })}
         </View>
 
-        <RevenueChart data={data.revenue} />
+        <InsightsBanner
+          headline="Your business is growing! 🎉"
+          body="You have 18% more bookings this week compared to last week."
+          ctaLabel="View Insights"
+        />
+
         <RecentBookings items={data.recentBookings} />
       </ScrollView>
     </SafeScreen>
@@ -113,14 +111,17 @@ export default UcDashboardScreen;
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: {
-    paddingHorizontal: H_PADDING,
-    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
     paddingBottom: Spacing.section,
-    gap: Spacing.md,
+    gap: Spacing.lg,
   },
-  statsGrid: {
+  statsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: GAP,
+    gap: Spacing.sm,
+  },
+  statCell: {
+    flex: 1,
+    minWidth: 0, // lets text shrink inside the flex cell instead of overflowing
   },
 });
