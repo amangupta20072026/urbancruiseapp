@@ -4,9 +4,8 @@
  * StaffContactSheet
  * ------------------------------------------------------------------
  * Bottom sheet for Directory > UC Staff row tap. Same visual system
- * as VendorContactSheet — three quick-action circles (Call /
- * WhatsApp / Email) plus an info block. Phone-picker inlined here
- * (staff rarely have two lines, so state is simple).
+ * as VendorContactSheet. Info card matches the customer sheet's
+ * tinted-row design.
  * ------------------------------------------------------------------
  */
 
@@ -44,8 +43,8 @@ import { STAFF_SUBROLE_LABEL, type Staff } from '../types';
 
 type Props = { staff: Staff | null; onDismiss?: () => void };
 
-const CALL_TINT_BG = '#E7F7EC';
-const CALL_TINT_FG = '#049856';
+const CALL_TINT_BG = '#EAF2FF';
+const CALL_TINT_FG = '#1D6BFF';
 const WHATSAPP_TINT_BG = '#E3F9EA';
 const WHATSAPP_TINT_FG = '#1FA855';
 const EMAIL_TINT_BG = '#FFF1E0';
@@ -77,7 +76,6 @@ export const StaffContactSheet = forwardRef<BottomSheetModal, Props>(
 
     const snapPoints = useMemo(() => ['65%'], []);
 
-    // Simple in-sheet picker prompt — staff usually have one line.
     const [pickerMode, setPickerMode] = useState<'call' | 'whatsapp' | null>(
       null,
     );
@@ -276,7 +274,11 @@ const StaffSheetContent: React.FC<ContentProps> = ({
       <View style={styles.infoBlock}>
         <InfoRow Icon={Phone} label="Work phone" value={staff.phone} />
         {staff.phoneAlt && (
-          <InfoRow Icon={Phone} label="Alternate phone" value={staff.phoneAlt} />
+          <InfoRow
+            Icon={Phone}
+            label="Alternate phone"
+            value={staff.phoneAlt}
+          />
         )}
         <InfoRow Icon={Mail} label="Email" value={staff.email} />
         <InfoRow Icon={MapPin} label="Branch" value={staff.city} />
@@ -284,6 +286,7 @@ const StaffSheetContent: React.FC<ContentProps> = ({
           Icon={Calendar}
           label="Joined"
           value={fmtDate(staff.joinedAt)}
+          last
         />
       </View>
     </View>
@@ -303,10 +306,7 @@ type QAProps = {
 const QuickAction: React.FC<QAProps> = ({ label, onPress, bg, fg, icon }) => (
   <Pressable
     onPress={onPress}
-    style={({ pressed }) => [
-      styles.quickAction,
-      pressed && { opacity: 0.8 },
-    ]}
+    style={({ pressed }) => [styles.quickAction, pressed && { opacity: 0.8 }]}
     accessibilityRole="button"
     accessibilityLabel={label}
   >
@@ -315,21 +315,68 @@ const QuickAction: React.FC<QAProps> = ({ label, onPress, bg, fg, icon }) => (
   </Pressable>
 );
 
-const InfoRow: React.FC<{
-  Icon: React.ComponentType<{ size?: number; color?: string }>;
+/* --- InfoRow with semantic tinting --- */
+
+const ROW_TINT: Record<string, { bg: string; fg: string }> = {
+  Phone: { bg: '#E7F7EC', fg: Colors.primary },
+  Mail: { bg: '#FFF1E0', fg: '#FB8C00' },
+  MapPin: { bg: '#EDF2FF', fg: '#3B82F6' },
+  Building2: { bg: '#FFF7E6', fg: '#B45309' },
+  BadgeCheck: { bg: '#F1F3F5', fg: Colors.textSecondary },
+  Calendar: { bg: '#F1F3F5', fg: Colors.textSecondary },
+  Truck: { bg: '#EEF2FF', fg: '#4F46E5' },
+  UserCheck: { bg: '#E7F7EC', fg: Colors.success },
+  UserCog: { bg: '#EEF2FF', fg: '#4F46E5' },
+  CreditCard: { bg: '#EEF2FF', fg: '#4F46E5' },
+  IdCard: { bg: '#EEF2FF', fg: '#4F46E5' },
+  Briefcase: { bg: '#E7F7EC', fg: Colors.success },
+  ShieldCheck: { bg: '#EEF2FF', fg: '#4F46E5' },
+};
+
+const NEUTRAL_TINT = { bg: '#F1F3F5', fg: Colors.textSecondary };
+
+type InfoRowProps = {
+  Icon: React.ComponentType<{
+    size?: number;
+    color?: string;
+    strokeWidth?: number;
+  }>;
   label: string;
   value: string;
-}> = ({ Icon, label, value }) => (
-  <View style={styles.infoRow}>
-    <View style={styles.infoIcon}>
-      <Icon size={16} color={Colors.textSecondary} />
+  valueColor?: string;
+  last?: boolean;
+};
+
+const InfoRow: React.FC<InfoRowProps> = ({
+  Icon,
+  label,
+  value,
+  valueColor,
+  last,
+}) => {
+  const key = Icon.displayName ?? (Icon as { name?: string }).name ?? '';
+  const tint = ROW_TINT[key] ?? NEUTRAL_TINT;
+
+  return (
+    <View style={[styles.infoRow, last && styles.infoRowLast]}>
+      <View style={[styles.infoIcon, { backgroundColor: tint.bg }]}>
+        <Icon size={16} color={tint.fg} strokeWidth={2.2} />
+      </View>
+      <View style={styles.infoText}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text
+          style={[
+            styles.infoValue,
+            valueColor ? { color: valueColor, fontWeight: '700' } : null,
+          ]}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+      </View>
     </View>
-    <View style={styles.infoText}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  </View>
-);
+  );
+};
 
 const PickerRow: React.FC<{
   label: string;
@@ -414,37 +461,46 @@ const styles = StyleSheet.create({
   },
   quickLabel: { ...Typography.bodySmall, fontWeight: '600' },
 
+  /* Info card — matches CustomerContactSheet */
   infoBlock: {
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    padding: Spacing.md,
-    gap: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    ...Shadows.xs,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  infoRowLast: {
+    borderBottomWidth: 0,
   },
   infoIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.surface,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   infoText: { flex: 1 },
   infoLabel: {
     ...Typography.caption,
-    color: Colors.textMuted,
-    marginBottom: 1,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   infoValue: {
     ...Typography.body,
     color: Colors.textPrimary,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginTop: 1,
   },
 
   /* Picker */

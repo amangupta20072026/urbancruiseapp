@@ -1,4 +1,3 @@
-/* eslint-disable import-x/no-unresolved */
 /**
  * ------------------------------------------------------------------
  * VendorsTabScreen — Directory > Vendors tab body

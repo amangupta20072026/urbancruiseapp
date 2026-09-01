@@ -17,6 +17,14 @@
  *   lazy=true so we don't pay the network + render cost for tabs the
  *   user never visits. Each tab still keeps state after first mount
  *   (default), so returning to the tab is instant.
+ *
+ * CUSTOM TAB BAR:
+ *   The default material-top-tabs bar renders a label + bottom
+ *   indicator only. Our design (see mock) is icon + label with the
+ *   active tab tinted brand-green and a short underline beneath it.
+ *   `DirectoryTabBar` implements that; we pass it via the
+ *   `tabBar` prop and strip label/indicator styling from
+ *   `screenOptions` since the custom bar owns all of it.
  * ------------------------------------------------------------------
  */
 
@@ -29,7 +37,7 @@ import {
 } from '@react-navigation/material-top-tabs';
 
 import { SafeScreen, ScreenHeader } from '@shared/components';
-import { Colors, Spacing, Typography } from '@theme';
+import { Spacing } from '@theme';
 
 import CustomersTabScreen from '@features/uc/customers/screens/CustomersTabScreen';
 import VendorsTabScreen from '@features/uc/vendors/screens/VendorsTabScreen';
@@ -37,6 +45,7 @@ import StaffTabScreen from '@features/uc/staff/screens/StaffTabScreen';
 import DriversTabScreen from '@features/uc/drivers/screens/DriversTabScreen';
 
 import { DIRECTORY_TAB_LABEL } from '../types';
+import { DirectoryTabBar } from '../components/DirectoryTabBar';
 
 /**
  * Local param list — the Directory tabs live entirely inside this
@@ -52,26 +61,6 @@ export type DirectoryTabParamList = {
 const Tab = createMaterialTopTabNavigator<DirectoryTabParamList>();
 
 const tabOptions: MaterialTopTabNavigationOptions = {
-  tabBarActiveTintColor: Colors.primary,
-  tabBarInactiveTintColor: Colors.textSecondary,
-  tabBarLabelStyle: {
-    ...Typography.bodySmall,
-    fontWeight: '700',
-    textTransform: 'none',
-  },
-  tabBarIndicatorStyle: {
-    backgroundColor: Colors.primary,
-    height: 3,
-    borderRadius: 2,
-  },
-  tabBarStyle: {
-    backgroundColor: Colors.surface,
-    elevation: 0,
-    shadowOpacity: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  tabBarScrollEnabled: false,
   lazy: true,
   swipeEnabled: true,
 };
@@ -89,7 +78,11 @@ const DirectoryScreen: React.FC = () => {
         />
       </View>
 
-      <Tab.Navigator screenOptions={tabOptions}>
+      <Tab.Navigator
+        screenOptions={tabOptions}
+        // eslint-disable-next-line react/no-unstable-nested-components
+        tabBar={props => <DirectoryTabBar {...props} />}
+      >
         <Tab.Screen
           name="DirectoryCustomers"
           component={CustomersTabScreen}

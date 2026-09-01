@@ -51,8 +51,8 @@ type Props = {
 const EMAIL = '#FB8C00';
 
 /* Soft-tinted quick-action colors (2026 pastel style) */
-const CALL_TINT_BG = '#E7F7EC';
-const CALL_TINT_FG = '#049856';
+const CALL_TINT_BG = '#EAF2FF';
+const CALL_TINT_FG = '#1D6BFF';
 const WHATSAPP_TINT_BG = '#E3F9EA';
 const WHATSAPP_TINT_FG = '#1FA855';
 const EMAIL_TINT_BG = '#FFF1E0';

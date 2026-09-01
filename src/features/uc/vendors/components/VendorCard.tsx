@@ -1,4 +1,3 @@
-/* eslint-disable import-x/no-unresolved */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Building2, ChevronRight, MapPin, Truck } from 'lucide-react-native';

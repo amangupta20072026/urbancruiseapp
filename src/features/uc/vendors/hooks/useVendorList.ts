@@ -1,4 +1,3 @@
-/* eslint-disable import-x/no-unresolved */
 /* eslint-disable no-void */
 /**
  * ------------------------------------------------------------------
