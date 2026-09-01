@@ -20,7 +20,7 @@ import { Colors } from '@theme';
  * Service mode — the top-of-screen segmented control.
  *
  * Per Q2 confirmation: both modes share the same underlying product
- * (car & bus). "Spiritual Tour" is a UX filter/theme, not a separate
+ * (car & bus). "Spiritual Tours" is a UX filter/theme, not a separate
  * backend model. So this state stays local to the home screen — no
  * Redux slice, no query param. When we later persist it (e.g. so
  * the user's last choice sticks across app restarts), it becomes a
@@ -31,7 +31,7 @@ export type ServiceMode = 'car_bus' | 'spiritual_tour';
 
 export const SERVICE_MODE_LABEL: Record<ServiceMode, string> = {
   car_bus: 'Car & Bus Rental',
-  spiritual_tour: 'Spiritual Tour',
+  spiritual_tour: 'Spiritual Tours',
 };
 
 /* ------------------------------------------------------------------

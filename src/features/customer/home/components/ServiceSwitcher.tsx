@@ -3,7 +3,7 @@
  * ServiceSwitcher
  * ------------------------------------------------------------------
  * Icon-over-label tab switcher between the two customer service
- * modes (Car & Bus Rental / Spiritual Tour).
+ * modes (Car & Bus Rental / Spiritual Tours).
  *
  * Design pattern (extracted from reference tab-switcher UI):
  *   - Icon sits above a bold label, not beside it.
@@ -173,8 +173,10 @@ const styles = StyleSheet.create({
   },
 
   tabInactive: {
-    backgroundColor: 'transparent',
-    borderWidth: 0,
+    backgroundColor: Colors.backgroundSecondary,
+    borderWidth: 1.2,
+    borderColor: Colors.border,
+    borderBottomWidth: 0,
   },
 
   pressed: {

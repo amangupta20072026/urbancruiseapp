@@ -2,7 +2,7 @@
  * ------------------------------------------------------------------
  * useServiceMode — segmented control state for the Home header
  * ------------------------------------------------------------------
- * "Car & Bus Rental" vs "Spiritual Tour" — a visual filter on the
+ * "Car & Bus Rental" vs "Spiritual Tours" — a visual filter on the
  * same underlying product (Q2 confirmed with product). This hook
  * owns the local state.
  *
