@@ -54,10 +54,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   headline: {
-    ...Typography.h3,
+    ...Typography.h5,
     color: Colors.textPrimary,
-    fontWeight: '800',
-    letterSpacing: -0.3,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   emoji: {
     fontWeight: '400',
