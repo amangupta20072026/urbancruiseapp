@@ -19,7 +19,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Button,
   Image,
   Linking,
   Pressable,
@@ -42,7 +41,6 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { getCrashlytics, crash } from '@react-native-firebase/crashlytics';
 
 import {
   Colors,
@@ -318,8 +316,6 @@ const LoginScreen: React.FC = () => {
             accessibilityLabel="Urban Cruise"
           />
         </Animated.View>
-
-        <Button title="Test crash" onPress={() => crash(getCrashlytics())} />
 
         {/* Welcome */}
         <Animated.View entering={FadeInDown.delay(80).duration(450)}>

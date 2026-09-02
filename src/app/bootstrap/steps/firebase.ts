@@ -10,10 +10,23 @@
  * native config files (google-services.json / GoogleService-Info.plist)
  * before JS runs — so we don't call initializeApp() here.
  *
+ * Crashlytics collection state:
+ *   Single source of truth is firebase.json:
+ *     - crashlytics_auto_collection_enabled: master switch
+ *     - crashlytics_debug_enabled: overrides "off in debug" default
+ *   We deliberately DO NOT call setCrashlyticsCollectionEnabled from
+ *   JS. That API writes to Android SharedPreferences / iOS UserDefaults
+ *   and takes priority over firebase.json on every subsequent launch —
+ *   which turns firebase.json into a lie that developers can't trust.
+ *
+ *   The only legitimate use of setCrashlyticsCollectionEnabled from
+ *   JS is a user-facing consent toggle (GDPR / DPDP / CCPA). If we
+ *   add one, it goes in the settings screen — not in bootstrap.
+ *
  * What we DO here:
- *   - Toggle Crashlytics collection based on env flag
- *   - Set a lightweight "boot" attribute for triaging cold-start crashes
- *   - Register the background message handler for FCM
+ *   - Set a lightweight "boot" attribute so cold-start crashes are
+ *     easy to filter for on the dashboard.
+ *   - Register the FCM background message handler.
  *
  * This step MUST NOT throw. If Firebase is broken, the app should
  * still open — we just lose telemetry for that session.
@@ -23,14 +36,12 @@
 import { getApp } from '@react-native-firebase/app';
 import {
   getCrashlytics,
-  setCrashlyticsCollectionEnabled,
   setAttribute,
 } from '@react-native-firebase/crashlytics';
 import {
   getMessaging,
   setBackgroundMessageHandler,
 } from '@react-native-firebase/messaging';
-import { ENV } from '@config/env';
 
 export async function initFirebase(): Promise<void> {
   try {
@@ -38,10 +49,6 @@ export async function initFirebase(): Promise<void> {
     const crashlytics = getCrashlytics(app);
     const messaging = getMessaging(app);
 
-    await setCrashlyticsCollectionEnabled(
-      crashlytics,
-      Boolean(ENV.enableCrashlytics),
-    );
     await setAttribute(crashlytics, 'bootPhase', 'cold-start');
 
     // Background message handler is safe to register early —

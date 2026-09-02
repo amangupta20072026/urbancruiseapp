@@ -43,10 +43,6 @@ import {
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import {
-  getCrashlytics,
-  setCrashlyticsCollectionEnabled,
-} from '@react-native-firebase/crashlytics';
 
 import { store } from './src/store';
 import { queryClient } from '@app/queryClient';
@@ -94,11 +90,6 @@ const App: React.FC = () => {
    * ----------------------------------------------------------------- */
   React.useEffect(() => {
     void enableGlobalBlock();
-    // TEMPORARY: force-enable Crashlytics collection in development
-    // so the "Test crash" button actually reports to the dashboard.
-    // REMOVE this after verifying the pipeline end-to-end, and
-    // replace with: setCrashlyticsCollectionEnabled(getCrashlytics(), !__DEV__);
-    setCrashlyticsCollectionEnabled(getCrashlytics(), true);
   }, []);
   return (
     <GestureHandlerRootView style={styles.root}>

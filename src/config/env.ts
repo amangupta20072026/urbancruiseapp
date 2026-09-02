@@ -23,7 +23,6 @@ export const ENV = {
 
   enableLogs: Config.ENABLE_LOGS === 'true',
   enableAnalytics: Config.ENABLE_ANALYTICS === 'true',
-  enableCrashlytics: Config.ENABLE_CRASHLYTICS === 'true',
 
   defaultCountry: Config.DEFAULT_COUNTRY,
   defaultCurrency: Config.DEFAULT_CURRENCY,
