@@ -30,7 +30,7 @@ import {
   persistReducer,
   persistStore,
 } from 'redux-persist';
-
+import { deeplinkListenerMiddleware } from './listeners/deeplinkDrainListener';
 import appReducer, { type AppState } from './slices/appSlice';
 import userReducer from './slices/userSlice';
 import { reduxMmkvStorage } from './mmkvStorage';
@@ -108,7 +108,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }),
+    }).prepend(deeplinkListenerMiddleware.middleware),
 });
 
 export const persistor = persistStore(store);

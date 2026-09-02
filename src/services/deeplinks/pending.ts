@@ -27,6 +27,11 @@
  *     gate, and only `consume()`s when it actually navigates (or
  *     definitively cannot). This lets us call the drainer on every
  *     relevant state change without losing intent to a race.
+ *
+ *   Clearing:
+ *     `clear()` drops any pending target unconditionally. Called on
+ *     `logout` by the deep-link drain listener — a target stashed
+ *     for user A must never fire after user B logs in.
  * ------------------------------------------------------------------
  */
 
@@ -51,7 +56,13 @@ export function consume(): DeepLinkTarget | null {
   return t;
 }
 
-/** Test-only reset. Do not use in app code. */
-export function __resetForTests(): void {
+/**
+ * Drop any pending target unconditionally.
+ *
+ * Called on logout by the deep-link drain listener so a target
+ * stashed under the previous identity cannot fire after the next
+ * login. Also safe to call defensively from tests.
+ */
+export function clear(): void {
   pending = null;
 }
