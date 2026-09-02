@@ -65,5 +65,16 @@
 	<array>
 		<string>Audiowide-Regular.ttf</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+	<dict>
+		<key>CFBundleURLName</key>
+		<string>app.urbancruise</string>
+		<key>CFBundleURLSchemes</key>
+		<array>
+		<string>urbancruise</string>
+		</array>
+	</dict>
+	</array>	
 </dict>
 </plist>

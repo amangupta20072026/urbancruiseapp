@@ -12,7 +12,6 @@ import { Colors, Spacing } from '@theme';
 import { DashboardHeader } from '../components/DashboardHeader';
 import { GreetingBlock } from '../components/GreetingBlock';
 import { StatCard } from '../components/StatCard';
-// eslint-disable-next-line import-x/no-unresolved
 import { InsightsBanner } from '../components/InsightsBanner';
 import { RecentBookings } from '../components/RecentBookings';
 import { useDashboard } from '../hooks/useDashboard';

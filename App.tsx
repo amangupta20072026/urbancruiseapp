@@ -35,7 +35,11 @@ import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme, type Theme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  type Theme,
+} from '@react-navigation/native';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -48,6 +52,8 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from '@components/ErrorBoundary';
 import { enableGlobalBlock } from '@services/screenshot';
 import { Colors } from '@theme';
+import { drainPendingDeepLink } from '@/services/deeplinks/drain';
+import { buildLinkingConfig } from '@/services/deeplinks/linkingConfig';
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -118,7 +124,14 @@ const App: React.FC = () => {
                   and TanStack Query for any recovery actions.
                 */}
                 <ErrorBoundary name="RootBoundary">
-                  <NavigationContainer ref={navigationRef} theme={AppNavigationTheme}>
+                  <NavigationContainer
+                    ref={navigationRef}
+                    theme={AppNavigationTheme}
+                    linking={buildLinkingConfig()}
+                    onReady={() => {
+                      drainPendingDeepLink();
+                    }}
+                  >
                     <RootNavigator />
                   </NavigationContainer>
                 </ErrorBoundary>
