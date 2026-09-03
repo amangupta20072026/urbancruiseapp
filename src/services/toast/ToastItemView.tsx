@@ -189,12 +189,17 @@ const ToastItemViewInner: React.FC<Props> = ({ item }) => {
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
     let cancelled = false;
-    AccessibilityInfo.isScreenReaderEnabled().then(enabled => {
-      if (cancelled || !enabled) return;
-      AccessibilityInfo.announceForAccessibilityWithOptions(a11yMessage, {
-        queue: true,
+    AccessibilityInfo.isScreenReaderEnabled()
+      .then(enabled => {
+        if (cancelled || !enabled) return;
+        AccessibilityInfo.announceForAccessibilityWithOptions(a11yMessage, {
+          queue: true,
+        });
+      })
+      .catch(() => {
+        // A11y probe failed — silent swallow. VoiceOver simply won't
+        // announce this one toast; the visual toast is still shown.
       });
-    });
     return () => {
       cancelled = true;
     };

@@ -107,7 +107,9 @@ export const queryClient = new QueryClient({
             error.kind === 'unauthorized' ||
             error.kind === 'forbidden' ||
             error.kind === 'notFound' ||
-            error.kind === 'validation'
+            error.kind === 'validation' ||
+            error.kind === 'conflict' ||
+            error.kind === 'rateLimited'
           ) {
             return false;
           }
