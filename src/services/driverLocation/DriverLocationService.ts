@@ -1,41 +1,29 @@
 /**
- * ------------------------------------------------------------------
+ * ---------------------------------------------------------------------------
  * DriverLocationService
- * ------------------------------------------------------------------
- * Public JS API for driver trip tracking. Feature code calls exactly
- * three functions:
+ * ---------------------------------------------------------------------------
  *
- *   startDriverTracking()           — begin Android FGS + watchPosition
- *   stopDriverTracking()            — clear watch + stop FGS
- *   subscribeToLocationFixes(cb)    — receive location fixes
+ * Public JS API for driver trip location tracking.
  *
- * Plus one utility for the permission layer:
+ * Responsibilities:
  *
- *   isDeviceLocationEnabled()       — Location Services (GPS) master
- *                                     switch state. Used by
- *                                     PermissionService.isDeviceLocationOn.
+ *   - Start Android foreground service.
+ *   - Start exactly one watchPosition() subscription.
+ *   - Broadcast fixes to subscribers.
+ *   - Stop watchPosition().
+ *   - Stop Android foreground service.
  *
- * INVARIANT: this service assumes the caller has already ensured the
- * `backgroundLocation` capability via PermissionService. It does not
- * check permissions itself — that would create a circular boundary
- * (permissions service → driver location service → permissions).
- * If you call `startDriverTracking()` without the perm granted, the
- * OS will silently deny location fixes.
+ * Android:
  *
- * Architecture split:
- *   - Android:    FGS (Kotlin class) keeps process alive; JS runs
- *                 Geolocation.watchPosition() which uses LocationManager
- *                 under the hood. The FGS itself does NO location work.
- *   - iOS:        UIBackgroundModes: ["location"] in Info.plist plus
- *                 pausesLocationUpdatesAutomatically = false handles
- *                 background delivery. No native class needed — the
- *                 startForegroundService() call is a no-op on iOS.
+ *   DriverLocationForegroundService
+ *       +
+ *   react-native-geolocation-service
  *
- * Threshold tuning:
- *   distanceFilter and interval come from Config.LOCATION_DISTANCE /
- *   LOCATION_INTERVAL — see .env.example. Sane defaults are 10m and
- *   5000ms; going tighter drains battery, wider loses fidelity.
- * ------------------------------------------------------------------
+ * iOS:
+ *
+ *   Native Android FGS bridge is not used.
+ *
+ * ---------------------------------------------------------------------------
  */
 
 import { NativeModules, Platform } from 'react-native';
@@ -44,20 +32,24 @@ import Geolocation from 'react-native-geolocation-service';
 import { ENV } from '@config/env';
 import { logError } from '@services/telemetry/logError';
 
-/* -----------------------------------------------------------------
+/* --------------------------------------------------------------------------
  * Types
- * ----------------------------------------------------------------- */
+ * -------------------------------------------------------------------------- */
 
 export type LocationFix = {
   latitude: number;
   longitude: number;
-  /** Horizontal accuracy in metres — treat >50m as suspect. */
+
+  /** Horizontal accuracy in metres. */
   accuracy: number;
-  /** m/s. Null when the device can't infer speed (e.g. stationary). */
+
+  /** Speed in metres/second, when available. */
   speed: number | null;
-  /** Compass heading in degrees. Null when the device can't infer. */
+
+  /** Heading in degrees, when available. */
   heading: number | null;
-  /** Fix timestamp — ms since epoch, as reported by the device. */
+
+  /** Device fix timestamp in milliseconds since Unix epoch. */
   timestamp: number;
 };
 
@@ -69,180 +61,338 @@ type DriverLocationNativeModule = {
   isLocationEnabled: () => Promise<boolean>;
 };
 
-/* -----------------------------------------------------------------
- * Native bridge (Android only — iOS no-ops)
- * ----------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ * Native bridge
+ * -------------------------------------------------------------------------- */
 
 function androidBridge(): DriverLocationNativeModule | null {
-  if (Platform.OS !== 'android') return null;
-  const mod = (NativeModules as Record<string, unknown>)
-    .DriverLocationModule as DriverLocationNativeModule | undefined;
-  return mod ?? null;
+  if (Platform.OS !== 'android') {
+    return null;
+  }
+
+  const modules = NativeModules as Record<string, unknown>;
+
+  const module = modules.DriverLocationModule as
+    | DriverLocationNativeModule
+    | undefined;
+
+  return module ?? null;
 }
 
 async function startForegroundService(): Promise<void> {
   const bridge = androidBridge();
-  if (bridge === null) return; // iOS or unlinked module
+
+  /*
+   * iOS / unavailable native module.
+   */
+  if (bridge === null) {
+    return;
+  }
+
   await bridge.startTracking();
 }
 
 async function stopForegroundService(): Promise<void> {
   const bridge = androidBridge();
-  if (bridge === null) return;
+
+  if (bridge === null) {
+    return;
+  }
+
   try {
     await bridge.stopTracking();
-  } catch (err) {
-    // FGS stop can fail if the service was already stopped by the OS
-    // (memory pressure, OEM optimisation). Not fatal — log and move on.
-    logError(err, {
+  } catch (error) {
+    /*
+     * If Android has already killed/stopped the service, stopping it again
+     * should not make the trip cleanup fail.
+     *
+     * We still log the native error for diagnostics.
+     */
+    logError(error, {
       boundary: 'driverLocation.stopForegroundService',
     });
   }
 }
 
-/* -----------------------------------------------------------------
- * Watch state — one active watch at most, many subscribers.
- * ----------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ * Watch state
+ * -------------------------------------------------------------------------- */
 
 let watchId: number | null = null;
+
+/*
+ * Monotonically increasing operation generation.
+ *
+ * This prevents an older asynchronous start operation from starting a
+ * location watch after a newer stop operation has already happened.
+ */
+let trackingGeneration = 0;
+
 const subscribers = new Set<LocationSubscriber>();
 
+/* --------------------------------------------------------------------------
+ * Subscriber handling
+ * -------------------------------------------------------------------------- */
+
 function emit(fix: LocationFix): void {
-  // Iterate a snapshot so a subscriber that unsubscribes from within
-  // its own callback doesn't mutate the set mid-iteration.
-  for (const cb of Array.from(subscribers)) {
+  /*
+   * Iterate over a snapshot so subscribers can safely unsubscribe from
+   * inside their own callback.
+   */
+  for (const callback of Array.from(subscribers)) {
     try {
-      cb(fix);
-    } catch (err) {
-      // A bad subscriber must not tear down other subscribers.
-      logError(err, {
+      callback(fix);
+    } catch (error) {
+      /*
+       * One broken subscriber must never tear down the location watcher
+       * or prevent other subscribers from receiving the fix.
+       */
+      logError(error, {
         boundary: 'driverLocation.subscriberCallback',
       });
     }
   }
 }
 
-function startWatch(): void {
-  if (watchId !== null) return;
+/* --------------------------------------------------------------------------
+ * Location watcher
+ * -------------------------------------------------------------------------- */
 
-  watchId = Geolocation.watchPosition(
+function startWatch(generation: number): void {
+  /*
+   * If a newer stop/start operation happened while the native FGS was
+   * starting, do not create a stale watcher.
+   */
+  if (generation !== trackingGeneration) {
+    return;
+  }
+
+  /*
+   * Only one watch is allowed.
+   */
+  if (watchId !== null) {
+    return;
+  }
+
+  const id = Geolocation.watchPosition(
     position => {
+      /*
+       * Ignore callbacks belonging to a stale watcher generation.
+       */
+      if (generation !== trackingGeneration) {
+        return;
+      }
+
       emit({
         latitude: position.coords.latitude,
+
         longitude: position.coords.longitude,
+
         accuracy: position.coords.accuracy,
+
         speed: position.coords.speed,
+
         heading: position.coords.heading,
+
         timestamp: position.timestamp,
       });
     },
+
     error => {
-      // Errors here include:
-      //   PERMISSION_DENIED — the perm was revoked mid-trip
-      //   POSITION_UNAVAILABLE — GPS off, or no fix in the timeout window
-      //   TIMEOUT — no fix within `timeout`ms
-      // We log and let the caller decide (the trip screen shows a
-      // banner via useCapabilityStatus / the app-resume watcher).
+      /*
+       * Ignore errors from a watcher that has already been invalidated.
+       */
+      if (generation !== trackingGeneration) {
+        return;
+      }
+
       logError(new Error(`geolocation: ${error.code} ${error.message}`), {
         boundary: 'driverLocation.watchPosition',
       });
     },
+
     {
       accuracy: {
-        // Android: HIGH_ACCURACY (uses GPS + fused).
-        // iOS: mapped to kCLLocationAccuracyBest.
         android: 'high',
         ios: 'best',
       },
+
       enableHighAccuracy: true,
+
       distanceFilter: ENV.locationDistance,
+
       interval: ENV.locationInterval,
+
       fastestInterval: Math.max(1000, Math.floor(ENV.locationInterval / 2)),
-      // If the driver has NOT granted background location and the app
-      // backgrounds, iOS will pause updates unless this is false.
-      // Android ignores this — it's controlled by the FGS.
+
+      /*
+       * Android location delivery is kept alive by the FGS.
+       */
       showsBackgroundLocationIndicator: true,
-      // Do not force LocationManager — let the library pick fused
-      // (Google Play Services) which is more efficient.
+
+      /*
+       * Let the library use the fused provider on Android.
+       */
       forceRequestLocation: true,
+
       forceLocationManager: false,
+
+      /*
+       * We don't want react-native-geolocation-service to display its
+       * own location settings dialog.
+       */
       showLocationDialog: false,
     },
   );
+
+  watchId = id;
 }
 
+/**
+ * Stop the active JS location watcher.
+ */
 function stopWatch(): void {
-  if (watchId === null) return;
+  if (watchId === null) {
+    return;
+  }
+
   Geolocation.clearWatch(watchId);
+
   watchId = null;
 }
 
-/* -----------------------------------------------------------------
+/* --------------------------------------------------------------------------
  * Public API
- * ----------------------------------------------------------------- */
+ * -------------------------------------------------------------------------- */
 
 /**
- * Begin driver trip tracking. Idempotent — calling twice is a no-op.
- * Preconditions (NOT enforced here):
- *   - PermissionService has confirmed `backgroundLocation` granted
- *   - Device Location Services (GPS) master switch is ON
+ * Begin driver trip tracking.
+ *
+ * Idempotent:
+ *
+ *   - already tracking -> no second watch
+ *   - not tracking -> start FGS + watcher
+ *
+ * Preconditions:
+ *
+ *   - appropriate location permission has been granted
+ *   - device Location Services are enabled
+ *   - caller starts this from a workflow permitted by Android's FGS
+ *     background-start rules
  */
 export async function startDriverTracking(): Promise<void> {
+  /*
+   * New tracking generation.
+   */
+  const generation = trackingGeneration + 1;
+
+  trackingGeneration = generation;
+
+  /*
+   * Ask Android to start/promote the FGS first.
+   *
+   * Only after this succeeds do we start watchPosition().
+   */
   await startForegroundService();
-  startWatch();
+
+  /*
+   * End Trip may have happened while the native service was starting.
+   *
+   * If so, do not resurrect location tracking.
+   */
+  if (generation !== trackingGeneration) {
+    return;
+  }
+
+  startWatch(generation);
 }
 
 /**
- * End driver trip tracking. Idempotent — safe to call from a cleanup
- * effect or a lifecycle hook that may fire multiple times.
+ * End driver trip tracking.
+ *
+ * Ordering is intentional:
+ *
+ *   1. Invalidate any pending start.
+ *   2. Stop JS watchPosition().
+ *   3. Stop Android foreground service.
+ *
+ * This means a late native start completion cannot recreate the watch after
+ * End Trip.
  */
 export async function stopDriverTracking(): Promise<void> {
+  /*
+   * Invalidate all older async start operations FIRST.
+   */
+  trackingGeneration += 1;
+
+  /*
+   * Stop receiving location callbacks immediately.
+   */
   stopWatch();
+
+  /*
+   * Then stop Android FGS.
+   */
   await stopForegroundService();
 }
 
 /**
- * Subscribe to location fixes. Returns an unsubscribe function.
- * Multiple subscribers are supported — a fix is broadcast to all.
+ * Subscribe to driver location fixes.
  *
- *   useEffect(() => subscribeToLocationFixes(onFix), []);
+ * Multiple subscribers are supported.
  *
- * Does NOT start the watch on its own — the trip screen calls
- * `startDriverTracking()` when the driver taps "Start Leg".
+ * Returns an unsubscribe function.
  */
-export function subscribeToLocationFixes(cb: LocationSubscriber): () => void {
-  subscribers.add(cb);
+export function subscribeToLocationFixes(
+  callback: LocationSubscriber,
+): () => void {
+  subscribers.add(callback);
+
   return () => {
-    subscribers.delete(cb);
+    subscribers.delete(callback);
   };
 }
 
-/** True if the watch is currently active. Read-only. */
+/**
+ * Returns true when the JS location watcher is active.
+ *
+ * This is intentionally not an Android service-state query.
+ */
 export function isTrackingActive(): boolean {
   return watchId !== null;
 }
 
 /**
- * True if the device's Location Services master switch is ON.
+ * Returns whether Android's device-level Location Services switch is ON.
  *
- * Android: routed through the native module to LocationManager
- * (`isLocationEnabled` on API 28+, provider check on 24–27).
- * iOS: no library API to query without private main-thread calls;
- * returns `true` optimistically — if Location Services are off, the
- * watchPosition error path surfaces it via the trip screen banner.
+ * This is different from runtime location permission.
  *
- * Any Android bridge failure is treated as `true` — a false negative
- * would incorrectly block a driver whose GPS is on, which is a worse
- * UX than a false positive that shows the banner briefly before the
- * app-resume watcher clears it.
+ * iOS:
+ *   Returns true optimistically because this native Android API does not
+ *   exist here.
  */
 export async function isDeviceLocationEnabled(): Promise<boolean> {
-  if (Platform.OS !== 'android') return true;
+  if (Platform.OS !== 'android') {
+    return true;
+  }
+
   const bridge = androidBridge();
-  if (bridge === null) return true;
+
+  if (bridge === null) {
+    return true;
+  }
+
   try {
     return await bridge.isLocationEnabled();
-  } catch {
+  } catch (error) {
+    /*
+     * Treat bridge failure as unknown/optimistic rather than blocking the
+     * driver.
+     */
+    logError(error, {
+      boundary: 'driverLocation.isDeviceLocationEnabled',
+    });
+
     return true;
   }
 }

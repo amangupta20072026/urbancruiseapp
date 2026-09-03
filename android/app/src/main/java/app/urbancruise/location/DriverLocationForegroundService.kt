@@ -3,54 +3,25 @@
  * DriverLocationForegroundService
  * ---------------------------------------------------------------------------
  *
- * Purpose:
- *   Keeps the Urban Cruise driver app in Android's foreground-service state
- *   while an active trip is sharing the driver's location.
+ * Urban Cruise driver-trip foreground service.
  *
- * Important:
- *   This service does NOT obtain location fixes.
+ * Responsibilities:
  *
- *   Location ownership remains in JS / react-native-geolocation-service.
- *   This service exists to keep the application eligible to perform the
- *   long-running location work while the app is backgrounded/locked.
+ *   1. Promote itself to Android foreground-service state.
+ *   2. Display the mandatory trip-tracking notification.
+ *   3. Declare/use the LOCATION foreground-service type.
+ *   4. Stop cleanly when the trip ends.
  *
- * Lifecycle:
+ * This service DOES NOT request location fixes.
  *
- *   DriverLocationModule.startTracking()
- *            |
- *            v
- *   DriverLocationForegroundService.start()
- *            |
- *            v
- *   startForegroundService()
- *            |
- *            v
- *   onStartCommand()
- *            |
- *            v
- *   ServiceCompat.startForeground()
+ * Location fixes are owned by:
  *
+ *   React Native
+ *       -> react-native-geolocation-service
+ *       -> Google Play Services / fused location
  *
- * Stop:
- *
- *   DriverLocationModule.stopTracking()
- *            |
- *            +--> stop JS watchPosition()
- *            |
- *            +--> DriverLocationForegroundService.stop()
- *                         |
- *                         v
- *                    stopService()
- *                         |
- *                         v
- *                    service destroyed
- *                         |
- *                         v
- *                    onDestroy()
- *
- * The service also accepts ACTION_STOP so an explicit stop command can be
- * delivered to an already-running service. That path removes the foreground
- * state immediately and then stops the service.
+ * The Android FGS exists to support the application's long-running
+ * location-tracking use case while the app is backgrounded/locked.
  *
  * ---------------------------------------------------------------------------
  */
@@ -64,6 +35,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -73,8 +45,19 @@ import app.urbancruise.R
 
 class DriverLocationForegroundService : Service() {
 
+    override fun onCreate() {
+        super.onCreate()
+
+        /*
+         * Create the channel once when the service is created.
+         */
+        createNotificationChannel()
+    }
+
     override fun onBind(intent: Intent?): IBinder? {
-        // This is a started service, not a bound service.
+        /*
+         * This is a started service, not a bound service.
+         */
         return null
     }
 
@@ -86,109 +69,85 @@ class DriverLocationForegroundService : Service() {
 
         /*
          * -------------------------------------------------------------------
-         * Explicit STOP command
+         * START
          * -------------------------------------------------------------------
          *
-         * Do this BEFORE notification creation/startForeground().
+         * Every normal start promotes the service to foreground immediately.
          *
-         * This prevents a stop command from accidentally recreating or
-         * refreshing the foreground notification.
+         * There is intentionally NO ACTION_STOP path here.
+         *
+         * End Trip uses Context.stopService(), which is Android's normal
+         * mechanism for stopping a foreground service.
          */
-        if (intent?.action == ACTION_STOP) {
-            stopForegroundAndSelf()
-            return START_NOT_STICKY
-        }
-
-        /*
-         * -------------------------------------------------------------------
-         * Normal START path
-         * -------------------------------------------------------------------
-         */
-
-        ensureNotificationChannel()
-
         val notification = buildNotification()
 
-        /*
-         * ServiceCompat is the AndroidX compatibility API recommended for
-         * foreground-service promotion.
-         *
-         * LOCATION is declared in AndroidManifest.xml and is required for
-         * this service's use case on Android 14+.
-         */
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
             notification,
-            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
         )
 
         /*
-         * A killed trip must not silently restart itself.
+         * If Android/OEM kills this service, do not automatically recreate
+         * the driver's trip.
          *
-         * The JS/application layer must deliberately start a new trip.
+         * The application must explicitly start a new trip.
          */
         return START_NOT_STICKY
     }
 
-    /**
-     * Explicitly leaves foreground state, removes the FGS notification,
-     * and stops this service.
-     *
-     * This method is idempotent:
-     * calling it multiple times is safe.
-     */
-    private fun stopForegroundAndSelf() {
-        /*
-         * STOP_FOREGROUND_REMOVE is important.
-         *
-         * DETACH would intentionally leave the notification behind.
-         * We explicitly want the trip notification removed.
-         */
-        ServiceCompat.stopForeground(
-            this,
-            ServiceCompat.STOP_FOREGROUND_REMOVE,
-        )
-
-        /*
-         * Removing foreground state does NOT itself stop the service.
-         * stopSelf() completes the service termination.
-         */
-        stopSelf()
-    }
-
     override fun onDestroy() {
         /*
-         * onDestroy() is cleanup/fallback only.
+         * Defensive cleanup.
          *
-         * We do NOT depend on onDestroy() to receive the driver's explicit
-         * "End Trip" action.
+         * The normal stop path uses Context.stopService().
+         * Android then destroys the service and this cleanup makes sure
+         * foreground state and the notification are removed.
          *
-         * The normal explicit stop path already calls
-         * stopForeground(STOP_FOREGROUND_REMOVE).
-         *
-         * Keeping this call here makes destruction cleanup idempotent and
-         * protects against lifecycle paths where the service is destroyed
-         * without going through our explicit stop command.
+         * Calling this more than once is safe.
          */
-        ServiceCompat.stopForeground(
-            this,
-            ServiceCompat.STOP_FOREGROUND_REMOVE,
-        )
+        removeForegroundNotification()
 
         super.onDestroy()
     }
 
-    /*
-     * -----------------------------------------------------------------------
-     * Notification
-     * -----------------------------------------------------------------------
+    /**
+     * Remove the service from foreground state and explicitly cancel the
+     * notification.
+     *
+     * STOP_FOREGROUND_REMOVE is the important part for the normal Android
+     * foreground-service lifecycle.
+     *
+     * The additional NotificationManager.cancel() is intentionally used as
+     * defensive OEM cleanup. Some vendor notification implementations can
+     * visually retain/update a notification briefly after the service has
+     * left foreground state.
      */
+    private fun removeForegroundNotification() {
+        ServiceCompat.stopForeground(
+            this,
+            ServiceCompat.STOP_FOREGROUND_REMOVE,
+        )
 
-    private fun ensureNotificationChannel() {
         /*
-         * Notification channels only exist on Android O+.
+         * Defensive notification cancellation.
+         *
+         * This happens AFTER stopForeground(), so we are no longer asking
+         * Android to remove the notification while the service is still
+         * required to remain foreground.
          */
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE)
+                as NotificationManager
+
+        notificationManager.cancel(NOTIFICATION_ID)
+    }
+
+    /**
+     * Create the notification channel used by the trip FGS.
+     */
+    private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             return
         }
@@ -198,11 +157,9 @@ class DriverLocationForegroundService : Service() {
                 as NotificationManager
 
         /*
-         * Never recreate an existing channel.
+         * Do not recreate an existing channel.
          *
-         * Android persists user-controlled channel settings. Recreating
-         * the channel does not reset those settings, but checking first
-         * keeps the operation cheap and explicit.
+         * Android preserves the user's channel-level settings.
          */
         if (
             notificationManager.getNotificationChannel(CHANNEL_ID) != null
@@ -216,7 +173,7 @@ class DriverLocationForegroundService : Service() {
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
             description =
-                "Shown while an Urban Cruise trip is active and driver location is being shared."
+                "Shown while an Urban Cruise driver trip is active and location is being shared."
 
             setShowBadge(false)
             enableLights(false)
@@ -226,12 +183,16 @@ class DriverLocationForegroundService : Service() {
         notificationManager.createNotificationChannel(channel)
     }
 
+    /**
+     * Build the mandatory foreground-service notification.
+     */
     private fun buildNotification(): Notification {
+
         /*
-         * Tapping the notification returns the driver to MainActivity.
+         * Open the existing MainActivity instead of creating a second
+         * activity instance.
          *
-         * SINGLE_TOP prevents a second MainActivity instance when the
-         * existing activity can receive the intent.
+         * MainActivity is already configured as singleTask in the manifest.
          */
         val activityIntent = Intent(
             this,
@@ -239,12 +200,12 @@ class DriverLocationForegroundService : Service() {
         ).apply {
             flags =
                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
 
         val pendingIntent = PendingIntent.getActivity(
             this,
-            REQUEST_CODE_NOTIFICATION,
+            NOTIFICATION_REQUEST_CODE,
             activityIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or
                 PendingIntent.FLAG_IMMUTABLE,
@@ -254,10 +215,19 @@ class DriverLocationForegroundService : Service() {
             this,
             CHANNEL_ID,
         )
+            /*
+             * IMPORTANT:
+             *
+             * This should eventually be replaced with a dedicated
+             * monochrome notification/status-bar icon.
+             *
+             * For now this preserves your existing resource so the change
+             * does not require adding another drawable immediately.
+             */
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("Trip in progress")
             .setContentText(
-                "Urban Cruise is sharing your location with dispatch and the customer.",
+                "Urban Cruise is sharing your location.",
             )
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -268,48 +238,51 @@ class DriverLocationForegroundService : Service() {
             .build()
     }
 
-    /*
-     * -----------------------------------------------------------------------
-     * Service API
-     * -----------------------------------------------------------------------
-     */
-
     companion object {
 
-        const val CHANNEL_ID = "driver_location_tracking"
-
-        const val NOTIFICATION_ID = 4201
-
-        private const val CHANNEL_NAME = "Trip tracking"
-
-        private const val REQUEST_CODE_NOTIFICATION = 4201
+        /*
+         * Notification channel ID.
+         *
+         * Do NOT change this casually in production because channel IDs
+         * are persisted by Android.
+         */
+        const val CHANNEL_ID =
+            "driver_location_tracking"
 
         /*
-         * Keep the action private to this application.
+         * Stable notification ID.
          *
-         * The service is explicitly exported=false in the manifest, so an
-         * external application cannot invoke this component.
+         * Must be non-zero.
          */
-        private const val ACTION_START =
-            "app.urbancruise.location.action.START"
+        const val NOTIFICATION_ID =
+            4201
 
-        private const val ACTION_STOP =
-            "app.urbancruise.location.action.STOP"
+        private const val CHANNEL_NAME =
+            "Trip tracking"
+
+        private const val NOTIFICATION_REQUEST_CODE =
+            4201
 
         /**
-         * Starts the location foreground service.
+         * Start the driver's location foreground service.
          *
          * IMPORTANT:
-         * Call this as part of a user-visible trip-start flow while the app
-         * satisfies Android's foreground-service start requirements.
+         *
+         * The caller must satisfy Android's location permission and
+         * foreground-service start requirements before calling this.
+         *
+         * For Android 12+, location FGS startup is subject to background
+         * start restrictions.
+         *
+         * For Android 14+, location FGS prerequisites are checked when the
+         * service is promoted to foreground.
          */
         fun start(context: Context) {
+
             val intent = Intent(
                 context,
                 DriverLocationForegroundService::class.java,
-            ).apply {
-                action = ACTION_START
-            }
+            )
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -319,42 +292,21 @@ class DriverLocationForegroundService : Service() {
         }
 
         /**
-         * Stops the service.
+         * Stop the driver's location foreground service.
          *
-         * This is the preferred stop mechanism when the caller already knows
-         * the service should no longer exist.
+         * This is intentionally implemented using Context.stopService().
          *
-         * Android explicitly supports stopping a foreground service through
-         * Context.stopService().
+         * Android's official FGS documentation explicitly supports
+         * Context.stopService() for stopping a foreground service.
          */
         fun stop(context: Context) {
+
             val intent = Intent(
                 context,
                 DriverLocationForegroundService::class.java,
             )
 
             context.stopService(intent)
-        }
-
-        /**
-         * Sends an explicit STOP command to the running service.
-         *
-         * Useful when you specifically want the service itself to execute
-         * foreground-notification removal before stopping itself.
-         */
-        fun requestStop(context: Context) {
-            val intent = Intent(
-                context,
-                DriverLocationForegroundService::class.java,
-            ).apply {
-                action = ACTION_STOP
-            }
-
-            /*
-             * This is an ordinary service command to an already-running
-             * foreground service. It is NOT startForegroundService().
-             */
-            context.startService(intent)
         }
     }
 }
