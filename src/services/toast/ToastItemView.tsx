@@ -96,21 +96,18 @@ const ToastItemViewInner: React.FC<Props> = ({ item }) => {
     activeOffsetY: -6,
     failOffsetY: 12,
     onUpdate: e => {
-      // Only respond to upward motion; ignore downward drags.
+      'worklet';
       translateY.value = Math.min(0, e.translationY);
       opacity.value = 1 - Math.min(1, -translateY.value / 80);
     },
     onDeactivate: e => {
+      'worklet';
       const shouldDismiss =
         e.velocityY < DISMISS_VELOCITY ||
         translateY.value < DISMISS_TRANSLATION;
       if (shouldDismiss) {
         translateY.value = withTiming(-120, { duration: 180 });
         opacity.value = withTiming(0, { duration: 180 }, () => {
-          // `scheduleOnRN` (react-native-worklets) is the current
-          // replacement for the deprecated `runOnJS` from Reanimated.
-          // It hops from the UI thread back to the JS thread so we
-          // can call the store's `dismiss` action safely.
           scheduleOnRN(runDismiss);
         });
       } else {
