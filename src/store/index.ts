@@ -11,6 +11,10 @@
  * `hasSeenOnboarding` is persisted DIRECTLY to MMKV by the bootstrap
  * orchestrator (not through redux-persist) so it's readable
  * synchronously during cold start.
+ *
+ * `permissions` slice is INTENTIONALLY NOT PERSISTED — see the file
+ * header in slices/permissionsSlice.ts. The OS is the source of truth;
+ * we do not want to rehydrate stale grants across process kills.
  * ------------------------------------------------------------------
  */
 
@@ -33,6 +37,7 @@ import {
 import { deeplinkListenerMiddleware } from './listeners/deeplinkDrainListener';
 import appReducer, { type AppState } from './slices/appSlice';
 import userReducer from './slices/userSlice';
+import permissionsReducer from './slices/permissionsSlice';
 import { reduxMmkvStorage } from './mmkvStorage';
 
 /* -----------------------------------------------------------------
@@ -42,6 +47,7 @@ import { reduxMmkvStorage } from './mmkvStorage';
 const rootReducer = combineReducers({
   app: appReducer,
   user: userReducer,
+  permissions: permissionsReducer,
 });
 
 type RootReducerState = ReturnType<typeof rootReducer>;
@@ -83,6 +89,9 @@ const appSliceTransform = createTransform<AppState, PersistedAppSubset>(
 
 /* -----------------------------------------------------------------
  * Persist config
+ *
+ * `permissions` is NOT in the whitelist — it must start empty every
+ * cold start so the OS check on first foreground is authoritative.
  * ----------------------------------------------------------------- */
 
 const persistConfig = {
@@ -90,6 +99,7 @@ const persistConfig = {
   version: 3, // bumped: shape changed vs previous release
   storage: reduxMmkvStorage,
   transforms: [appSliceTransform],
+  whitelist: ['app', 'user'],
 };
 
 const persistedReducer = persistReducer(
