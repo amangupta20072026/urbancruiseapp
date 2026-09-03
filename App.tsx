@@ -50,7 +50,9 @@ import { queryPersister, shouldPersistQuery } from '@app/queryPersister';
 import { navigationRef } from './src/navigation/NavigationService';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from '@components/ErrorBoundary';
+import { PermissionSheetHost } from '@components/permissions';
 import { enableGlobalBlock } from '@services/screenshot';
+import { startAppResumeWatcher } from '@services/permissions';
 import { Colors } from '@theme';
 import { drainPendingDeepLink } from '@/services/deeplinks/drain';
 import { buildLinkingConfig } from '@/services/deeplinks/linkingConfig';
@@ -92,6 +94,23 @@ const App: React.FC = () => {
   React.useEffect(() => {
     void enableGlobalBlock();
   }, []);
+
+  /* -----------------------------------------------------------------
+   * Start the permission app-resume watcher.
+   *
+   * On every foreground return, re-checks every cached capability
+   * against the OS — this catches "user revoked in Settings while the
+   * app was backgrounded" without polling. Screens react automatically
+   * because the watcher writes into permissionsSlice.
+   *
+   * The cleanup is only meaningful for tests / hot reloads; the
+   * subscription otherwise lives for the process lifetime.
+   * ----------------------------------------------------------------- */
+  React.useEffect(() => {
+    const unsubscribe = startAppResumeWatcher();
+    return unsubscribe;
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <Provider store={store}>
@@ -136,6 +155,15 @@ const App: React.FC = () => {
                     <RootNavigator />
                   </NavigationContainer>
                 </ErrorBoundary>
+                {/*
+                  PermissionSheetHost sits inside BottomSheetModalProvider
+                  (required for @gorhom to work) but OUTSIDE the
+                  ErrorBoundary so a screen crash cannot leave a pending
+                  permission-request promise dangling. It is ABOVE
+                  ToastHost so a permission sheet's backdrop doesn't
+                  obscure a toast the sheet itself triggered.
+                */}
+                <PermissionSheetHost />
                 {/*
                   ToastHost sits OUTSIDE the navigator and OUTSIDE the
                   ErrorBoundary so a screen crash or route change never
