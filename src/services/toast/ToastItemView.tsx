@@ -24,23 +24,25 @@
 
 import React, { useEffect } from 'react';
 import {
+  AccessibilityInfo,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   type ViewStyle,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   cancelAnimation,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { X } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
@@ -69,6 +71,19 @@ const ToastItemViewInner: React.FC<Props> = ({ item }) => {
    * `translateY` drives both the finger-follow gesture and the
    * final exit animation. React Native Reanimated layout animations
    * handle the tail-end fade-out at the host level.
+   *
+   * NOTE ON THE RNGH 3 HOOK API:
+   *   `usePanGesture(config)` is the current (RNGH 3+) replacement
+   *   for the deprecated builder `Gesture.Pan()`. Configuration is
+   *   passed as a plain object rather than chained methods.
+   *
+   *   Callback rename per the official migration guide:
+   *     onStart  -> onActivate
+   *     onEnd    -> onDeactivate     ← we use this one
+   *     onUpdate -> onUpdate         (unchanged)
+   *
+   *   The hook memoises its result internally, so no `useMemo`
+   *   wrapper is needed.
    * ------------------------------------------------------------- */
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(1);
@@ -77,28 +92,33 @@ const ToastItemViewInner: React.FC<Props> = ({ item }) => {
     dismiss(item.id);
   };
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetY(-6)
-    .failOffsetY(12)
-    .onUpdate(e => {
+  const panGesture = usePanGesture({
+    activeOffsetY: -6,
+    failOffsetY: 12,
+    onUpdate: e => {
       // Only respond to upward motion; ignore downward drags.
       translateY.value = Math.min(0, e.translationY);
       opacity.value = 1 - Math.min(1, -translateY.value / 80);
-    })
-    .onEnd(e => {
+    },
+    onDeactivate: e => {
       const shouldDismiss =
         e.velocityY < DISMISS_VELOCITY ||
         translateY.value < DISMISS_TRANSLATION;
       if (shouldDismiss) {
         translateY.value = withTiming(-120, { duration: 180 });
         opacity.value = withTiming(0, { duration: 180 }, () => {
-          runOnJS(runDismiss)();
+          // `scheduleOnRN` (react-native-worklets) is the current
+          // replacement for the deprecated `runOnJS` from Reanimated.
+          // It hops from the UI thread back to the JS thread so we
+          // can call the store's `dismiss` action safely.
+          scheduleOnRN(runDismiss);
         });
       } else {
         translateY.value = withSpring(0, { damping: 18, stiffness: 220 });
         opacity.value = withSpring(1, { damping: 18, stiffness: 220 });
       }
-    });
+    },
+  });
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -130,15 +150,60 @@ const ToastItemViewInner: React.FC<Props> = ({ item }) => {
   }));
 
   /* --- Accessibility announcement -------------------------------
-   * React Native's `AccessibilityRole` doesn't include 'status', so
-   * we map our semantic role: 'alert' stays as 'alert' (assertive on
-   * both platforms), 'status' downgrades to 'none' + a polite
-   * `accessibilityLiveRegion` on Android. iOS VoiceOver picks up
-   * `accessibilityLabel` on mount either way.
+   * Two-pronged strategy so both platforms actually SPEAK the toast:
+   *
+   *   Android — `accessibilityLiveRegion` (assertive | polite) tells
+   *             TalkBack to announce when the node appears or its
+   *             text changes. This prop is Android-only.
+   *
+   *   iOS     — VoiceOver ignores live regions. It only announces
+   *             when the focus changes or when we imperatively call
+   *             `AccessibilityInfo.announceForAccessibility(msg)`.
+   *             We fire that in a useEffect on mount (see below).
+   *
+   *   Both    — `accessibilityRole="alert"` for error/warning gives
+   *             the item the right semantic weight in the a11y tree.
+   *             The label combines title + description so screen
+   *             readers get the full message in one utterance.
    * ------------------------------------------------------------- */
   const a11yRole = style.a11yRole === 'alert' ? ('alert' as const) : undefined;
   const a11yLiveRegion =
     style.a11yRole === 'alert' ? ('assertive' as const) : ('polite' as const);
+
+  const a11yMessage = item.description
+    ? `${item.title}. ${item.description}`
+    : item.title;
+
+  /**
+   * iOS VoiceOver announcement.
+   *
+   * We check `isScreenReaderEnabled` first so we don't spam the
+   * announcement queue when nobody's listening — the API is cheap
+   * but a bounded queue is polite. On Android the live-region prop
+   * already handles announcement, so we skip this branch.
+   *
+   * `queue: true` (iOS 13+) appends to the announcement queue instead
+   * of interrupting whatever VoiceOver is currently speaking, which
+   * matches the toast's non-blocking nature.
+   */
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let cancelled = false;
+    AccessibilityInfo.isScreenReaderEnabled().then(enabled => {
+      if (cancelled || !enabled) return;
+      AccessibilityInfo.announceForAccessibilityWithOptions(a11yMessage, {
+        queue: true,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Announce once per item id. Title/description changes on the
+    // SAME id (rare — only via replace-in-place) intentionally do
+    // not re-announce, matching the visual "reset timer, keep row"
+    // behaviour in the store.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
 
   const hasAction = item.action !== undefined;
 
@@ -154,9 +219,7 @@ const ToastItemViewInner: React.FC<Props> = ({ item }) => {
         accessible
         accessibilityRole={a11yRole}
         accessibilityLiveRegion={a11yLiveRegion}
-        accessibilityLabel={
-          item.description ? `${item.title}. ${item.description}` : item.title
-        }
+        accessibilityLabel={a11yMessage}
         style={[styles.card, animatedStyle]}
       >
         {/* Accent bar — carries variant colour without tinting the whole

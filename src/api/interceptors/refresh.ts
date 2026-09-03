@@ -25,6 +25,7 @@ import {
   clearTokens,
 } from '@services/storage/secureStorage';
 import { reset } from '@navigation/NavigationService';
+import { toast } from '@services/toast';
 
 type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
@@ -91,4 +92,11 @@ async function runRefresh(): Promise<string | null> {
 async function forceLogout(): Promise<void> {
   await clearTokens();
   reset('AuthFlow');
+  // Tell the user WHY they landed back on Login. The reset above is
+  // silent from a UX standpoint; without this toast, users think the
+  // app crashed. This is one of the few places we toast outside the
+  // TanStack Query error path — a 401 with a dead refresh token can
+  // happen when no query is in flight (e.g. woken from a background
+  // notification tap), so the query cache wouldn't catch it.
+  toast.info('Your session expired. Please sign in again.');
 }
