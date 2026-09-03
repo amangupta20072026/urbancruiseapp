@@ -54,6 +54,7 @@ import { enableGlobalBlock } from '@services/screenshot';
 import { Colors } from '@theme';
 import { drainPendingDeepLink } from '@/services/deeplinks/drain';
 import { buildLinkingConfig } from '@/services/deeplinks/linkingConfig';
+import { ToastHost } from '@services/toast';
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -135,6 +136,16 @@ const App: React.FC = () => {
                     <RootNavigator />
                   </NavigationContainer>
                 </ErrorBoundary>
+                {/*
+                  ToastHost sits OUTSIDE the navigator and OUTSIDE the
+                  ErrorBoundary so a screen crash or route change never
+                  removes the surface that would announce the crash. It
+                  is inside SafeAreaProvider (needs insets), inside
+                  KeyboardProvider (unrelated but harmless), and inside
+                  GestureHandlerRootView (needs pan-to-dismiss). Its own
+                  z-index / elevation puts it above @gorhom/bottom-sheet.
+                */}
+                <ToastHost />
               </BottomSheetModalProvider>
             </KeyboardProvider>
           </SafeAreaProvider>

@@ -40,7 +40,6 @@ import type { RootStackParamList } from '@navigation/types';
 
 import { resolveUrl } from './resolve';
 import { stash } from './pending';
-// eslint-disable-next-line import-x/no-unresolved
 import { targetToNavigatePayload } from './toNavigate';
 
 /* ================================================================
