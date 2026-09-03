@@ -23,7 +23,8 @@
  *   - requiresDeviceLocationOn    — GPS master switch must be ON
  *   - rationale                   — copy for the pre-prompt sheet
  *   - fallback                    — behavior on hard denial
- *   - telemetryKey                — funnel event name prefix
+ *   - telemetryKey                — funnel event name prefix (closed
+ *                                    union — see PermissionTelemetryKey)
  *
  * SEE ALSO:
  *   - docs/permissions-audit.md
@@ -81,6 +82,30 @@ export type Capability =
   | 'downloadPdf';
 
 /* -----------------------------------------------------------------
+ * Telemetry keys — closed union owned by this module.
+ *
+ * A capability's telemetryKey MUST be a member of this union. Kept
+ * here (rather than in @services/telemetry) so:
+ *   1. CapabilityDescriptor.telemetryKey is narrowly typed at the
+ *      registry — a typo like 'phone_dailer' is a compile error.
+ *   2. logEvent.ts imports this union to compose the closed
+ *      EventName type — the funnel event name is validated end-to-end.
+ *
+ * INVARIANT: every distinct value in this union MUST be used by
+ * exactly one capability's telemetryKey. Enforced by manual review
+ * (the registry is short).
+ * ----------------------------------------------------------------- */
+
+export type PermissionTelemetryKey =
+  | 'notifications'
+  | 'foreground_location'
+  | 'background_location'
+  | 'camera'
+  | 'photo_picker'
+  | 'phone_dialer'
+  | 'download_pdf';
+
+/* -----------------------------------------------------------------
  * Descriptor shape
  * ----------------------------------------------------------------- */
 
@@ -117,7 +142,7 @@ export type CapabilityDescriptor = {
   readonly requiresDeviceLocationOn: boolean;
   readonly rationale: RationaleCopy;
   readonly fallback: DenialFallback;
-  readonly telemetryKey: string;
+  readonly telemetryKey: PermissionTelemetryKey;
 };
 
 /* -----------------------------------------------------------------

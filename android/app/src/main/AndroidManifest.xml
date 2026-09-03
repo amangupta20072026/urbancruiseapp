@@ -1,7 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Queries for intent resolution -->
+    <!-- ============================================================
+         Intent-resolution queries (Android 11+ package visibility).
+         Kept as-is from the previous manifest — the `tel:`, `mailto:`,
+         and WhatsApp queries let contactService's canOpenURL() work.
+         ============================================================ -->
     <queries>
         <!-- WhatsApp package for canOpenURL() to work on Android 11+ -->
         <package android:name="com.whatsapp" />
@@ -26,8 +30,99 @@
             <data android:scheme="https" />
         </intent>
     </queries>
-    
-    <uses-permission android:name="android.permission.INTERNET" />        
+
+    <!-- ============================================================
+         PERMISSIONS
+         ============================================================
+         Authoritative source: docs/permissions-audit.md (Tier tables).
+         Any change here MUST be reflected there.
+
+         Runtime prompts are role-gated at request time by
+         @rbac/capabilities — this manifest only declares the maximum
+         possible surface.
+         ============================================================ -->
+
+    <!-- ── Normal (install-time) permissions ─────────────────────── -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- ── Foreground service (base + typed) ─────────────────────── -->
+    <!-- Base perm required by any FGS. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Type-specific perm for Driver trip tracking. Android 14+
+         requires this per FGS type; without it the OS throws
+         SecurityException at startForeground(). The service itself
+         (with foregroundServiceType="location") lands in step 5. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- ── Runtime (dangerous) permissions — role-gated in JS ────── -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- ── Legacy storage — capped on Android 9 and below ────────── -->
+    <!-- On API 29+ we use scoped storage (MediaStore.Downloads) — no
+         perm needed. Cap the declaration so it can't leak into the
+         merged manifest on modern builds. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+                     android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+                     android:maxSdkVersion="28" />
+
+    <!-- ============================================================
+         PERMISSIONS EXPLICITLY REMOVED FROM THE MERGED MANIFEST
+         ============================================================
+         Libraries in package.json will otherwise inject these via
+         manifest merger. Each removal has a documented Play-Store
+         rationale in docs/permissions-audit.md (Tier 4).
+
+         DO NOT add any of these back without updating the audit doc
+         AND filing the corresponding Play Console declaration.
+         ============================================================ -->
+
+    <!-- react-native-image-picker (library-pick path) would add these.
+         We use the OS Photo Picker via react-native-permissions
+         instead — Play policy restricts these to gallery/photo-manager
+         apps. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
+                     tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
+                     tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+                     tools:node="remove" />
+
+    <!-- @notifee/react-native injects these. We do not need any of
+         them: reminders are server-side FCM pushes, and we do not
+         ship an incoming-call full-screen UI. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
+                     tools:node="remove" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"
+                     tools:node="remove" />
+    <uses-permission android:name="android.permission.BROADCAST_CLOSE_SYSTEM_DIALOGS"
+                     tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"
+                     tools:node="remove" />
+
+    <!-- ============================================================
+         HARDWARE FEATURES
+         ============================================================
+         Declared as NOT required so devices without them (rare, but
+         possible with tablets missing GPS, or camera-less enterprise
+         devices) still see us in the Play Store. Runtime code guards
+         with the `unavailable` capability status.
+         ============================================================ -->
+    <uses-feature android:name="android.hardware.camera"
+                  android:required="false" />
+    <uses-feature android:name="android.hardware.location"
+                  android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps"
+                  android:required="false" />
 
     <application
       android:name=".MainApplication"
@@ -39,7 +134,7 @@
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true"
       android:enableOnBackInvokedCallback="false">
-      
+
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
@@ -74,7 +169,30 @@
         <data android:pathPrefix="/uc" />
         <data android:pathPrefix="/notifications" />
         <data android:pathPrefix="/support" />
-        </intent-filter>                
+        </intent-filter>
       </activity>
+
+      <!-- ==========================================================
+           Driver trip-tracking foreground service (step 5)
+           ==========================================================
+           Declared here so the manifest is complete, but the Kotlin
+           class is delivered in step 5. Until then, the FGS is not
+           started at runtime — startForegroundService() is guarded
+           in JS behind the `backgroundLocation` capability grant.
+
+           foregroundServiceType="location" is MANDATORY on Android
+           14+ for FGS that access location. Must match one of the
+           types declared via the FOREGROUND_SERVICE_LOCATION perm
+           above; the OS matches at startForeground() time.
+
+           tools:ignore="MissingClass" so Android Lint doesn't fail
+           the release build before the Kotlin class exists.
+           ========================================================== -->
+      <service
+        android:name=".location.DriverLocationForegroundService"
+        android:exported="false"
+        android:foregroundServiceType="location"
+        tools:ignore="MissingClass" />
+
     </application>
 </manifest>

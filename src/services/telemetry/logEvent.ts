@@ -17,15 +17,55 @@
  * ------------------------------------------------------------------
  */
 
+import type { PermissionTelemetryKey } from '@rbac/capabilities';
+
+/* -----------------------------------------------------------------
+ * Permission events — funnel telemetry from PermissionService.
+ *
+ * PermissionTelemetryKey is imported from @rbac/capabilities to keep
+ * the SSoT there: a capability's descriptor field IS the key we emit.
+ * Verbs are defined here because they're logEvent-facing vocabulary,
+ * not RBAC vocabulary.
+ *
+ * The final concrete strings look like:
+ *   'permission.camera.prompt_shown'
+ *   'permission.background_location.prominent_disclosure_dismissed'
+ *   'permission.foreground_location.gps_off'
+ * ----------------------------------------------------------------- */
+
+export type PermissionTelemetryVerb =
+  | 'check'
+  | 'rationale_shown'
+  | 'rationale_dismissed'
+  | 'prominent_disclosure_shown'
+  | 'prominent_disclosure_dismissed'
+  | 'prompt_shown'
+  | 'granted'
+  | 'denied'
+  | 'blocked'
+  | 'blocked_recovery_shown'
+  | 'settings_opened'
+  | 'gps_off'
+  | 'rbac_violation';
+
+export type PermissionEventName =
+  `permission.${PermissionTelemetryKey}.${PermissionTelemetryVerb}`;
+
+/* -----------------------------------------------------------------
+ * The closed EventName union
+ * ----------------------------------------------------------------- */
+
 export type EventName =
   /** Screenshot detected (iOS-only signal; Android blocks it entirely). */
   | 'security.screenshot_detected'
   /** Screen recording started (both platforms). */
   | 'security.recording_started'
   /** App backgrounded while sensitive content was on screen. */
-  | 'security.background_while_sensitive';
-  /* Add more event names here as the app grows. Keeping this a
-   * closed union rather than `string` catches typos at compile time. */
+  | 'security.background_while_sensitive'
+  /** Permission service funnel events. */
+  | PermissionEventName;
+/* Add more event names here as the app grows. Keeping this a
+ * closed union rather than `string` catches typos at compile time. */
 
 export type EventProperties = Record<string, unknown>;
 

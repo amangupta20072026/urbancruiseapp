@@ -1,12 +1,45 @@
-# Resolve react_native_pods.rb with node to allow for hoisting
-require Pod::Executable.execute_command('node', ['-p',
-  'require.resolve(
-    "react-native/scripts/react_native_pods.rb",
-    {paths: [process.argv[1]]},
-  )', __dir__]).strip
+# ------------------------------------------------------------------
+# Podfile — Urban Cruise iOS
+# ------------------------------------------------------------------
+# Uses the `node_require` helper pattern so multiple Ruby scripts
+# from node_modules can be resolved and loaded (react-native's
+# pod script + react-native-permissions' setup.rb).
+#
+# setup_permissions([...]) OPTS IN to the specific iOS permission
+# handlers we ship. Anything NOT listed here is not compiled into
+# the app — meaning the App Store static analyzer will not see
+# unused NS*UsageDescription references. This keeps the binary
+# minimal and avoids ITMS-90683 for permissions we don't use.
+#
+# IMPORTANT: after editing setup_permissions, you MUST re-run
+#   cd ios && pod install
+# The change is not picked up automatically.
+# ------------------------------------------------------------------
+
+def node_require(script)
+  # Resolve script with node to allow for hoisting
+  require Pod::Executable.execute_command('node', ['-p',
+    "require.resolve(
+      '#{script}',
+      {paths: [process.argv[1]]},
+    )", __dir__]).strip
+end
+
+node_require('react-native/scripts/react_native_pods.rb')
+node_require('react-native-permissions/scripts/setup.rb')
 
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
+
+# ⬇️ Only these four handlers ship with the binary — every other
+#    permission from react-native-permissions is dead-stripped.
+#    Must be kept in sync with @rbac/capabilities.
+setup_permissions([
+  'Camera',            # capability: 'camera'          (all roles)
+  'LocationWhenInUse', # capability: 'foregroundLocation' (customer, driver)
+  'LocationAlways',    # capability: 'backgroundLocation' (driver only)
+  'Notifications',     # capability: 'notifications'   (all roles)
+])
 
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil

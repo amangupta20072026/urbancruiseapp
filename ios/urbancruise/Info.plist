@@ -2,6 +2,29 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- ================================================================
+	     PERMISSION PURPOSE STRINGS
+	     ================================================================
+	     Every NS*UsageDescription MUST have a non-empty string. Apple's
+	     static analyzer rejects builds with empty ones (ITMS-90683).
+
+	     Wording is role-AGNOSTIC — the same binary serves customer,
+	     vendor, driver, and UC. The rationale sheet shown INSIDE the
+	     app (per @rbac/capabilities) is role-specific; the OS prompt
+	     text below is not.
+
+	     Any edit here MUST stay truthful vs how the app uses the API,
+	     or App Review will reject.
+	     ================================================================ -->
+	<key>NSCameraUsageDescription</key>
+	<string>Urban Cruise uses your camera for profile photos, vehicle documents, and trip receipts.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Urban Cruise uses your location to show real-time trip progress and share it with your driver or dispatch.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Drivers use Urban Cruise to share their live trip location with customers and dispatch, even when the app is in the background, so trips can be safely tracked from start to finish.</string>
+
+	<!-- LSApplicationQueriesSchemes — kept as-is for contactService's
+	     canOpenURL() checks on iOS. -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>tel</string>
@@ -9,6 +32,10 @@
 		<string>mailto</string>
 		<string>whatsapp</string>
 	</array>
+
+	<!-- ================================================================
+	     Standard bundle metadata (unchanged from previous plist)
+	     ================================================================ -->
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -40,8 +67,6 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
@@ -65,6 +90,20 @@
 	<array>
 		<string>Audiowide-Regular.ttf</string>
 	</array>
+	<!-- ================================================================
+	     UIBackgroundModes — REQUIRED for Driver background tracking
+	     ================================================================
+	     Without 'location' in this array, iOS will suspend the app the
+	     moment the driver locks the screen and background location
+	     updates will stop. This is separate from (and additional to)
+	     the NSLocationAlways*UsageDescription above.
+	     ================================================================ -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 	<dict>
@@ -75,6 +114,6 @@
 		<string>urbancruise</string>
 		</array>
 	</dict>
-	</array>	
+	</array>
 </dict>
 </plist>

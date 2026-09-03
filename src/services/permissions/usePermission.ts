@@ -1,37 +1,28 @@
-/* eslint-disable no-void */
 /**
  * ------------------------------------------------------------------
- * usePermission — React hooks over PermissionService (SCAFFOLD)
+ * usePermission — React hooks over PermissionService
  * ------------------------------------------------------------------
- * Two hooks — that's it. Everything else is a private helper.
- *
  *   useCapabilityStatus(cap)
- *     - subscribes to permissionsSlice for reactive status
+ *     - reactive subscription to permissionsSlice
+ *     - kicks off a background live-check on mount / role change
  *     - returns { status, deviceLocationOn, isChecking }
- *     - safe to call in render
- *     - callers do NOT pass role — the hook reads it from Redux,
- *       which closes the RBAC gate at the hook layer too
  *
  *   useEnsurePermission(cap)
- *     - returns a stable callback that runs the full ensure() flow
- *     - rationale sheet → prominent disclosure (if needed) → OS
- *       prompt → cache write → blocked-recovery on hard denial
- *     - resolves with the final EnsureResult so the caller can react
+ *     - stable callback that runs the full ensure() flow on demand
+ *     - resolves with EnsureResult so the caller can react
  *
- * IMPLEMENTATION STATUS: hook signatures are FINAL; bodies are
- * scaffold and will throw NOT_IMPLEMENTED at runtime. Screens can
- * be wired to the hook shape now and light up when the service body
- * lands.
+ * Both hooks read the current role from Redux; callers never pass it.
+ * That closes the RBAC gate at the hook layer AND at the service layer.
  * ------------------------------------------------------------------
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Capability } from '@rbac/capabilities';
 import { useAppSelector } from '@store/hooks';
 
+import { checkCapability, ensureCapability } from './PermissionService';
 import type { CapabilityStatus, EnsureResult } from './types';
-import { PermissionServiceError } from './types';
 
 /* -----------------------------------------------------------------
  * useCapabilityStatus
@@ -39,27 +30,36 @@ import { PermissionServiceError } from './types';
 
 export type CapabilityStatusView = {
   status: CapabilityStatus;
-  /**
-   * For location capabilities: last-known device Location Services
-   * state. `null` for non-location capabilities or when not yet
-   * checked. Screens use this to render the "Turn on location" banner
-   * separately from the permission-denied banner.
-   */
   deviceLocationOn: boolean | null;
-  /** True while a live check is in flight and no cached result exists. */
   isChecking: boolean;
 };
 
 export function useCapabilityStatus(cap: Capability): CapabilityStatusView {
   const entry = useAppSelector(s => s.permissions.entries[cap]);
+  const role = useAppSelector(s => s.app.userRole);
+  const [isChecking, setIsChecking] = useState<boolean>(entry === undefined);
 
-  // Runtime: an effect here will call PermissionService.checkCapability
-  // on mount + on role change, flipping isChecking. Scaffold returns
-  // the current cache slice only.
+  // Live-check on mount and when the role changes. Guarded so a
+  // hot-reload / rapid remount doesn't stack overlapping requests.
+  const inflight = useRef(false);
+  useEffect(() => {
+    if (inflight.current) return;
+    inflight.current = true;
+    setIsChecking(true);
+    checkCapability(cap, role)
+      .catch(() => {
+        /* liveCheck failure is handled inside the service */
+      })
+      .finally(() => {
+        inflight.current = false;
+        setIsChecking(false);
+      });
+  }, [cap, role]);
+
   return {
     status: entry?.status ?? 'unknown',
     deviceLocationOn: entry?.deviceLocationOn ?? null,
-    isChecking: false,
+    isChecking,
   };
 }
 
@@ -72,12 +72,5 @@ export type EnsureFn = () => Promise<EnsureResult>;
 export function useEnsurePermission(cap: Capability): EnsureFn {
   const role = useAppSelector(s => s.app.userRole);
 
-  return useCallback(async () => {
-    void role;
-    void cap;
-    throw new PermissionServiceError(
-      'NOT_IMPLEMENTED',
-      'useEnsurePermission: runtime pending — scaffold only.',
-    );
-  }, [cap, role]);
+  return useCallback(() => ensureCapability(cap, role), [cap, role]);
 }
