@@ -321,3 +321,19 @@ test('photoPicker: RBAC-passed → granted (real work happens in openPhotoPicker
   const result = await ensureCapability('photoPicker', 'customer');
   expect(result).toEqual({ status: 'granted' });
 });
+
+test('foregroundLocation granted with GPS off resolves preconditionFailed', async () => {
+  mockedCheck.mockResolvedValue('granted');
+  // Also mock isDeviceLocationEnabled to return false — needs a mock
+  // on '@services/driverLocation' at the top of the file.
+  jest.mock('@services/driverLocation', () => ({
+    isDeviceLocationEnabled: jest.fn().mockResolvedValue(false),
+  }));
+
+  const result = await ensureCapability('foregroundLocation', 'driver');
+  expect(result).toEqual({ status: 'preconditionFailed', reason: 'gpsOff' });
+  expect(mockLogEvent).toHaveBeenCalledWith(
+    'permission.foreground_location.gps_off',
+    expect.anything(),
+  );
+});

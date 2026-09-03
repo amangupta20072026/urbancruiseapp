@@ -50,7 +50,10 @@ import {
 } from '@rbac/capabilities';
 import type { UserRole } from '@rbac/roles';
 import { store } from '@store';
-import { statusChanged } from '@store/slices/permissionsSlice';
+import {
+  statusChanged,
+  preconditionFailed,
+} from '@store/slices/permissionsSlice';
 import { isDeviceLocationEnabled } from '@services/driverLocation';
 
 import {
@@ -392,17 +395,35 @@ async function handleBlocked(cap: Capability): Promise<EnsureResult> {
   return { status: 'blocked' };
 }
 
+/**
+ * Checks the GPS master-switch state for an already-granted location
+ * capability.
+ *
+ * IMPORTANT: this only ever runs after the OS grant status has
+ * already been written via `writeCache` in the calling ensurer (e.g.
+ * `ensureForegroundLocation`), so an entry always exists here — the
+ * `preconditionFailed` reducer's `existing?.status ?? 'unknown'`
+ * fallback is a safety net, not something this function should ever
+ * actually rely on.
+ *
+ * On GPS-off, the OS grant itself hasn't changed — only a runtime
+ * precondition has — so this dispatches `preconditionFailed` instead
+ * of `statusChanged`, keeping "grant changed" and "precondition
+ * changed" as distinct events in the store.
+ */
 async function checkGpsPrecondition(
   cap: Capability,
   status: 'granted' | 'limited',
 ): Promise<EnsureResult> {
   const on = await isDeviceLocationOn();
-  writeCache(cap, status, on);
 
   if (!on) {
     emitPermissionEvent(cap, 'gps_off');
+    writeGpsOff(cap);
     return { status: 'preconditionFailed', reason: 'gpsOff' };
   }
+
+  writeCache(cap, status, true);
   return status === 'limited' ? { status: 'limited' } : { status: 'granted' };
 }
 
@@ -456,6 +477,14 @@ function writeCache(
   deviceLocationOn: boolean | null = null,
 ): void {
   store.dispatch(statusChanged({ capability: cap, status, deviceLocationOn }));
+}
+
+/**
+ * Records a GPS-off precondition failure without touching the
+ * capability's OS grant status. See `checkGpsPrecondition` above.
+ */
+function writeGpsOff(cap: Capability): void {
+  store.dispatch(preconditionFailed({ capability: cap, reason: 'gpsOff' }));
 }
 
 /* -----------------------------------------------------------------

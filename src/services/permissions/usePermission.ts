@@ -41,18 +41,19 @@ export function useCapabilityStatus(cap: Capability): CapabilityStatusView {
 
   // Live-check on mount and when the role changes. Guarded so a
   // hot-reload / rapid remount doesn't stack overlapping requests.
-  const inflight = useRef(false);
+  const inflightKey = useRef<string | null>(null);
   useEffect(() => {
-    if (inflight.current) return;
-    inflight.current = true;
+    const key = `${cap}::${role ?? 'null'}`;
+    if (inflightKey.current === key) return;
+    inflightKey.current = key;
     setIsChecking(true);
     checkCapability(cap, role)
-      .catch(() => {
-        /* liveCheck failure is handled inside the service */
-      })
+      .catch(() => {})
       .finally(() => {
-        inflight.current = false;
-        setIsChecking(false);
+        if (inflightKey.current === key) {
+          inflightKey.current = null;
+          setIsChecking(false);
+        }
       });
   }, [cap, role]);
 

@@ -43,6 +43,7 @@ import PermissionSheet, {
   type PermissionSheetMode,
   type PermissionSheetRef,
 } from './PermissionSheet';
+import { resetSheetHandlers } from '@/services/permissions/sheetHandlers';
 
 /**
  * Two resolver shapes, both narrow. We union them so a single ref can
@@ -65,20 +66,33 @@ const PermissionSheetHost: React.FC = () => {
     configureSheetHandlers({
       showRationale: copy =>
         new Promise<SheetChoice>(resolve => {
+          if (resolverRef.current !== null) {
+            // Another permission sheet is already in progress.
+            // Reject this overlapping request cleanly so the first
+            // request can finish normally.
+            resolve('dismiss');
+            return;
+          }
+
           decidedRef.current = false;
           resolverRef.current = { kind: 'sheetChoice', resolve };
+
           setMode('rationale');
           setCopy(copy);
-          // present() is safe to call before setState commits — the
-          // sheet reads its `copy` prop on the next render, which
-          // happens before the modal's mount animation completes.
           sheetRef.current?.present();
         }),
 
       showProminentDisclosure: copy =>
         new Promise<SheetChoice>(resolve => {
+          if (resolverRef.current !== null) {
+            // Another permission sheet is already in progress.
+            resolve('dismiss');
+            return;
+          }
+
           decidedRef.current = false;
           resolverRef.current = { kind: 'sheetChoice', resolve };
+
           setMode('prominent');
           setCopy(copy);
           sheetRef.current?.present();
@@ -86,13 +100,24 @@ const PermissionSheetHost: React.FC = () => {
 
       showBlockedRecovery: copy =>
         new Promise<BlockedRecoveryChoice>(resolve => {
+          if (resolverRef.current !== null) {
+            // Another permission sheet is already in progress.
+            resolve('dismiss');
+            return;
+          }
+
           decidedRef.current = false;
           resolverRef.current = { kind: 'blockedRecovery', resolve };
+
           setMode('blocked');
           setCopy(copy);
           sheetRef.current?.present();
         }),
     });
+
+    return () => {
+      resetSheetHandlers();
+    };
   }, []);
 
   /* -----------------------------------------------------------------

@@ -127,6 +127,8 @@ const PermissionSheet = forwardRef<PermissionSheetRef, Props>(
         backgroundStyle={styles.background}
       >
         <BottomSheetView
+          accessibilityViewIsModal
+          importantForAccessibility="yes"
           style={[
             styles.container,
             {
@@ -138,7 +140,11 @@ const PermissionSheet = forwardRef<PermissionSheetRef, Props>(
               that mode so a Play reviewer watching the demo video can
               spot the disclosure at a glance. */}
           {isProminent && (
-            <View style={styles.badge} accessibilityRole="text">
+            <View
+              style={styles.badge}
+              accessibilityRole="text"
+              accessibilityLiveRegion="polite"
+            >
               <MapPin size={14} color={Colors.warning} />
               <Text style={styles.badgeText}>Required for driver trips</Text>
             </View>
