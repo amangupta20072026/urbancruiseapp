@@ -51,12 +51,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- ── Foreground service (base + typed) ─────────────────────── -->
-    <!-- Base perm required by any FGS. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Type-specific perm for Driver trip tracking. Android 14+
-         requires this per FGS type; without it the OS throws
-         SecurityException at startForeground(). The service itself
-         (with foregroundServiceType="location") lands in step 5. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <!-- ── Runtime (dangerous) permissions — role-gated in JS ────── -->
@@ -67,9 +62,6 @@
     <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- ── Legacy storage — capped on Android 9 and below ────────── -->
-    <!-- On API 29+ we use scoped storage (MediaStore.Downloads) — no
-         perm needed. Cap the declaration so it can't leak into the
-         merged manifest on modern builds. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
                      android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
@@ -77,29 +69,13 @@
 
     <!-- ============================================================
          PERMISSIONS EXPLICITLY REMOVED FROM THE MERGED MANIFEST
-         ============================================================
-         Libraries in package.json will otherwise inject these via
-         manifest merger. Each removal has a documented Play-Store
-         rationale in docs/permissions-audit.md (Tier 4).
-
-         DO NOT add any of these back without updating the audit doc
-         AND filing the corresponding Play Console declaration.
          ============================================================ -->
-
-    <!-- react-native-image-picker (library-pick path) would add these.
-         We use the OS Photo Picker via react-native-permissions
-         instead — Play policy restricts these to gallery/photo-manager
-         apps. -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
                      tools:node="remove" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
                      tools:node="remove" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
                      tools:node="remove" />
-
-    <!-- @notifee/react-native injects these. We do not need any of
-         them: reminders are server-side FCM pushes, and we do not
-         ship an incoming-call full-screen UI. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
                      tools:node="remove" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"
@@ -110,12 +86,7 @@
                      tools:node="remove" />
 
     <!-- ============================================================
-         HARDWARE FEATURES
-         ============================================================
-         Declared as NOT required so devices without them (rare, but
-         possible with tablets missing GPS, or camera-less enterprise
-         devices) still see us in the Play Store. Runtime code guards
-         with the `unavailable` capability status.
+         HARDWARE FEATURES — not required
          ============================================================ -->
     <uses-feature android:name="android.hardware.camera"
                   android:required="false" />
@@ -160,7 +131,6 @@
         <category android:name="android.intent.category.DEFAULT" />
         <category android:name="android.intent.category.BROWSABLE" />
         <data android:scheme="https" android:host="app.urbancruise.in" />
-        <!-- List only the paths we OWN — never blanket "/" without pathPrefix -->
         <data android:pathPrefix="/bookings" />
         <data android:pathPrefix="/trip" />
         <data android:pathPrefix="/quotations" />
@@ -173,26 +143,20 @@
       </activity>
 
       <!-- ==========================================================
-           Driver trip-tracking foreground service (step 5)
-           ==========================================================
-           Declared here so the manifest is complete, but the Kotlin
-           class is delivered in step 5. Until then, the FGS is not
-           started at runtime — startForegroundService() is guarded
-           in JS behind the `backgroundLocation` capability grant.
+           Driver trip-tracking foreground service.
+           Kotlin class:
+             android/app/src/main/java/app/urbancruise/location/
+               DriverLocationForegroundService.kt
 
-           foregroundServiceType="location" is MANDATORY on Android
-           14+ for FGS that access location. Must match one of the
-           types declared via the FOREGROUND_SERVICE_LOCATION perm
-           above; the OS matches at startForeground() time.
-
-           tools:ignore="MissingClass" so Android Lint doesn't fail
-           the release build before the Kotlin class exists.
+           foregroundServiceType="location" MUST match the granted
+           runtime permission (ACCESS_FINE_LOCATION +
+           ACCESS_BACKGROUND_LOCATION). The OS checks this at
+           startForeground() time on Android 14+.
            ========================================================== -->
       <service
-        android:name=".location.DriverLocationForegroundService"
+        android:name="app.urbancruise.location.DriverLocationForegroundService"
         android:exported="false"
-        android:foregroundServiceType="location"
-        tools:ignore="MissingClass" />
+        android:foregroundServiceType="location" />
 
     </application>
 </manifest>

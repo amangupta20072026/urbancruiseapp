@@ -51,6 +51,7 @@ import {
 import type { UserRole } from '@rbac/roles';
 import { store } from '@store';
 import { statusChanged } from '@store/slices/permissionsSlice';
+import { isDeviceLocationEnabled } from '@services/driverLocation';
 
 import {
   BACKGROUND_LOCATION_PERM,
@@ -408,22 +409,25 @@ async function checkGpsPrecondition(
 /**
  * Device GPS master-switch state.
  *
- * OPEN QUESTION — depends on the location library the app will pick.
- * Options (pick one when trip tracking is implemented):
- *   - react-native-geolocation-service: Geolocation.getProviderStatus()
- *   - @react-native-community/geolocation: not exposed; would need
- *     a small native module.
- *   - Detect via absence of fixes after N seconds — heuristic, works
- *     but adds latency.
+ * Delegated to `@services/driverLocation` which owns the native
+ * bridge to LocationManager. Kept OUT of this file so PermissionService
+ * has no dependency on `react-native-geolocation-service` — that
+ * library assumes callers have already checked perms, which would
+ * flip the dep direction (permissions ← location) upside down.
  *
- * Until a library is chosen, this returns `true` optimistically. The
- * state-machine two-step flow (foreground → background → OS prompt)
- * still works correctly; only the "GPS is off, tap here to turn it
- * on" banner is deferred. When the library lands, replace this body
- * — nothing else in the service changes.
+ * The driverLocation implementation:
+ *   - Android: LocationManager.isLocationEnabled (API 28+) via a
+ *              native module; provider fallback on API 24–27.
+ *   - iOS:     optimistic `true` — CLLocationManager's status check
+ *              requires main-thread gymnastics; watchPosition's
+ *              error path surfaces "off" state at the trip screen.
+ *
+ * A false positive here shows a "Turn on Location" banner briefly
+ * that the app-resume watcher will clear. A false negative silently
+ * blocks a driver whose GPS is on. We prefer the false positive.
  */
 async function isDeviceLocationOn(): Promise<boolean> {
-  return true;
+  return isDeviceLocationEnabled();
 }
 
 function mapRnpResult(result: PermissionStatus): CapabilityStatus {

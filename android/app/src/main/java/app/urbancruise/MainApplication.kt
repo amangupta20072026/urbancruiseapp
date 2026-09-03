@@ -9,6 +9,8 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 
 import com.facebook.react.common.assets.ReactFontManager
 
+import app.urbancruise.location.DriverLocationPackage
+
 class MainApplication : Application(), ReactApplication {
 
   override val reactHost: ReactHost by lazy {
@@ -18,6 +20,9 @@ class MainApplication : Application(), ReactApplication {
         PackageList(this).packages.apply {
           // Packages that cannot be autolinked yet can be added manually here, for example:
           add(SplashReadyPackage())
+          // Driver trip-tracking foreground service bridge.
+          // See android/app/src/main/java/app/urbancruise/location/.
+          add(DriverLocationPackage())
         },
     )
   }
