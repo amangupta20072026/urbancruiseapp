@@ -25,7 +25,6 @@
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-import { mockCurrentUser } from '@mocks/data/currentUser';
 import type { ISODateTime } from '@app-types/datetime';
 import { logout } from './appSlice';
 
@@ -62,18 +61,11 @@ export type UserState = {
 /* Initial state                                                      */
 /* ------------------------------------------------------------------ */
 
-/* v1: seeded from mockCurrentUser fixture. When the real /me endpoint
- * lands, change this to `null` — the auth bootstrap step will dispatch
- * userReceived(...) with the API payload before RootNavigator renders. */
+/* Profile is null until /me (bootstrap) or /auth/otp/verify (login) lands
+ * and dispatches userReceived(...). Screens that read the profile MUST
+ * handle the null case — see GreetingBlock which renders a skeleton. */
 const initialState: UserState = {
-  profile: {
-    id: mockCurrentUser.id,
-    displayName: mockCurrentUser.displayName,
-    email: mockCurrentUser.email,
-    phoneIndia: mockCurrentUser.phoneIndia,
-    phoneGlobal: mockCurrentUser.phoneGlobal,
-    memberSince: mockCurrentUser.memberSince,
-  },
+  profile: null,
 };
 
 /* ------------------------------------------------------------------ */

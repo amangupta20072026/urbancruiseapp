@@ -48,6 +48,7 @@
 
 import type { AppDispatch } from '@store';
 import { bootstrapCompleted } from '@store/slices/appSlice';
+import { userReceived } from '@store/slices/userSlice';
 
 import { withTimeout } from './timeouts';
 import { initFirebase } from './steps/firebase';
@@ -95,6 +96,14 @@ export async function runBootstrap(dispatch: AppDispatch): Promise<void> {
     ]);
 
     // ── Phase 4: commit ─────────────────────────────────────────
+    // Order matters: hydrate the user slice BEFORE flipping
+    // `bootstrapped`, so RootNavigator's first authenticated render
+    // already sees state.user.profile populated. Otherwise the home
+    // screen paints once with an empty greeting, then again with the
+    // real name — the exact bug we saw as "Good afternoon, there".
+    if (authResult.value.status === 'authenticated') {
+      dispatch(userReceived(authResult.value.profile));
+    }
     dispatch(
       bootstrapCompleted({
         appConfig: configResult.value,

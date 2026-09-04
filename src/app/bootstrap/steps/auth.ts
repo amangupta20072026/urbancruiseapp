@@ -24,6 +24,7 @@ import { endpoints } from '@api/endpoints';
 import { ApiError } from '@api/errors';
 import { clearTokens } from '@services/storage/secureStorage';
 import type { UserRole, SubRole } from '@rbac/roles';
+import type { UserProfile } from '@store/slices/userSlice';
 
 export type AuthResolution =
   | {
@@ -32,6 +33,8 @@ export type AuthResolution =
       role: UserRole;
       subRole: SubRole;
       entityId: string;
+      /** Full display profile — dispatched to user slice by bootstrap. */
+      profile: UserProfile;
     }
   | {
       status: 'provisional';
@@ -44,6 +47,7 @@ type MeResponse = {
   role: UserRole;
   subRole: SubRole;
   entityId: string;
+  profile: UserProfile;
 };
 
 /**
@@ -61,6 +65,7 @@ export async function validateAuth(): Promise<AuthResolution> {
       role: data.role,
       subRole: data.subRole,
       entityId: data.entityId,
+      profile: data.profile,
     };
   } catch (err) {
     if (

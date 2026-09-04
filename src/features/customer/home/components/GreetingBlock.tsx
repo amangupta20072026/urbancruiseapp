@@ -33,12 +33,28 @@ export const GreetingBlock: React.FC<Props> = ({
   subtitle = DEFAULT_SUBTITLE,
 }) => {
   const greeting = getGreeting();
-  const nameOrFallback = firstName || 'there';
+
+  // If the profile hasn't hydrated yet, render a skeleton bar in place
+  // of the name rather than a placeholder like "there". In production
+  // this window is only the few frames between bootstrap dispatching
+  // userReceived and RootNavigator painting the home screen — users
+  // perceive a normal loading state, not a broken greeting.
+  if (!firstName) {
+    return (
+      <View style={styles.wrap}>
+        <View style={styles.skeletonRow}>
+          <Text style={styles.headline}>{greeting},</Text>
+          <View style={styles.skeletonBar} />
+        </View>
+        <Text style={styles.subtitle}>{subtitle}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.headline} numberOfLines={2}>
-        {greeting}, {nameOrFallback}
+        {greeting}, {firstName}
         <Text style={styles.emoji}> 👋</Text>
       </Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
@@ -65,5 +81,16 @@ const styles = StyleSheet.create({
   subtitle: {
     ...Typography.body,
     color: Colors.textSecondary,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  skeletonBar: {
+    height: 20,
+    width: 120,
+    borderRadius: 6,
+    backgroundColor: '#E5E7EB',
   },
 });

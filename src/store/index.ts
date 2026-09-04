@@ -30,6 +30,7 @@ import {
   PURGE,
   REGISTER,
   REHYDRATE,
+  createMigrate,
   createTransform,
   persistReducer,
   persistStore,
@@ -94,12 +95,29 @@ const appSliceTransform = createTransform<AppState, PersistedAppSubset>(
  * cold start so the OS check on first foreground is authoritative.
  * ----------------------------------------------------------------- */
 
+/**
+ * v4 migration: prior to this version, userSlice initial state was
+ * seeded from a mock fixture and no code path dispatched `userReceived`
+ * with the real /me / /verify-otp payload. If a user ever logged out
+ * during a v3 session, `user.profile` was persisted as `null`, and
+ * every subsequent login rehydrated that null — the greeting fell back
+ * to "Good afternoon, there". v4 drops the persisted user slice once
+ * so the next bootstrap / login populates it fresh from the server.
+ */
+const migrations = {
+  4: (state: any) => ({
+    ...state,
+    user: { profile: null },
+  }),
+};
+
 const persistConfig = {
   key: 'urbancruise-root',
-  version: 3, // bumped: shape changed vs previous release
+  version: 4,
   storage: reduxMmkvStorage,
   transforms: [appSliceTransform],
   whitelist: ['app', 'user'],
+  migrate: createMigrate(migrations, { debug: false }),
 };
 
 const persistedReducer = persistReducer(

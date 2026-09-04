@@ -44,7 +44,9 @@ import { queryKeys } from '@constants/queryKeys';
 import { saveTokens } from '@services/storage/secureStorage';
 import { useAppDispatch } from '@store/hooks';
 import { loginSuccess } from '@store/slices/appSlice';
+import { userReceived, type UserProfile } from '@store/slices/userSlice';
 import type { UserRole, SubRole } from '@rbac/roles';
+import { isoNow } from '@app-types/datetime';
 
 /* ------------------------------------------------------------------ */
 /* Toggle                                                             */
@@ -82,6 +84,8 @@ export type VerifyOtpResponse = {
   role: UserRole;
   subRole: SubRole;
   entityId: string;
+  /** Full display profile — mirrors GET /auth/me. */
+  profile: UserProfile;
 };
 
 /* ------------------------------------------------------------------ */
@@ -106,6 +110,14 @@ async function verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
       role: input.role,
       subRole: null,
       entityId: `mock-${input.role}-entity`,
+      profile: {
+        id: `mock-${input.role}-user`,
+        displayName: 'Aman Gupta',
+        email: 'aman@urbancruise.dev',
+        phoneIndia: `${input.countryCode}${input.phone}`,
+        phoneGlobal: `${input.countryCode}${input.phone}`,
+        memberSince: isoNow(),
+      },
     };
   }
 
@@ -138,6 +150,12 @@ export function useVerifyOtp() {
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
       });
+      // Order matters: hydrate the user slice BEFORE loginSuccess.
+      // loginSuccess flips isAuthenticated, which triggers RootNavigator
+      // to swap into the role stack; the home screen's first render
+      // must already see state.user.profile populated so the greeting
+      // shows the real name, never the "there" fallback.
+      dispatch(userReceived(data.profile));
       dispatch(
         loginSuccess({
           userId: data.userId,
