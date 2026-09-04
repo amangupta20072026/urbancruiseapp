@@ -19,7 +19,14 @@
  */
 
 /* -----------------------------------------------------------------
- * Module mocks — must be declared BEFORE the imports below.
+ * Module mocks — MUST be declared before the SUT imports below.
+ * babel-plugin-jest-hoist lifts these above the `import` statements
+ * so the SUT sees the mocked modules when it evaluates.
+ *
+ * jest.mock() calls inside a test body do NOT hoist and will silently
+ * do nothing if the SUT has already imported the real module — see
+ * the foregroundLocation test at the bottom for the correct
+ * "override per-test" pattern.
  * ----------------------------------------------------------------- */
 
 jest.mock('react-native-permissions', () => ({
@@ -39,18 +46,23 @@ jest.mock('react-native-permissions', () => ({
     ANDROID: {
       CAMERA: 'android.permission.CAMERA',
       ACCESS_FINE_LOCATION: 'android.permission.ACCESS_FINE_LOCATION',
-      ACCESS_BACKGROUND_LOCATION:
-        'android.permission.ACCESS_BACKGROUND_LOCATION',
     },
     IOS: {
       CAMERA: 'ios.permission.CAMERA',
       LOCATION_WHEN_IN_USE: 'ios.permission.LOCATION_WHEN_IN_USE',
-      LOCATION_ALWAYS: 'ios.permission.LOCATION_ALWAYS',
     },
   },
 }));
 
+/**
+ * Full react-native surface used by the SUT and its transitive imports.
+ * `NativeModules` is included as an empty object so any code path that
+ * touches `NativeModules.SomeModule` gets `undefined` instead of
+ * blowing up on `NativeModules` itself being undefined — see the
+ * DriverLocationService bridge, which reads NativeModules directly.
+ */
 jest.mock('react-native', () => ({
+  NativeModules: {},
   Platform: {
     OS: 'android',
     select: (spec: { android?: unknown; ios?: unknown }) => spec.android,
@@ -63,9 +75,28 @@ jest.mock('react-native', () => ({
     currentState: 'active',
     addEventListener: jest.fn(() => ({ remove: jest.fn() })),
   },
+  NativeEventEmitter: jest.fn().mockImplementation(() => ({
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+    removeAllListeners: jest.fn(),
+  })),
 }));
 
-// Redux store — the service dispatches statusChanged; capture calls.
+/**
+ * driverLocation service — hoisted mock, defaults GPS to ON.
+ * Individual tests override with `.mockResolvedValueOnce(false)` to
+ * simulate a device with location services disabled at the OS level.
+ */
+jest.mock('@services/driverLocation', () => ({
+  isDeviceLocationEnabled: jest.fn().mockResolvedValue(true),
+}));
+
+/**
+ * Redux store — the service dispatches statusChanged; capture calls.
+ * `mockDispatch` and `mockGetState` are prefixed with `mock` so
+ * babel-plugin-jest-hoist allows them to be referenced from inside
+ * the factory (its rule: identifiers used inside jest.mock factories
+ * must be either allow-listed globals or start with `mock`).
+ */
 const mockDispatch = jest.fn();
 const mockGetState = jest.fn(() => ({
   app: { userRole: 'driver' as const },
@@ -78,7 +109,10 @@ jest.mock('@store', () => ({
   },
 }));
 
-// logEvent spy — assert that the funnel emits.
+/**
+ * logEvent spy — assert that the funnel emits.
+ * Same `mock`-prefix rule as above.
+ */
 const mockLogEvent = jest.fn();
 jest.mock('@services/telemetry/logEvent', () => ({
   logEvent: (name: string, props: unknown) => mockLogEvent(name, props),
@@ -99,35 +133,29 @@ import {
 import { ensureCapability } from '../PermissionService';
 import { configureSheetHandlers, resetSheetHandlers } from '../sheetHandlers';
 
+// Handle to the hoisted driverLocation mock so tests can override
+// its return value per-test without re-declaring jest.mock.
+import { isDeviceLocationEnabled } from '@services/driverLocation';
+
 const mockedCheck = check as jest.Mock;
 const mockedRequest = request as jest.Mock;
 const mockedCheckNotifications = checkNotifications as jest.Mock;
 const mockedRequestNotifications = requestNotifications as jest.Mock;
 const mockedOpenSettings = rnpOpenSettings as jest.Mock;
+const mockedIsDeviceLocationEnabled = isDeviceLocationEnabled as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
   resetSheetHandlers();
+  // Restore the default (GPS on) after clearAllMocks wiped it.
+  mockedIsDeviceLocationEnabled.mockResolvedValue(true);
 });
 
 /* =================================================================
  * 1 — RBAC gate
  * ================================================================= */
 
-test('RBAC: customer cannot request driver-only backgroundLocation', async () => {
-  const result = await ensureCapability('backgroundLocation', 'customer');
-
-  expect(result).toEqual({ status: 'unavailable', reason: 'rbac' });
-  expect(mockedCheck).not.toHaveBeenCalled();
-  expect(mockedRequest).not.toHaveBeenCalled();
-  // RBAC violation must be recorded so we can catch broken screens.
-  expect(mockLogEvent).toHaveBeenCalledWith(
-    'permission.background_location.rbac_violation',
-    expect.objectContaining({ role: 'customer' }),
-  );
-});
-
-test('RBAC: null role blocks everything', async () => {
+test('RBAC: null role blocks everything, including camera which is otherwise open to all roles', async () => {
   const result = await ensureCapability('camera', null);
   expect(result).toEqual({ status: 'unavailable', reason: 'rbac' });
 });
@@ -205,77 +233,7 @@ test('blocked recovery dismissal does not open Settings', async () => {
 });
 
 /* =================================================================
- * 4 — Background location: two-step incremental flow
- * ================================================================= */
-
-test('backgroundLocation: foreground denial short-circuits — no BG request fires', async () => {
-  // First call = foreground; second call would be background but must NOT happen.
-  mockedCheck.mockResolvedValueOnce('denied'); // foreground check
-  // Rationale dismissed for the foreground rationale.
-  configureSheetHandlers({
-    showRationale: async () => 'dismiss',
-  });
-
-  const result = await ensureCapability('backgroundLocation', 'driver');
-
-  expect(result).toEqual({ status: 'denied', canRetry: true });
-  // Only one check() call — foreground. Background never queried.
-  expect(mockedCheck).toHaveBeenCalledTimes(1);
-  expect(mockedRequest).not.toHaveBeenCalled();
-});
-
-test('backgroundLocation: prominent disclosure ALWAYS precedes the OS prompt', async () => {
-  // Foreground already granted → skip that flow, jump to BG.
-  mockedCheck
-    .mockResolvedValueOnce('granted') // foreground check
-    .mockResolvedValueOnce('denied'); // background check
-  mockedRequest.mockResolvedValue('granted');
-
-  const events: string[] = [];
-  configureSheetHandlers({
-    showProminentDisclosure: async () => {
-      events.push('prominent_disclosure');
-      return 'continue';
-    },
-  });
-  mockedRequest.mockImplementation(async () => {
-    events.push('os_prompt');
-    return 'granted';
-  });
-
-  const result = await ensureCapability('backgroundLocation', 'driver');
-
-  expect(result).toEqual({ status: 'granted' });
-  // The critical Play-policy invariant: prominent disclosure BEFORE OS.
-  expect(events).toEqual(['prominent_disclosure', 'os_prompt']);
-
-  // And it must be logged, so we can prove compliance if audited.
-  expect(mockLogEvent).toHaveBeenCalledWith(
-    'permission.background_location.prominent_disclosure_shown',
-    expect.anything(),
-  );
-});
-
-test('backgroundLocation: dismissing prominent disclosure skips OS request', async () => {
-  mockedCheck
-    .mockResolvedValueOnce('granted') // foreground
-    .mockResolvedValueOnce('denied'); // background
-  configureSheetHandlers({
-    showProminentDisclosure: async () => 'dismiss',
-  });
-
-  const result = await ensureCapability('backgroundLocation', 'driver');
-
-  expect(result).toEqual({ status: 'denied', canRetry: true });
-  expect(mockedRequest).not.toHaveBeenCalled();
-  expect(mockLogEvent).toHaveBeenCalledWith(
-    'permission.background_location.prominent_disclosure_dismissed',
-    expect.anything(),
-  );
-});
-
-/* =================================================================
- * 5 — Notifications (dedicated RNP API path)
+ * 4 — Notifications (dedicated RNP API path)
  * ================================================================= */
 
 test('notifications: uses checkNotifications/requestNotifications, not check/request', async () => {
@@ -304,8 +262,26 @@ test('notifications: uses checkNotifications/requestNotifications, not check/req
   expect(mockedRequest).not.toHaveBeenCalled();
 });
 
+test('notifications: limited (iOS provisional) is surfaced, NOT coerced to granted', async () => {
+  // iOS provisional authorisation lets the app deliver notifications
+  // but only silently to the notification center. Coercing this to
+  // `granted` would pollute the funnel and let callers show a full
+  // "notifications are on" UI when the user has consented only to
+  // silent delivery. The service must surface it explicitly so the
+  // notifications feature can render "quiet mode" copy correctly.
+  mockedCheckNotifications.mockResolvedValue({
+    status: 'limited',
+    settings: {},
+  });
+
+  const result = await ensureCapability('notifications', 'customer');
+
+  expect(result).toEqual({ status: 'limited' });
+  expect(mockedRequestNotifications).not.toHaveBeenCalled();
+});
+
 /* =================================================================
- * 6 — Zero-permission capabilities
+ * 5 — Zero-permission capabilities
  * ================================================================= */
 
 test('phoneDialer: RBAC-passed → granted without any OS call', async () => {
@@ -322,15 +298,19 @@ test('photoPicker: RBAC-passed → granted (real work happens in openPhotoPicker
   expect(result).toEqual({ status: 'granted' });
 });
 
+/* =================================================================
+ * 6 — Foreground location precondition (GPS enabled on device)
+ * ================================================================= */
+
 test('foregroundLocation granted with GPS off resolves preconditionFailed', async () => {
   mockedCheck.mockResolvedValue('granted');
-  // Also mock isDeviceLocationEnabled to return false — needs a mock
-  // on '@services/driverLocation' at the top of the file.
-  jest.mock('@services/driverLocation', () => ({
-    isDeviceLocationEnabled: jest.fn().mockResolvedValue(false),
-  }));
+  // Override the hoisted @services/driverLocation mock for THIS test
+  // only. Using mockResolvedValueOnce means the next call reverts to
+  // the default (GPS on) set in beforeEach — no cross-test pollution.
+  mockedIsDeviceLocationEnabled.mockResolvedValueOnce(false);
 
   const result = await ensureCapability('foregroundLocation', 'driver');
+
   expect(result).toEqual({ status: 'preconditionFailed', reason: 'gpsOff' });
   expect(mockLogEvent).toHaveBeenCalledWith(
     'permission.foreground_location.gps_off',

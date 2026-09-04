@@ -35,21 +35,23 @@ export const FOREGROUND_LOCATION_PERM: Permission | undefined = Platform.select(
   },
 );
 
-/**
- * Background location.
- *   - Android: ACCESS_BACKGROUND_LOCATION (Play-restricted; declaration required)
- *   - iOS:     LOCATION_ALWAYS
+/*
+ * NOTE — no BACKGROUND_LOCATION_PERM here on purpose.
  *
- * On Android 11+, requesting this handle does NOT show a runtime
- * dialog — it deep-links into the system Settings page. The caller
- * must handle that flow (see PermissionService.ensureBackgroundLocation).
+ * Urbancruise does not declare `ACCESS_BACKGROUND_LOCATION` (Android) or
+ * `NSLocationAlwaysAndWhenInUseUsageDescription` (iOS). The driver's
+ * active-trip location tracking runs inside a foreground service of
+ * type=location, started from a visible activity ("Start Trip"). Per
+ * developer.android.com/develop/sensors-and-location/location/permissions,
+ * an FGS-driven location access is classified as foreground location,
+ * so screen-off, other-app-active, and phone-in-pocket during an active
+ * trip are all covered by ACCESS_FINE_LOCATION alone.
+ *
+ * If a future feature ever needs continuous idle-driver tracking, real
+ * background geofencing, or an FGS started while backgrounded, add the
+ * handle back here, re-declare the manifest/plist entries, and file a
+ * Google Play background-location declaration.
  */
-export const BACKGROUND_LOCATION_PERM: Permission | undefined = Platform.select(
-  {
-    ios: PERMISSIONS.IOS.LOCATION_ALWAYS,
-    android: PERMISSIONS.ANDROID.ACCESS_BACKGROUND_LOCATION,
-  },
-);
 
 /**
  * Camera.

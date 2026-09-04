@@ -8,8 +8,8 @@
  * this file — nothing else.
  *
  * Why capabilities, not raw OS permissions:
- *   Callers say `ensure('driverTripTracking')`, not
- *   `request(ACCESS_BACKGROUND_LOCATION)`. This decouples business
+ *   Callers say `ensure('foregroundLocation')`, not
+ *   `request(ACCESS_FINE_LOCATION)`. This decouples business
  *   logic from OS specifics — the Photo Picker vs READ_MEDIA_IMAGES
  *   decision, the Android-13 POST_NOTIFICATIONS gate, the iOS
  *   "when in use" vs "always" split — all invisible to features.
@@ -45,16 +45,22 @@ export type Capability =
   /** Push notifications from FCM + Notifee. All roles. */
   | 'notifications'
   /**
-   * Foreground fine-location for the live-trip screen.
-   * Customer (tracking their trip) + Driver (during an active trip).
+   * Fine-location for the live-trip screen.
+   * Customer (viewing their trip) + Driver (during an active trip).
+   *
+   * A driver's active-trip tracking runs inside a location-typed
+   * foreground service (see DriverLocationForegroundService.kt). Per
+   * Google's location-permissions docs, an FGS-driven location access
+   * is classified as foreground location — so this ONE capability
+   * covers screen-off, other-app-active, and phone-in-pocket cases
+   * during an active trip.
+   *
+   * `ACCESS_BACKGROUND_LOCATION` is INTENTIONALLY NOT declared. The
+   * app has no continuous idle-driver tracking, no geofencing, and
+   * no background-started FGS use case. See docs/permissions-audit.md
+   * for the full rationale + Google source citations.
    */
   | 'foregroundLocation'
-  /**
-   * Background location for driver trip tracking after "Start Leg".
-   * Driver only. Requires prominent disclosure before OS prompt
-   * (Play policy) AND foregroundLocation already granted.
-   */
-  | 'backgroundLocation'
   /**
    * Camera. One OS grant covers all uses:
    *   - profile photo (all roles)
@@ -99,7 +105,6 @@ export type Capability =
 export type PermissionTelemetryKey =
   | 'notifications'
   | 'foreground_location'
-  | 'background_location'
   | 'camera'
   | 'photo_picker'
   | 'phone_dialer'
@@ -181,25 +186,6 @@ export const CAPABILITY_REGISTRY: Readonly<
     },
     fallback: 'blockFeature',
     telemetryKey: 'foreground_location',
-  },
-
-  backgroundLocation: {
-    roles: ['driver'],
-    requiresProminentDisclosure: true,
-    requiresDeviceLocationOn: true,
-    // Prominent-disclosure body MUST include the word "location" and
-    // one of "background" / "when the app is closed" per Play policy.
-    // Do not edit the body without checking the Play Console policy
-    // page — a review rejection will point straight back to this file.
-    rationale: {
-      title: 'Share trip location with customer',
-      body:
-        'Urban Cruise collects location data to enable live trip tracking and dispatch monitoring even when the app is closed or not in use. ' +
-        'This is required to start a trip.',
-      cta: 'Continue',
-    },
-    fallback: 'blockFeature',
-    telemetryKey: 'background_location',
   },
 
   camera: {

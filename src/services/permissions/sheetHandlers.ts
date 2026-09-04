@@ -57,10 +57,26 @@ export type SheetHandlers = {
  * ----------------------------------------------------------------- */
 
 const DEFAULT_HANDLERS: SheetHandlers = {
-  // No UI wired — assume the user WOULD have tapped continue.
-  // The OS prompt / Settings deep-link is still authoritative.
+  // No UI wired — assume the user WOULD have tapped continue for the
+  // regular rationale sheet. The OS prompt / Settings deep-link is
+  // still authoritative and safe.
   showRationale: async () => 'continue',
-  showProminentDisclosure: async () => 'continue',
+
+  // Prominent disclosure is DIFFERENT. Google Play policy requires it
+  // be shown BEFORE the OS prompt for any capability that declares
+  // `requiresProminentDisclosure`. If the app were to reach this
+  // default (i.e. App.tsx forgot to wire the real sheet, or a bootstrap
+  // race), silently continuing would skip the disclosure and hit the
+  // OS prompt — a Play policy violation in production. FAIL CLOSED:
+  // the user sees nothing happen, a developer notices, they wire it.
+  //
+  // This is currently unused (no capability sets
+  // requiresProminentDisclosure=true after the ACCESS_BACKGROUND_LOCATION
+  // removal — see docs/permissions-audit.md) but the safe default
+  // stays in place as defense in depth for any future capability that
+  // ever re-enables the flag.
+  showProminentDisclosure: async () => 'dismiss',
+
   showBlockedRecovery: async () => 'dismiss',
 };
 

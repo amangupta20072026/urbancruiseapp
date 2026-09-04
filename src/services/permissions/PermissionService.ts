@@ -56,11 +56,7 @@ import {
 } from '@store/slices/permissionsSlice';
 import { isDeviceLocationEnabled } from '@services/driverLocation';
 
-import {
-  BACKGROUND_LOCATION_PERM,
-  CAMERA_PERM,
-  FOREGROUND_LOCATION_PERM,
-} from './platformMap';
+import { CAMERA_PERM, FOREGROUND_LOCATION_PERM } from './platformMap';
 import { getSheetHandlers } from './sheetHandlers';
 import { emitPermissionEvent } from './telemetry';
 import type { CapabilityStatus, EnsureResult } from './types';
@@ -113,8 +109,6 @@ export async function ensureCapability(
       return ensureNotifications(cap);
     case 'foregroundLocation':
       return ensureForegroundLocation(cap);
-    case 'backgroundLocation':
-      return ensureBackgroundLocation(cap);
     case 'camera':
       return ensureCamera(cap);
     case 'photoPicker':
@@ -203,9 +197,13 @@ async function ensureNotifications(cap: Capability): Promise<EnsureResult> {
   const current = mapRnpResult((await checkNotifications()).status);
   writeCache(cap, current);
 
-  if (current === 'granted' || current === 'limited') {
-    return { status: 'granted' };
-  }
+  // iOS: `limited` maps to Apple's provisional authorisation — the app
+  // may deliver notifications, but they arrive silently, directly to
+  // the notification center, WITHOUT sound / banner / badge. Coercing
+  // it to `granted` would pollute funnel metrics and mislead callers
+  // that check whether push is truly "on". Surface it explicitly.
+  if (current === 'granted') return { status: 'granted' };
+  if (current === 'limited') return { status: 'limited' };
   if (current === 'blocked') return handleBlocked(cap);
   if (current === 'unavailable') {
     return { status: 'unavailable', reason: 'device' };
@@ -224,9 +222,8 @@ async function ensureNotifications(cap: Capability): Promise<EnsureResult> {
   writeCache(cap, result);
   emitPermissionEvent(cap, result === 'granted' ? 'granted' : 'denied');
 
-  if (result === 'granted' || result === 'limited') {
-    return { status: 'granted' };
-  }
+  if (result === 'granted') return { status: 'granted' };
+  if (result === 'limited') return { status: 'limited' };
   if (result === 'blocked') return handleBlocked(cap);
   return { status: 'denied', canRetry: false };
 }
@@ -289,63 +286,6 @@ async function ensureForegroundLocation(
   return { status: 'denied', canRetry: false };
 }
 
-/**
- * Two-step incremental flow required by Android 11+ and iOS:
- *   1. Foreground first — must be granted before the OS will consider
- *      any background request.
- *   2. Prominent disclosure — Play policy requirement.
- *   3. Background request. On Android 11+ this deep-links into system
- *      Settings (not a dialog); the user's real choice is picked up
- *      by the app-resume watcher on their return.
- */
-async function ensureBackgroundLocation(
-  cap: Capability,
-): Promise<EnsureResult> {
-  // ── Step 1: foreground must be granted ─────────────────────────
-  const fg = await ensureForegroundLocation('foregroundLocation');
-  const fgOk =
-    fg.status === 'granted' ||
-    fg.status === 'limited' ||
-    fg.status === 'preconditionFailed'; // GPS off is a runtime issue, not a perm block
-
-  if (!fgOk) return fg;
-
-  if (!BACKGROUND_LOCATION_PERM) {
-    return { status: 'unavailable', reason: 'unsupported-os' };
-  }
-
-  // ── Step 2: current background status ──────────────────────────
-  const current = mapRnpResult(await check(BACKGROUND_LOCATION_PERM));
-  writeCache(cap, current);
-
-  if (current === 'granted') return checkGpsPrecondition(cap, 'granted');
-  if (current === 'blocked') return handleBlocked(cap);
-  if (current === 'unavailable') {
-    return { status: 'unavailable', reason: 'device' };
-  }
-
-  // ── Step 3: prominent disclosure BEFORE OS prompt (Play policy) ─
-  const descriptor = getCapability(cap);
-  emitPermissionEvent(cap, 'prominent_disclosure_shown');
-  const disclosure = await getSheetHandlers().showProminentDisclosure(
-    descriptor.rationale,
-  );
-  if (disclosure === 'dismiss') {
-    emitPermissionEvent(cap, 'prominent_disclosure_dismissed');
-    return { status: 'denied', canRetry: true };
-  }
-
-  // ── Step 4: OS request (opens Settings on Android 11+) ─────────
-  emitPermissionEvent(cap, 'prompt_shown');
-  const result = mapRnpResult(await request(BACKGROUND_LOCATION_PERM));
-  writeCache(cap, result);
-  emitPermissionEvent(cap, result === 'granted' ? 'granted' : 'denied');
-
-  if (result === 'granted') return checkGpsPrecondition(cap, 'granted');
-  if (result === 'blocked') return handleBlocked(cap);
-  return { status: 'denied', canRetry: false };
-}
-
 /* =================================================================
  * Shared helpers (private)
  * ================================================================= */
@@ -357,10 +297,6 @@ async function liveCheck(cap: Capability): Promise<CapabilityStatus> {
     case 'foregroundLocation':
       return FOREGROUND_LOCATION_PERM
         ? mapRnpResult(await check(FOREGROUND_LOCATION_PERM))
-        : 'unavailable';
-    case 'backgroundLocation':
-      return BACKGROUND_LOCATION_PERM
-        ? mapRnpResult(await check(BACKGROUND_LOCATION_PERM))
         : 'unavailable';
     case 'camera':
       return CAMERA_PERM

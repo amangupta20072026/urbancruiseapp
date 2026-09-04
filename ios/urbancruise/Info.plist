@@ -19,9 +19,17 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Urban Cruise uses your camera for profile photos, vehicle documents, and trip receipts.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Urban Cruise uses your location to show real-time trip progress and share it with your driver or dispatch.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Drivers use Urban Cruise to share their live trip location with customers and dispatch, even when the app is in the background, so trips can be safely tracked from start to finish.</string>
+	<string>Urban Cruise uses your location only during an active trip — customers see live trip progress, drivers share their location with dispatch. Location is not used at any other time.</string>
+	<!--
+	     NSLocationAlwaysAndWhenInUseUsageDescription intentionally NOT
+	     declared. Urbancruise uses LOCATION_WHEN_IN_USE authorisation
+	     only. During an active trip, iOS keeps delivering watchPosition
+	     updates while the screen is off / another app is on top thanks
+	     to UIBackgroundModes=[location] combined with the
+	     CLLocationManager.allowsBackgroundLocationUpdates=YES config
+	     set inside react-native-geolocation-service. See
+	     docs/permissions-audit.md.
+	-->
 
 	<!-- LSApplicationQueriesSchemes — kept as-is for contactService's
 	     canOpenURL() checks on iOS. -->
@@ -91,12 +99,16 @@
 		<string>Audiowide-Regular.ttf</string>
 	</array>
 	<!-- ================================================================
-	     UIBackgroundModes — REQUIRED for Driver background tracking
+	     UIBackgroundModes — REQUIRED for driver's active-trip updates
 	     ================================================================
 	     Without 'location' in this array, iOS will suspend the app the
-	     moment the driver locks the screen and background location
-	     updates will stop. This is separate from (and additional to)
-	     the NSLocationAlways*UsageDescription above.
+	     moment the driver locks the screen and watchPosition callbacks
+	     will stop. Combined with LOCATION_WHEN_IN_USE (not "Always")
+	     and CLLocationManager.allowsBackgroundLocationUpdates=YES, this
+	     is Apple's supported pattern for continuing location updates
+	     during a foreground-initiated task (e.g. active trip). Apple
+	     classifies this as while-in-use, NOT "Always" — so the "Always"
+	     usage-description key is not needed and NOT declared.
 	     ================================================================ -->
 	<key>UIBackgroundModes</key>
 	<array>

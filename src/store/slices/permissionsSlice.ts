@@ -34,7 +34,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { Capability } from '@rbac/capabilities';
 
 import type { CapabilityStatus } from '@services/permissions';
-import { logout } from './appSlice';
+import { logout, loginSuccess, reconcileAuth } from './appSlice';
 
 /* -----------------------------------------------------------------
  * Shape
@@ -109,10 +109,21 @@ const permissionsSlice = createSlice({
     allCleared: () => initialState,
   },
   extraReducers: builder => {
-    // On logout, wipe everything. A fresh session must not inherit
-    // the previous user's cached grants — a new user's role may
-    // differ, making the previous cache misleading.
+    // Clear the entire cache on ANY auth transition, not just logout.
+    //
+    // Why: a cached `granted` from role A can be surfaced to role B on
+    // the same device — e.g. a customer logs out, a driver logs in, or
+    // /me reconciles into a different role than the provisional one.
+    // The RBAC gate in PermissionService blocks disallowed calls, but
+    // it does NOT scrub the entry, so telemetry attributes A's grant
+    // history to B's session. Wiping on every auth transition keeps
+    // the cache role-scoped by construction.
+    //
+    // Cost is negligible: the app-resume watcher plus each screen's
+    // useCapabilityStatus hook will re-check lazily on next use.
     builder.addCase(logout, () => initialState);
+    builder.addCase(loginSuccess, () => initialState);
+    builder.addCase(reconcileAuth, () => initialState);
   },
 });
 

@@ -31,6 +31,8 @@ import Geolocation from 'react-native-geolocation-service';
 
 import { ENV } from '@config/env';
 import { logError } from '@services/telemetry/logError';
+import { store } from '@store';
+import { preconditionFailed } from '@store/slices/permissionsSlice';
 
 /* --------------------------------------------------------------------------
  * Types
@@ -204,6 +206,36 @@ function startWatch(generation: number): void {
        */
       if (generation !== trackingGeneration) {
         return;
+      }
+
+      /*
+       * iOS blind spot bridge.
+       *
+       * On iOS, isDeviceLocationEnabled() returns `true` optimistically
+       * because CLLocationManager's authoritative check requires main-
+       * thread gymnastics we don't want to add. So the PermissionService
+       * cannot pre-emptively surface "GPS off" for iOS drivers.
+       *
+       * watchPosition, however, WILL report it via its error callback
+       * with codes 1 (PERMISSION_DENIED) or 2 (POSITION_UNAVAILABLE)
+       * when Location Services is off system-wide. Bridge those into
+       * the permissionsSlice as a preconditionFailed('gpsOff') for the
+       * currently-active location capability so the trip screen shows
+       * a "Turn on Location" banner instead of an infinite spinner.
+       */
+      if (Platform.OS === 'ios' && (error.code === 1 || error.code === 2)) {
+        try {
+          store.dispatch(
+            preconditionFailed({
+              capability: 'foregroundLocation',
+              reason: 'gpsOff',
+            }),
+          );
+        } catch (dispatchError) {
+          logError(dispatchError, {
+            boundary: 'driverLocation.iosGpsPreconditionBridge',
+          });
+        }
       }
 
       logError(new Error(`geolocation: ${error.code} ${error.message}`), {

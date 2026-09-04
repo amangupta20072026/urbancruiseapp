@@ -58,7 +58,6 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- ── Legacy storage — capped on Android 9 and below ────────── -->
@@ -149,9 +148,13 @@
                DriverLocationForegroundService.kt
 
            foregroundServiceType="location" MUST match the granted
-           runtime permission (ACCESS_FINE_LOCATION +
-           ACCESS_BACKGROUND_LOCATION). The OS checks this at
-           startForeground() time on Android 14+.
+           runtime permission (ACCESS_FINE_LOCATION). The OS checks
+           this at startForeground() time on Android 14+.
+
+           This FGS MUST be started from a visible activity (i.e. the
+           driver taps "Start Trip"). Starting from a truly backgrounded
+           state IS the case that would require ACCESS_BACKGROUND_LOCATION
+           — Urbancruise doesn't do that.
            ========================================================== -->
       <service
         android:name="app.urbancruise.location.DriverLocationForegroundService"

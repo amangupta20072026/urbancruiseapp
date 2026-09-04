@@ -29,7 +29,7 @@ import type { PermissionTelemetryKey } from '@rbac/capabilities';
  *
  * The final concrete strings look like:
  *   'permission.camera.prompt_shown'
- *   'permission.background_location.prominent_disclosure_dismissed'
+ *   'permission.foreground_location.rationale_dismissed'
  *   'permission.foreground_location.gps_off'
  * ----------------------------------------------------------------- */
 
