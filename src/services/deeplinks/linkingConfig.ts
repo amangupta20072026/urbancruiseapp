@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * ------------------------------------------------------------------
  * React Navigation `linking` config
@@ -73,16 +74,16 @@ export function buildLinkingConfig(): LinkingOptions<RootStackParamList> {
     async getInitialURL(): Promise<string | null> {
       try {
         const url = await Linking.getInitialURL();
-        console.log('[deeplink] getInitialURL raw =', url);  
+        // console.log('[deeplink] getInitialURL raw =', url);  
         if (!url) return null;
         const r = resolveUrl(url);
-        console.log('[deeplink] getInitialURL resolve =', r); 
+        // console.log('[deeplink] getInitialURL resolve =', r); 
         if (!r.ok) return null;
         stash(r.target);
         return url;
       } catch (e) {
         // Linking API failure — treat as no URL. Don't propagate.
-        console.log('[deeplink] getInitialURL threw:', e); 
+        // console.log('[deeplink] getInitialURL threw:', e); 
         return null;
       }
     },
@@ -93,9 +94,9 @@ export function buildLinkingConfig(): LinkingOptions<RootStackParamList> {
      */
     subscribe(listener) {
       const sub = Linking.addEventListener('url', ({ url }) => {
-        console.log('[deeplink] subscribe url =', url);  
+        // console.log('[deeplink] subscribe url =', url);  
         const r = resolveUrl(url);
-        console.log('[deeplink] subscribe resolve =', r);
+        // console.log('[deeplink] subscribe resolve =', r);
         if (!r.ok) return;
         stash(r.target);
         listener(url);

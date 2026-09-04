@@ -68,10 +68,10 @@ export function logError(error: unknown, context: ErrorContext = {}): void {
     console.group(`[error]${context.boundary ? ` ${context.boundary}` : ''}`);
     console.error(error);
     if (context.componentStack) {
-      console.log('componentStack:', context.componentStack);
+      // console.log('componentStack:', context.componentStack);
     }
     if (context.extra) {
-      console.log('extra:', context.extra);
+      // console.log('extra:', context.extra);
     }
     console.groupEnd();
     return;

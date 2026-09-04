@@ -63,7 +63,7 @@ export type DrainOutcome = 'navigated' | 'held' | 'denied' | 'idle';
 
 export function drainPendingDeepLink(): DrainOutcome {
   const target = peek();
-  console.log('[deeplink] drain called, target:', target?.kind ?? 'none');
+  // console.log('[deeplink] drain called, target:', target?.kind ?? 'none');
   if (!target) return 'idle';
 
   const entry = findCatalogEntryByKind(target.kind);
@@ -156,7 +156,7 @@ function attemptNavigate(p: NavigatePayload, attempt: number): void {
     logError(new Error(`deeplink.navigate.timeout:${p.screen}`), {
       boundary: 'deeplink.drain',
     });
-    console.log('[deeplink] navigate timeout for', p.screen);
+    // console.log('[deeplink] navigate timeout for', p.screen);
     return;
   }
 
@@ -164,18 +164,18 @@ function attemptNavigate(p: NavigatePayload, attempt: number): void {
 
   setTimeout(() => {
     if (!isNestedNavigatorMounted()) {
-      console.log(
-        '[deeplink] nested navigator not mounted yet, retry',
-        attempt + 1,
-      );
+      // console.log(
+      //   '[deeplink] nested navigator not mounted yet, retry',
+      //   attempt + 1,
+      // );
       attemptNavigate(p, attempt + 1);
       return;
     }
 
-    console.log(
-      '[deeplink] nested navigator mounted, dispatching navigate to',
-      p.screen,
-    );
+    // console.log(
+    //   '[deeplink] nested navigator mounted, dispatching navigate to',
+    //   p.screen,
+    // );
 
     // Boundary cast: navigate() is typed as the intersection of every
     // ParamList; the dynamic screen name doesn't narrow to one of them.
