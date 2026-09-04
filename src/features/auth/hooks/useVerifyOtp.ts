@@ -47,6 +47,7 @@ import { loginSuccess } from '@store/slices/appSlice';
 import { userReceived, type UserProfile } from '@store/slices/userSlice';
 import type { UserRole, SubRole } from '@rbac/roles';
 import { isoNow } from '@app-types/datetime';
+import { mockCurrentUser } from '@mocks/data/currentUser';
 
 /* ------------------------------------------------------------------ */
 /* Toggle                                                             */
@@ -103,21 +104,48 @@ async function verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
       throw new ApiError('unauthorized', 'That code didn’t work.', 401);
     }
 
+    // Dev-mode identity policy:
+    //   For the `customer` role, we reuse mockCurrentUser.id
+    //   ('USR-CUST-000001') so downstream fixture corpora
+    //   (mockCustomerHomeById, activity feeds, etc.) — all keyed by
+    //   user id — resolve to real fixture data instead of falling
+    //   through to empty state. Other roles keep the synthetic
+    //   `mock-<role>-*` ids until their fixture corpora exist.
+    //
+    //   This is a MOCK-ONLY concern. Real /auth/otp/verify returns a
+    //   real user id from the backend; no fixture keying involved.
+    const isCustomer = input.role === 'customer';
+    const mockUserId = isCustomer
+      ? mockCurrentUser.id
+      : `mock-${input.role}-user`;
+    const mockEntityId = isCustomer
+      ? mockCurrentUser.id
+      : `mock-${input.role}-entity`;
+
     return {
       accessToken: `mock-access-${input.role}-${Date.now()}`,
       refreshToken: `mock-refresh-${input.role}-${Date.now()}`,
-      userId: `mock-${input.role}-user`,
+      userId: mockUserId,
       role: input.role,
       subRole: null,
-      entityId: `mock-${input.role}-entity`,
-      profile: {
-        id: `mock-${input.role}-user`,
-        displayName: 'Aman Gupta',
-        email: 'aman@urbancruise.dev',
-        phoneIndia: `${input.countryCode}${input.phone}`,
-        phoneGlobal: `${input.countryCode}${input.phone}`,
-        memberSince: isoNow(),
-      },
+      entityId: mockEntityId,
+      profile: isCustomer
+        ? {
+            id: mockCurrentUser.id,
+            displayName: mockCurrentUser.displayName,
+            email: mockCurrentUser.email,
+            phoneIndia: mockCurrentUser.phoneIndia,
+            phoneGlobal: mockCurrentUser.phoneGlobal,
+            memberSince: mockCurrentUser.memberSince,
+          }
+        : {
+            id: mockUserId,
+            displayName: 'Aman Gupta',
+            email: 'aman@urbancruise.dev',
+            phoneIndia: `${input.countryCode}${input.phone}`,
+            phoneGlobal: `${input.countryCode}${input.phone}`,
+            memberSince: isoNow(),
+          },
     };
   }
 

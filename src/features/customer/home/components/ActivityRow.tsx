@@ -3,24 +3,38 @@
  * ------------------------------------------------------------------
  * ActivityRow
  * ------------------------------------------------------------------
- * One row of the Recent Activity list. Compact:
+ * One row of the Recent Activity list, rendered as a vertical
+ * timeline entry:
  *
- *   [icon]  Quotation Prepared             11 May 2026
- *           Delhi → Jaipur · 3 Options     10:30 AM
+ *   ●   [icon]  Quotation Approved            12 May 2025   ›
+ *   │           Delhi → Jaipur · Innova Crysta 10:30 AM
+ *   ○   [icon]  Payment Received              12 May 2025   ›
+ *   │           Advance payment of ₹3,750     11:15 AM
+ *   ○   [icon]  Trip Confirmed                11 May 2025   ›
  *
- * The icon + colour comes from ACTIVITY_KIND_COLOR (indexed by
- * kind); the icon glyph itself is picked here — keeping the map from
- * enum-to-icon local means adding a new kind touches one place.
+ * Composition (left → right):
+ *   1. Rail column (18px) — thin vertical line + small dot marker
+ *                           (green filled on first row = "latest",
+ *                           hollow gray on all others).
+ *   2. Icon column        — solid coloured disc with white glyph.
+ *   3. Body               — title + subtitle.
+ *   4. Meta column        — date (top) + time (bottom), right-aligned.
+ *   5. Chevron            — subtle right-arrow affordance.
  *
- * Not tappable in v1. When we later add per-activity detail screens,
- * the row wraps in a Pressable and receives an onPress prop — no
- * other structural change needed.
+ * Timeline mechanics:
+ *   The vertical line is drawn as two half-height segments per row —
+ *   the top half above the dot and the bottom half below it. Hiding
+ *   the top half on the first row and the bottom half on the last row
+ *   is what makes the line start and end cleanly. When rows stack,
+ *   the bottom half of row N and the top half of row N+1 meet exactly
+ *   at the row boundary, giving one visually continuous line.
  * ------------------------------------------------------------------ */
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import {
   Car,
+  ChevronRight,
   CheckCircle2,
   FileText,
   IndianRupee,
@@ -28,7 +42,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 
-import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
+import { Colors, Radius, Spacing, Typography } from '@theme';
 import {
   ACTIVITY_KIND_COLOR,
   type ActivityItem,
@@ -37,13 +51,10 @@ import {
 
 type Props = {
   activity: ActivityItem;
-  /** Hide the bottom border. Set to true on the last row of a group. */
+  isFirst?: boolean;
   isLast?: boolean;
 };
 
-/* Icon per kind. Kept as a plain lookup so a missing entry (from a
- * hypothetical future enum extension) is a compile error, not a
- * silent fallback. */
 const KIND_ICON: Record<ActivityKind, LucideIcon> = {
   quotation_prepared: FileText,
   quotation_reviewed: FileText,
@@ -53,10 +64,6 @@ const KIND_ICON: Record<ActivityKind, LucideIcon> = {
   trip_completed: CheckCircle2,
   trip_cancelled: XCircle,
 };
-
-/* ------------------------------------------------------------------ */
-/* Formatters                                                         */
-/* ------------------------------------------------------------------ */
 
 const fmtDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', {
@@ -72,18 +79,25 @@ const fmtTime = (iso: string): string =>
     hour12: true,
   });
 
-/* ------------------------------------------------------------------ */
-/* Component                                                          */
-/* ------------------------------------------------------------------ */
-
-const ActivityRowImpl: React.FC<Props> = ({ activity, isLast }) => {
+const ActivityRowImpl: React.FC<Props> = ({ activity, isFirst, isLast }) => {
   const Icon = KIND_ICON[activity.kind];
   const color = ACTIVITY_KIND_COLOR[activity.kind];
 
   return (
-    <View style={[styles.row, !isLast && styles.rowBorder]}>
-      <View style={[styles.iconWrap, { backgroundColor: color.bg }]}>
-        <Icon size={18} color={color.fg} strokeWidth={2.2} />
+    <View style={styles.row}>
+      <View style={styles.rail}>
+        <View style={[styles.line, isFirst && styles.lineHidden]} />
+        <View
+          style={[
+            styles.dot,
+            isFirst ? styles.dotActive : styles.dotInactive,
+          ]}
+        />
+        <View style={[styles.line, isLast && styles.lineHidden]} />
+      </View>
+
+      <View style={[styles.iconDisc, { backgroundColor: color.fg }]}>
+        <Icon size={18} color={Colors.surface} strokeWidth={2.4} />
       </View>
 
       <View style={styles.body}>
@@ -103,6 +117,13 @@ const ActivityRowImpl: React.FC<Props> = ({ activity, isLast }) => {
           {fmtTime(activity.timestamp)}
         </Text>
       </View>
+
+      <ChevronRight
+        size={18}
+        color={Colors.textTertiary}
+        strokeWidth={2}
+        style={styles.chevron}
+      />
     </View>
   );
 };
@@ -110,33 +131,56 @@ const ActivityRowImpl: React.FC<Props> = ({ activity, isLast }) => {
 export const ActivityRow = React.memo(ActivityRowImpl);
 ActivityRow.displayName = 'ActivityRow';
 
-/* ---------------- Styles ---------------- */
-
 const ICON = 40;
+const RAIL_WIDTH = 18;
+const DOT_SIZE = 10;
+const LINE_COLOR = '#D1D5DB';
+const DOT_INACTIVE_COLOR = '#D1D5DB';
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm + 4,
+    gap: Spacing.sm,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
   },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+  rail: {
+    width: RAIL_WIDTH,
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    marginVertical: -Spacing.md,
   },
-
-  iconWrap: {
+  line: {
+    flex: 1,
+    width: 1.5,
+    backgroundColor: LINE_COLOR,
+  },
+  lineHidden: {
+    backgroundColor: 'transparent',
+  },
+  dot: {
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+    marginVertical: 2,
+  },
+  dotActive: {
+    backgroundColor: Colors.success,
+  },
+  dotInactive: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: DOT_INACTIVE_COLOR,
+  },
+  iconDisc: {
     width: ICON,
     height: ICON,
     borderRadius: ICON / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.xs,
   },
-
   body: { flex: 1, gap: 2 },
   title: {
     ...Typography.body,
@@ -147,7 +191,6 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.textSecondary,
   },
-
   metaCol: {
     alignItems: 'flex-end',
     gap: 2,
@@ -162,10 +205,9 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     fontSize: 11,
   },
+  chevron: {
+    marginLeft: 2,
+  },
 });
 
-/* Silence unused-import warnings if a lint rule flags Radius as unused
- * — Radius is intentionally imported for consistency with sibling
- * components even though this row uses raw radii on the icon. Remove
- * this if your lint is quiet. */
 void Radius;

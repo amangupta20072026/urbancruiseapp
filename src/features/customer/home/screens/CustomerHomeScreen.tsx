@@ -70,7 +70,6 @@ import { RequestQuotationCard } from '../components/RequestQuotationCard';
 import { UpcomingTripCard } from '../components/UpcomingTripCard';
 import { SectionHeader } from '../components/SectionHeader';
 import { ActivityRow } from '../components/ActivityRow';
-import { useAppSelector } from '@/store/hooks';
 
 type CustomerNavigation = NativeStackNavigationProp<CustomerStackParamList>;
 
@@ -79,10 +78,6 @@ type CustomerNavigation = NativeStackNavigationProp<CustomerStackParamList>;
 const MOCK_UNREAD = 3;
 
 const CustomerHomeScreen: React.FC = () => {
-  const authStatus = useAppSelector(s => s.app.authStatus);
-  const hasProfile = useAppSelector(s => !!s.user.profile);
-  const displayNames = useAppSelector(s => s.user.profile?.displayName);
-  console.log('[HOME]', { authStatus, hasProfile, displayNames });
   const navigation = useNavigation<CustomerNavigation>();
 
   const firstName = useSelector(selectFirstName);
@@ -225,6 +220,7 @@ const CustomerHomeScreen: React.FC = () => {
                   <ActivityRow
                     key={item.id}
                     activity={item}
+                    isFirst={index === 0}
                     isLast={index === recentActivity.length - 1}
                   />
                 ))}

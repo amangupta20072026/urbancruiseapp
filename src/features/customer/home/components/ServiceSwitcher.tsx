@@ -138,6 +138,7 @@ const ServiceTab: React.FC<ServiceTabProps> = ({
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: Spacing.xl,
+    marginBottom: Spacing.md,
   },
 
   tabs: {
