@@ -36,6 +36,7 @@ import type { CatalogEntry } from './catalog';
 
 export type GateContext = {
   bootstrapped: boolean;
+  hasSeenOnboardingThisSession: boolean;
   isAuthenticated: boolean;
   userRole: UserRole | null;
 };
@@ -51,7 +52,7 @@ export type GateOk = {
 
 export type GateHold = {
   ok: false;
-  reason: 'not_bootstrapped' | 'not_authenticated';
+  reason: 'not_bootstrapped' | 'not_onboarded' | 'not_authenticated';
   target: DeepLinkTarget;
 };
 
@@ -77,6 +78,13 @@ export function gate(
   // Bootstrap MUST complete before we know identity — hold.
   if (!ctx.bootstrapped) {
     return { ok: false, reason: 'not_bootstrapped', target };
+  }
+
+  // Onboarding is a hold state, just like auth. Screens under
+  // CustomerFlow / etc. aren't mounted yet, so navigating would
+  // silently drop. Keep the target queued.
+  if (!ctx.hasSeenOnboardingThisSession) {
+    return { ok: false, reason: 'not_onboarded', target };
   }
 
   // Auth is required and user is not authenticated — hold.

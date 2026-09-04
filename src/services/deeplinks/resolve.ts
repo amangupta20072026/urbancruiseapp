@@ -71,31 +71,72 @@ const ALLOWED_HTTPS_HOSTS = new Set<string>(['app.urbancruise.in']);
 const ALLOWED_CUSTOM_HOSTS = new Set<string>(['open']);
 
 /* ================================================================
+ * Custom-scheme parsing shim
+ *
+ * Hermes' WHATWG URL parser (and Node's, and older browsers')
+ * treats non-special schemes as OPAQUE. For anything that isn't
+ * http/https/ftp/ws/wss/file, `new URL(...)` collapses:
+ *
+ *   new URL('urbancruise://open/bookings/BKG123')
+ *     → hostname: '',  host: '',  pathname: '/'
+ *
+ * That would make every `urbancruise://` link fail the host and
+ * path checks below, even though the URL is syntactically fine.
+ *
+ * Workaround: rewrite the scheme to `https:` for parsing only,
+ * then re-attribute the original scheme when we run the allow-list
+ * checks. `https:` is a "special" scheme so the parser cleanly
+ * splits host and path.
+ *
+ * Trade-off: we cannot use `URL.protocol` after this rewrite —
+ * we use `effectiveProtocol` (returned from the shim) everywhere
+ * an allow-list check runs.
+ * ================================================================ */
+
+const CUSTOM_SCHEME_PREFIX = 'urbancruise://';
+
+function parseUrlSafe(
+  rawUrl: string,
+): { url: URL; effectiveProtocol: string } | null {
+  const isCustomScheme = rawUrl.startsWith(CUSTOM_SCHEME_PREFIX);
+  const parseInput = isCustomScheme
+    ? 'https://' + rawUrl.slice(CUSTOM_SCHEME_PREFIX.length)
+    : rawUrl;
+
+  try {
+    const url = new URL(parseInput);
+    return {
+      url,
+      effectiveProtocol: isCustomScheme ? 'urbancruise:' : url.protocol,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/* ================================================================
  * resolveUrl — URL (custom scheme or Universal / App Link)
  * ================================================================ */
 
 export function resolveUrl(rawUrl: string): ResolveResult {
-  let url: URL;
-  try {
-    // Node 20+ / Hermes both provide a WHATWG URL. Uses the platform
-    // parser — no hand-rolled string splits.
-    url = new URL(rawUrl);
-  } catch {
+  const parsed = parseUrlSafe(rawUrl);
+  if (!parsed) {
     return { ok: false, reason: 'malformed_url' };
   }
+  const { url, effectiveProtocol } = parsed;
 
-  if (!ALLOWED_SCHEMES.has(url.protocol)) {
+  if (!ALLOWED_SCHEMES.has(effectiveProtocol)) {
     return { ok: false, reason: 'unknown_scheme' };
   }
 
-  if (url.protocol === 'https:' && !ALLOWED_HTTPS_HOSTS.has(url.host)) {
+  if (effectiveProtocol === 'https:' && !ALLOWED_HTTPS_HOSTS.has(url.host)) {
     return { ok: false, reason: 'unknown_host' };
   }
 
   // Custom scheme uses `.hostname` (case-insensitive) instead of
   // `.host` because there is no port.
   if (
-    url.protocol === 'urbancruise:' &&
+    effectiveProtocol === 'urbancruise:' &&
     !ALLOWED_CUSTOM_HOSTS.has(url.hostname.toLowerCase())
   ) {
     return { ok: false, reason: 'unknown_host' };
@@ -116,9 +157,9 @@ export function resolveUrl(rawUrl: string): ResolveResult {
       return { ok: false, reason: 'invalid_params' };
     }
 
-    const parsed = DeepLinkTarget.safeParse(raw);
-    if (!parsed.success) return { ok: false, reason: 'invalid_params' };
-    return { ok: true, entry, target: parsed.data };
+    const zParsed = DeepLinkTarget.safeParse(raw);
+    if (!zParsed.success) return { ok: false, reason: 'invalid_params' };
+    return { ok: true, entry, target: zParsed.data };
   }
 
   return { ok: false, reason: 'no_match' };

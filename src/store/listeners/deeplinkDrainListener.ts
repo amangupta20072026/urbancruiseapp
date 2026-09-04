@@ -52,6 +52,7 @@ import {
 
 import {
   bootstrapCompleted,
+  completeOnboarding,
   loginSuccess,
   reconcileAuth,
   logout,
@@ -80,13 +81,19 @@ const startAppListening =
  * ================================================================ */
 
 startAppListening({
-  matcher: isAnyOf(bootstrapCompleted, loginSuccess, reconcileAuth),
+  matcher: isAnyOf(
+    bootstrapCompleted,
+    completeOnboarding,
+    loginSuccess,
+    reconcileAuth,
+  ),
   effect: (_action, api) => {
     const prev = api.getOriginalState().app;
     const next = api.getState().app;
 
     const changed =
       prev.bootstrapped !== next.bootstrapped ||
+      prev.hasSeenOnboardingThisSession !== next.hasSeenOnboardingThisSession ||
       prev.isAuthenticated !== next.isAuthenticated ||
       prev.userRole !== next.userRole;
 

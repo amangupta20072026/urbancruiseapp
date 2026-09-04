@@ -8,8 +8,9 @@
  * pending deep link:
  *
  *   - NavigationContainer `onReady`     (cold-start race)
- *   - Redux `isAuthenticated` transition (login completes)
- *   - Redux `userRole` transition        (post-bootstrap role reveal)
+ *   - Redux `bootstrapCompleted`         (bootstrap orchestrator done)
+ *   - Redux `completeOnboarding`         (onboarding tapped through)
+ *   - Redux `loginSuccess` / `reconcileAuth` (auth transitions)
  *   - After a fresh `stash()` from a new incoming URL / FCM tap
  *
  * The function is idempotent and cheap when there's nothing to
@@ -21,24 +22,40 @@
  *   typed overloads of `NavigationService.navigate`. Deep-link
  *   dispatch is inherently dynamic (screen chosen at runtime),
  *   which is why the boundary needs one cast.
+ *
+ * NESTED-NAVIGATOR MOUNT RACE:
+ *   RTK's listener middleware fires SYNCHRONOUSLY after the
+ *   reducer runs, before React commits the new render. At that
+ *   instant, the role navigator (Customer / Vendor / …) has not
+ *   yet mounted — even after commit, `React.lazy()` may still be
+ *   loading its chunk. During that window `navigate('BookingDetail')`
+ *   fails because the screen isn't registered in any currently
+ *   mounted navigator.
+ *
+ *   `dispatchNavigate` polls the root navigation state and waits
+ *   until the currently focused Root route has a populated `state`
+ *   (i.e. the nested role navigator is mounted). Only then does
+ *   it dispatch the navigate. See the schedule constants below
+ *   for the backoff.
  * ------------------------------------------------------------------
  */
 
 import { store } from '@store';
-import { navigate } from '@navigation/NavigationService';
+import { navigate, navigationRef } from '@navigation/NavigationService';
 import { logError } from '@services/telemetry/logError';
 import { toast } from '@services/toast';
 
 import { peek, consume } from './pending';
 import { gate, type GateContext } from './gate';
 import { findCatalogEntryByKind } from './catalog';
-import { targetToNavigatePayload } from './toNavigate';
+import { targetToNavigatePayload, type NavigatePayload } from './toNavigate';
 import type { DeepLinkTarget } from './schema';
 
 /**
  * Drain the pending target, if any. Returns:
  *   - 'navigated'    — target was resolved & navigation dispatched
- *   - 'held'         — target is still pending (bootstrap or auth)
+ *                       (dispatch itself is deferred — see below)
+ *   - 'held'         — target is still pending (bootstrap, onboarding, auth)
  *   - 'denied'       — target was rejected; fallback dispatched
  *   - 'idle'         — nothing was pending
  */
@@ -46,6 +63,7 @@ export type DrainOutcome = 'navigated' | 'held' | 'denied' | 'idle';
 
 export function drainPendingDeepLink(): DrainOutcome {
   const target = peek();
+  console.log('[deeplink] drain called, target:', target?.kind ?? 'none');
   if (!target) return 'idle';
 
   const entry = findCatalogEntryByKind(target.kind);
@@ -63,6 +81,7 @@ export function drainPendingDeepLink(): DrainOutcome {
   const g = gate(entry, target, ctx);
 
   if (!g.ok && g.reason === 'not_bootstrapped') return 'held';
+  if (!g.ok && g.reason === 'not_onboarded') return 'held';
   if (!g.ok && g.reason === 'not_authenticated') return 'held';
 
   // From here on, whether we navigate or fall back, we've made a
@@ -87,22 +106,85 @@ function readContext(): GateContext {
   const s = store.getState().app;
   return {
     bootstrapped: s.bootstrapped,
+    hasSeenOnboardingThisSession: s.hasSeenOnboardingThisSession,
     isAuthenticated: s.isAuthenticated,
     userRole: s.userRole,
   };
 }
 
+/* ================================================================
+ * Nested-navigator mount detection
+ *
+ * When RootNavigator conditionally renders CustomerFlow (say), the
+ * root state's focused route has `name: 'CustomerFlow'`. If the
+ * lazy chunk hasn't loaded yet, the Suspense fallback is showing —
+ * no nested navigator exists, so `route.state` is undefined.
+ *
+ * Once React.lazy() resolves and CustomerNavigator mounts, the
+ * nested navigator's state populates `route.state`. That's our
+ * signal that navigate('BookingDetail', …) will find the screen.
+ * ================================================================ */
+
+function isNestedNavigatorMounted(): boolean {
+  if (!navigationRef.isReady()) return false;
+  const rootState = navigationRef.getRootState();
+  if (!rootState || rootState.routes.length === 0) return false;
+  const currentRoute = rootState.routes[rootState.index];
+  return currentRoute?.state !== undefined;
+}
+
+/* ================================================================
+ * Retry schedule
+ *
+ * On most devices the lazy chunk resolves within the first 100–200
+ * ms. The long tail exists for cold cache and slow dev-bundle loads.
+ * Total ceiling ≈ 6.85 s across 10 attempts — after which we give
+ * up and telemeter, rather than spin forever.
+ * ================================================================ */
+
+const NAVIGATE_RETRY_DELAYS_MS = [
+  50, 100, 150, 250, 400, 600, 800, 1000, 1500, 2000,
+] as const;
+
 function dispatchNavigate(target: DeepLinkTarget): void {
   const p = targetToNavigatePayload(target);
-  // Boundary cast: navigate() is typed as the intersection of every
-  // ParamList; the dynamic screen name doesn't narrow to one of them.
-  // Runtime is safe — NavigationService.navigate is a no-op when the
-  // container isn't ready or the route isn't currently mounted.
-  if (p.params === undefined) {
-    (navigate as (s: string) => void)(p.screen);
-  } else {
-    (navigate as (s: string, params: object) => void)(p.screen, p.params);
+  attemptNavigate(p, 0);
+}
+
+function attemptNavigate(p: NavigatePayload, attempt: number): void {
+  if (attempt >= NAVIGATE_RETRY_DELAYS_MS.length) {
+    logError(new Error(`deeplink.navigate.timeout:${p.screen}`), {
+      boundary: 'deeplink.drain',
+    });
+    console.log('[deeplink] navigate timeout for', p.screen);
+    return;
   }
+
+  const delay = NAVIGATE_RETRY_DELAYS_MS[attempt]!;
+
+  setTimeout(() => {
+    if (!isNestedNavigatorMounted()) {
+      console.log(
+        '[deeplink] nested navigator not mounted yet, retry',
+        attempt + 1,
+      );
+      attemptNavigate(p, attempt + 1);
+      return;
+    }
+
+    console.log(
+      '[deeplink] nested navigator mounted, dispatching navigate to',
+      p.screen,
+    );
+
+    // Boundary cast: navigate() is typed as the intersection of every
+    // ParamList; the dynamic screen name doesn't narrow to one of them.
+    if (p.params === undefined) {
+      (navigate as (s: string) => void)(p.screen);
+    } else {
+      (navigate as (s: string, params: object) => void)(p.screen, p.params);
+    }
+  }, delay);
 }
 
 function dispatchFallback(
