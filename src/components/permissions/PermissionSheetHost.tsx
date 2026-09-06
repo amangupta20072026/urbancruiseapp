@@ -43,6 +43,7 @@ import PermissionSheet, {
   type PermissionSheetMode,
   type PermissionSheetRef,
 } from './PermissionSheet';
+import RichRationaleSheet from './RichRationaleSheet';
 import { resetSheetHandlers } from '@/services/permissions/sheetHandlers';
 
 /**
@@ -56,6 +57,7 @@ type Resolver =
 
 const PermissionSheetHost: React.FC = () => {
   const sheetRef = useRef<PermissionSheetRef>(null);
+  const richSheetRef = useRef<PermissionSheetRef>(null);
   const resolverRef = useRef<Resolver | null>(null);
   const decidedRef = useRef<boolean>(false);
 
@@ -67,9 +69,6 @@ const PermissionSheetHost: React.FC = () => {
       showRationale: copy =>
         new Promise<SheetChoice>(resolve => {
           if (resolverRef.current !== null) {
-            // Another permission sheet is already in progress.
-            // Reject this overlapping request cleanly so the first
-            // request can finish normally.
             resolve('dismiss');
             return;
           }
@@ -79,7 +78,16 @@ const PermissionSheetHost: React.FC = () => {
 
           setMode('rationale');
           setCopy(copy);
-          sheetRef.current?.present();
+
+          // Route by data shape: benefits present → rich sheet,
+          // otherwise the existing minimal 2-button sheet.
+          // Only notifications opts in today; other capabilities
+          // continue to use the minimal layout unchanged.
+          if (copy.benefits && copy.benefits.length > 0) {
+            richSheetRef.current?.present();
+          } else {
+            sheetRef.current?.present();
+          }
         }),
 
       showProminentDisclosure: copy =>
@@ -134,22 +142,25 @@ const PermissionSheetHost: React.FC = () => {
 
     const r = resolverRef.current;
     if (r === null) {
+      // Nothing to resolve — just dismiss whichever sheet may be up.
       sheetRef.current?.dismiss();
+      richSheetRef.current?.dismiss();
       return;
     }
 
     if (r.kind === 'blockedRecovery') {
       // Blocked flow can produce 'openSettings' or 'dismiss'.
-      // 'continue' would be a programming error (blocked mode has no
-      // 'continue' CTA) — coerce to 'dismiss' defensively.
       r.resolve(choice === 'openSettings' ? 'openSettings' : 'dismiss');
     } else {
       // Rationale / prominent flow: 'continue' or 'dismiss'.
-      // 'openSettings' shouldn't happen here — coerce to 'dismiss'.
       r.resolve(choice === 'continue' ? 'continue' : 'dismiss');
     }
 
+    // Dismiss BOTH sheets — .dismiss() on an unmounted / not-presented
+    // sheet is a safe no-op in gorhom v5, and we don't know from this
+    // scope which sheet was actually presented for this request.
     sheetRef.current?.dismiss();
+    richSheetRef.current?.dismiss();
   }, []);
 
   /* -----------------------------------------------------------------
@@ -173,13 +184,21 @@ const PermissionSheetHost: React.FC = () => {
   }, []);
 
   return (
-    <PermissionSheet
-      ref={sheetRef}
-      mode={mode}
-      copy={copy}
-      onDecision={onDecision}
-      onFullyDismissed={onFullyDismissed}
-    />
+    <>
+      <PermissionSheet
+        ref={sheetRef}
+        mode={mode}
+        copy={copy}
+        onDecision={onDecision}
+        onFullyDismissed={onFullyDismissed}
+      />
+      <RichRationaleSheet
+        ref={richSheetRef}
+        copy={copy}
+        onDecision={onDecision}
+        onFullyDismissed={onFullyDismissed}
+      />
+    </>
   );
 };
 

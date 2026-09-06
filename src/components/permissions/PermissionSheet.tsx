@@ -110,7 +110,13 @@ const PermissionSheet = forwardRef<PermissionSheetRef, Props>(
     const primaryChoice: PermissionSheetDecision = isBlocked
       ? 'openSettings'
       : 'continue';
-
+    // BottomSheetModal is always mounted, even when copy is null,
+    // so its ref stays attached. The host calls
+    // sheetRef.current?.present() synchronously right after
+    // setCopy — an early return here would leave the inner ref
+    // null and .present() would silently no-op, so the sheet would
+    // never appear. Content is gated inside BottomSheetView on
+    // {copy && (…)} instead.
     return (
       <BottomSheetModal
         ref={sheetRef}

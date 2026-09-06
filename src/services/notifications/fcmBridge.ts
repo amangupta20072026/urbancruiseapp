@@ -192,15 +192,3 @@ export function startFcmBridge(): () => void {
     // lifetime, unmount/remount cycles included.
   };
 }
-
-/* ================================================================
- * Notifee background press handler — module scope by Notifee's
- * documented requirement. This handles taps on foreground-displayed
- * notifications when the user backgrounds the app before tapping.
- * ================================================================ */
-
-notifee.onBackgroundEvent(async ({ type, detail }) => {
-  if (type === EventType.PRESS) {
-    onFcmNotificationTapped(detail.notification?.data as never);
-  }
-});

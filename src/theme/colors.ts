@@ -128,6 +128,27 @@ export const Colors = {
 
   /**
    * ------------------------------------------------------------
+   * Tint variants — soft backgrounds for status pills, icon chips,
+   * activity rows, badges, etc. Each tint pairs 1:1 with a fg color
+   * above and is what you use as the `bg` field wherever fg/bg
+   * pairs are needed.
+   *
+   * Sourced as ~10-12% alpha of the paired fg color. Kept as opaque
+   * hex (not rgba) so components can freely layer them without
+   * blending against their parent surface.
+   * ------------------------------------------------------------
+   */
+  primaryTint: '#E7F7EC', // pairs with primary / confirmed
+  successTint: '#D1FAE5', // pairs with success (deeper green)
+  warningTint: '#FEF3C7', // pairs with warning / pending
+  errorTint: '#FEE2E2', // pairs with error / cancelled
+  infoTint: '#E0F2FE', // pairs with info (sky blue)
+  completedTint: '#DBEAFE', // pairs with completed (indigo blue)
+  secondaryTint: '#FEF9C3', // pairs with secondary (gold)
+  accentTint: '#FFE4CC', // pairs with accent (deep orange)
+
+  /**
+   * ------------------------------------------------------------
    * Overlay
    * ------------------------------------------------------------
    */
@@ -141,6 +162,7 @@ export const Colors = {
   white: '#FFFFFF',
   black: '#000000',
   transparent: 'transparent',
+  danger: '#EF4444',
 } as const;
 
 export type ColorType = keyof typeof Colors;

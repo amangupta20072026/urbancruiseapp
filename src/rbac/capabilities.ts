@@ -115,6 +115,23 @@ export type PermissionTelemetryKey =
  * ----------------------------------------------------------------- */
 
 /**
+ * Icons available for RichRationaleSheet benefit rows. Kept as a
+ * closed string union so this data file doesn't import a UI library;
+ * the sheet component owns the string → lucide-icon mapping.
+ */
+export type BenefitIcon =
+  | 'calendar' // schedule / trips / bookings
+  | 'dollar' // payments / quotations / money
+  | 'message' // support / chat / replies
+  | 'bell' // notifications / alerts
+  | 'shield'; // security / safety
+
+export type RationaleBenefit = {
+  readonly label: string;
+  readonly icon: BenefitIcon;
+};
+
+/**
  * Copy shown in the in-app rationale sheet BEFORE the OS prompt,
  * and reused for the blocked-recovery sheet body. Data (not JSX)
  * so multiple renderers (bottom sheet, banner, prominent modal)
@@ -124,6 +141,14 @@ export type RationaleCopy = {
   title: string;
   body: string;
   cta: string;
+  /**
+   * Optional. When provided, PermissionSheetHost routes to the
+   * RichRationaleSheet instead of the minimal PermissionSheet.
+   * The rich sheet renders a hero + title + these labelled benefits
+   * (no body prose). Notifications uses this; other capabilities
+   * keep the minimal 2-button layout.
+   */
+  readonly benefits?: readonly RationaleBenefit[];
 };
 
 /**
@@ -167,9 +192,16 @@ export const CAPABILITY_REGISTRY: Readonly<
     requiresProminentDisclosure: false,
     requiresDeviceLocationOn: false,
     rationale: {
-      title: 'Stay updated',
+      title: 'Allow notifications',
       body: 'Get notified about bookings, trips, payments and support responses. You can turn this off anytime in Settings.',
       cta: 'Turn on notifications',
+      // Presence of `benefits` triggers the rich sheet layout.
+      // Order matters — rendered top-to-bottom.
+      benefits: [
+        { label: 'Trip & booking updates', icon: 'calendar' },
+        { label: 'Payments & quotations', icon: 'dollar' },
+        { label: 'Support messages', icon: 'message' },
+      ],
     },
     fallback: 'degradedMode',
     telemetryKey: 'notifications',
