@@ -28,18 +28,43 @@ jest.mock('react-native-reanimated', () =>
   require('react-native-reanimated/mock'),
 );
 
-// react-native-worklets (v0.11) is Reanimated's runtime — stub the
-// bits the codebase touches directly.
+// react-native-worklets (v0.11) is Reanimated 4's runtime.
+// Reanimated 4 moved several helpers here from Reanimated 3, and its own
+// jest mock still transitively imports Reanimated source that touches them.
+// Stub every helper as an identity / no-op — good enough for tests where
+// no worklet actually runs off the JS thread.
+// See: https://docs.swmansion.com/react-native-reanimated/docs/guides/migration-from-3.x/
 jest.mock('react-native-worklets', () => ({
+  // --- helpers the codebase calls directly ---
   runOnJS: (fn: any) => fn,
   runOnUI: (fn: any) => fn,
   createWorkletRuntime: jest.fn(),
   scheduleOnRN: (fn: any, ...args: any[]) => fn(...args),
+
+  // --- helpers Reanimated 4's own /mock reaches for transitively ---
+  createSerializable: (v: any) => v, // new v4 name
+  makeShareableCloneRecursive: (v: any) => v, // deprecated alias, still referenced
+  makeShareable: (v: any) => v,
+  isWorkletFunction: () => false,
+  executeOnUIRuntimeSync:
+    (fn: any) =>
+    (...args: any[]) =>
+      fn(...args),
+  runOnUIImmediately: (fn: any) => fn,
+  scheduleOnUI: (fn: any) => fn?.(),
+  scheduleOnRuntime: (_rt: any, fn: any) => fn?.(),
+  WorkletsModule: {},
 }));
 
 // -----------------------------------------------------------------
 // MMKV — the store used by redux-persist AND @tanstack query cache.
 // Backed by an in-memory Map so tests get realistic get/set semantics.
+//
+// v4 API (react-native-mmkv >= 4, Nitro-based):
+//   - factory `createMMKV({ id })` replaces `new MMKV({ id })`
+//   - `.remove(key)` replaces `.delete(key)`  ('delete' is reserved
+//     on Nitro Hybrid Objects)
+// See: https://github.com/mrousavy/react-native-mmkv (v4 README)
 // -----------------------------------------------------------------
 jest.mock('react-native-mmkv', () => {
   const stores = new Map<string, Map<string, string | number | boolean>>();
@@ -47,11 +72,10 @@ jest.mock('react-native-mmkv', () => {
     if (!stores.has(id)) stores.set(id, new Map());
     return stores.get(id)!;
   };
-  const MMKV = jest.fn().mockImplementation((opts: { id?: string } = {}) => {
+  const createMMKV = jest.fn((opts: { id?: string } = {}) => {
     const s = store(opts.id ?? 'default');
     const listeners = new Set<any>();
-    const notify = (k: string) =>
-      listeners.forEach((l: (key: string) => void) => l(k));
+    const notify = (k: string) => listeners.forEach(l => l(k));
     return {
       set: (k: string, v: any) => {
         s.set(k, v);
@@ -61,7 +85,7 @@ jest.mock('react-native-mmkv', () => {
       getNumber: (k: string) => (s.has(k) ? Number(s.get(k)) : undefined),
       getBoolean: (k: string) => (s.has(k) ? Boolean(s.get(k)) : undefined),
       contains: (k: string) => s.has(k),
-      delete: (k: string) => {
+      remove: (k: string) => {
         s.delete(k);
         notify(k);
       },
@@ -73,7 +97,7 @@ jest.mock('react-native-mmkv', () => {
       },
     };
   });
-  return { MMKV };
+  return { createMMKV };
 });
 
 // -----------------------------------------------------------------

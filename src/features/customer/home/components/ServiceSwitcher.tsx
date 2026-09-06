@@ -1,22 +1,3 @@
-/**
- * ------------------------------------------------------------------
- * ServiceSwitcher
- * ------------------------------------------------------------------
- * Icon-over-label tab switcher between the two customer service
- * modes (Car & Bus Rental / Spiritual Tours).
- *
- * Design pattern (extracted from reference tab-switcher UI):
- *   - Icon sits above a bold label, not beside it.
- *   - The ACTIVE tab reads as a lifted card: larger top-corner
- *     radius, tinted background, colored border + soft shadow —
- *     it looks like it belongs to the content below it.
- *   - INACTIVE tabs recede: flat, no border/shadow, muted icon
- *     opacity, gray label. They sit "in" the background rather
- *     than "on" it.
- *   - A thin shelf line runs under the whole row, tying the tabs
- *     visually to the section beneath them.
- * ------------------------------------------------------------------ */
-
 import React, { useCallback } from 'react';
 import {
   Image,
@@ -26,8 +7,9 @@ import {
   Text,
   View,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
-import { Colors, Radius, Spacing } from '@theme';
+import { Colors, Spacing } from '@theme';
 import { SERVICE_MODE_LABEL, type ServiceMode } from '../types';
 
 type Props = {
@@ -52,17 +34,40 @@ const OPTIONS: readonly Option[] = [
 ];
 
 const ACTIVE_TINT = '#F1FAF2';
+const INACTIVE_STROKE = '#D1D5DB';
 
-/* ------------------------------------------------------------------
- * Main component
- * ------------------------------------------------------------------ */
+const TILE_HEIGHT = 82;
+const CORNER_RADIUS = 12;
+const TOP_INSET = 8;
+const FLARE_HEIGHT = 12;
+
+function buildTilePath(width: number): string {
+  const w = width;
+  const h = TILE_HEIGHT;
+  const r = CORNER_RADIUS;
+  const inset = TOP_INSET;
+  const flareY = h - FLARE_HEIGHT;
+
+  return [
+    `M ${inset + r} 0`,
+    `L ${w - inset - r} 0`,
+    `Q ${w - inset} 0 ${w - inset} ${r}`,
+    `L ${w - inset} ${flareY}`,
+    `Q ${w - inset} ${h} ${w} ${h}`,
+    `L 0 ${h}`,
+    `Q ${inset} ${h} ${inset} ${flareY}`,
+    `L ${inset} ${r}`,
+    `Q ${inset} 0 ${inset + r} 0`,
+    'Z',
+  ].join(' ');
+}
 
 export const ServiceSwitcher: React.FC<Props> = ({ value, onChange }) => {
   return (
     <View style={styles.wrapper}>
-      <View style={styles.tabs}>
+      <View style={styles.tiles}>
         {OPTIONS.map(option => (
-          <ServiceTab
+          <ServiceTile
             key={option.value}
             option={option}
             selected={value === option.value}
@@ -70,159 +75,105 @@ export const ServiceSwitcher: React.FC<Props> = ({ value, onChange }) => {
           />
         ))}
       </View>
-
-      {/* Shelf — thin base line connecting the tabs to whatever
-       * section renders next, so the row doesn't feel detached. */}
-      <View style={styles.shelf} />
     </View>
   );
 };
 
-/* ------------------------------------------------------------------
- * Individual tab
- * ------------------------------------------------------------------ */
-
-type ServiceTabProps = {
+type ServiceTileProps = {
   option: Option;
   selected: boolean;
   onPress: (value: ServiceMode) => void;
 };
 
-const ServiceTab: React.FC<ServiceTabProps> = ({
+const ServiceTile: React.FC<ServiceTileProps> = ({
   option,
   selected,
   onPress,
 }) => {
+  const [width, setWidth] = React.useState(0);
+
   const handlePress = useCallback(() => {
     onPress(option.value);
   }, [onPress, option.value]);
+
+  const path = width > 0 ? buildTilePath(width) : '';
 
   return (
     <Pressable
       onPress={handlePress}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
-      style={({ pressed }) => [
-        styles.tab,
-        selected ? styles.tabActive : styles.tabInactive,
-        pressed && styles.pressed,
-      ]}
+      onLayout={e => setWidth(e.nativeEvent.layout.width)}
+      style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
     >
-      <Image
-        source={option.image}
-        resizeMode="contain"
-        style={[
-          styles.image,
-          option.value === 'car_bus' ? styles.carImage : styles.templeImage,
-          !selected && styles.imageInactive,
-        ]}
-      />
+      {width > 0 ? (
+        <Svg width={width} height={TILE_HEIGHT} style={StyleSheet.absoluteFill}>
+          <Path
+            d={path}
+            fill={selected ? ACTIVE_TINT : Colors.surface}
+            stroke={selected ? Colors.primary : INACTIVE_STROKE}
+            strokeWidth={selected ? 1.5 : 1}
+          />
+        </Svg>
+      ) : null}
 
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.label,
-          selected ? styles.activeLabel : styles.inactiveLabel,
-        ]}
-      >
-        {SERVICE_MODE_LABEL[option.value]}
-      </Text>
+      <View style={styles.content}>
+        <Image
+          source={option.image}
+          resizeMode="contain"
+          style={[
+            option.value === 'car_bus' ? styles.carImage : styles.templeImage,
+            !selected && styles.imageInactive,
+          ]}
+        />
+
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.label,
+            selected ? styles.activeLabel : styles.inactiveLabel,
+          ]}
+        >
+          {SERVICE_MODE_LABEL[option.value]}
+        </Text>
+      </View>
     </Pressable>
   );
 };
-
-/* ------------------------------------------------------------------
- * Styles
- * ------------------------------------------------------------------ */
 
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: Spacing.xl,
     marginBottom: Spacing.md,
   },
-
-  tabs: {
+  tiles: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.sm + 2,
   },
-
-  tab: {
+  tile: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-
-    /* Folder-tab silhouette: generous top rounding, flatter
-     * bottom — reads as "lifted" rather than a plain rounded box. */
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    borderBottomLeftRadius: Radius.xs,
-    borderBottomRightRadius: Radius.xs,
+    height: TILE_HEIGHT,
   },
-
-  tabActive: {
-    backgroundColor: ACTIVE_TINT,
-    borderWidth: 1.2,
-    borderColor: Colors.primary,
-    borderBottomWidth: 0,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-
-  tabInactive: {
-    backgroundColor: Colors.backgroundSecondary,
-    borderWidth: 1.2,
-    borderColor: Colors.border,
-    borderBottomWidth: 0,
-  },
-
   pressed: {
-    opacity: 0.82,
+    opacity: 0.85,
   },
-
-  image: {
-    marginBottom: Spacing.xs,
+  content: {
+    flex: 1,
+    paddingTop: 3,
+    paddingBottom: FLARE_HEIGHT - 6,
+    paddingHorizontal: TOP_INSET + 4,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-
-  imageInactive: {
-    opacity: 0.55,
-  },
-
-  carImage: {
-    width: 68,
-    height: 44,
-  },
-
-  templeImage: {
-    width: 56,
-    height: 44,
-  },
-
+  carImage: { width: 58, height: 58 },
+  templeImage: { width: 58, height: 58 },
+  imageInactive: { opacity: 0.6 },
   label: {
     fontSize: 14,
-    lineHeight: 18,
+    lineHeight: 17,
     fontWeight: '700',
     textAlign: 'center',
   },
-
-  activeLabel: {
-    color: Colors.primary,
-  },
-
-  inactiveLabel: {
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-
-  /* Thin base line under the whole tab row, sitting flush with
-   * the active tab's flattened bottom corners. */
-  shelf: {
-    height: 1,
-    backgroundColor: Colors.borderLight,
-    marginTop: -1,
-  },
+  activeLabel: { color: Colors.primary },
+  inactiveLabel: { color: Colors.textSecondary, fontWeight: '600' },
 });

@@ -387,7 +387,7 @@ const SlideTwo: React.FC = memo(() => (
         style={styles.heroWrap}
       >
         <Image
-          source={require('../../assets/images/urban-cruise-use.png')}
+          source={require('../../assets/images/usetext.jpeg')}
           style={styles.hero}
           resizeMode="cover"
           accessibilityLabel="Urban Cruise bus on a city highway"

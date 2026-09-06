@@ -52,11 +52,13 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from '@components/ErrorBoundary';
 import { PermissionSheetHost } from '@components/permissions';
 import { enableGlobalBlock } from '@services/screenshot';
-import { startAppResumeWatcher } from '@services/permissions';
+import { ensureCapability, startAppResumeWatcher } from '@services/permissions';
 import { Colors } from '@theme';
 import { drainPendingDeepLink } from '@/services/deeplinks/drain';
 import { buildLinkingConfig } from '@/services/deeplinks/linkingConfig';
 import { ToastHost } from '@services/toast';
+import { startFcmBridge } from '@/services/notifications/fcmBridge';
+import { useAppSelector } from '@store/hooks';
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -111,6 +113,26 @@ const App: React.FC = () => {
     return unsubscribe;
   }, []);
 
+  /* -----------------------------------------------------------------
+   * FCM tap bridge — wires FCM's three entry points (foreground
+   * onMessage, background onNotificationOpenedApp, cold-start
+   * getInitialNotification) and Notifee's foreground PRESS into
+   * onFcmNotificationTapped().
+   *
+   * INTENTIONALLY UNGATED on isAuthenticated. The stash/drain
+   * pipeline in services/deeplinks/ handles the auth gate — the
+   * FcmClickData that fails the gate is 'held' and replayed on
+   * loginSuccess / reconcileAuth. See fcmBridge.ts header for full
+   * reasoning.
+   *
+   * The cleanup is only meaningful for tests / hot reloads; in
+   * production the subscriptions live for the process lifetime.
+   * ----------------------------------------------------------------- */
+  React.useEffect(() => {
+    const unsubscribe = startFcmBridge();
+    return unsubscribe;
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <Provider store={store}>
@@ -136,6 +158,7 @@ const App: React.FC = () => {
             <KeyboardProvider>
               <BottomSheetModalProvider>
                 <StatusBar barStyle="dark-content" />
+                <NotificationPermissionGate />
                 {/*
                   App-level ErrorBoundary sits ABOVE NavigationContainer
                   so a crash in any screen shows a graceful fallback
@@ -185,6 +208,27 @@ const App: React.FC = () => {
 
 // Ensure global sanitizer is referenced (tree-shake guard).
 void shouldPersistQuery;
+
+/**
+ * NotificationPermissionGate
+ * -------------------------------------------------------------------
+ * Mounted INSIDE the Redux Provider (unlike the parent App component,
+ * which defines the Provider and therefore cannot use useAppSelector).
+ *
+ * Fires once per (role, session) — see App.tsx effect for rationale.
+ * -------------------------------------------------------------------
+ */
+const NotificationPermissionGate: React.FC = () => {
+  const isAuthenticated = useAppSelector(s => s.app.isAuthenticated);
+  const userRole = useAppSelector(s => s.app.userRole);
+
+  React.useEffect(() => {
+    if (!isAuthenticated || !userRole) return;
+    void ensureCapability('notifications', userRole);
+  }, [isAuthenticated, userRole]);
+
+  return null;
+};
 
 export default App;
 
