@@ -88,7 +88,7 @@ const AMAN_HOME: MockHomeData = {
     {
       id: 'ACT-2026-05-000001',
       kind: 'quotation_prepared',
-      title: 'Quotation Prepared',
+      title: 'Quotation Confirmed',
       subtitle: 'Delhi → Jaipur · 3 Options',
       timestamp: asISODateTime(QUOTATION_PREPARED_ISO),
     },

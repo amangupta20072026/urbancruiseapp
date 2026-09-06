@@ -194,10 +194,7 @@ export function startAppResumeWatcher(): Unsubscribe {
  * ================================================================= */
 
 async function ensureNotifications(cap: Capability): Promise<EnsureResult> {
-  const raw = await checkNotifications();
-  console.log('[DEBUG] checkNotifications raw:', JSON.stringify(raw));
-  const current = mapRnpResult(raw.status);
-  console.log('[DEBUG] mapped current:', current);
+  const current = mapRnpResult((await checkNotifications()).status);
   writeCache(cap, current);
 
   // iOS: `limited` maps to Apple's provisional authorisation — the app

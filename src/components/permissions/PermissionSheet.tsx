@@ -103,15 +103,10 @@ const PermissionSheet = forwardRef<PermissionSheetRef, Props>(
       [mode],
     );
 
-    // Nothing to render before we have copy — the host presents only
-    // after setting copy, but this guards against a race under fast
-    // hot-reloads.
-    if (!copy) return null;
-
     const isBlocked = mode === 'blocked';
     const isProminent = mode === 'prominent';
 
-    const primaryLabel = isBlocked ? 'Open Settings' : copy.cta;
+    const primaryLabel = isBlocked ? 'Open Settings' : copy?.cta ?? '';
     const primaryChoice: PermissionSheetDecision = isBlocked
       ? 'openSettings'
       : 'continue';
@@ -136,61 +131,65 @@ const PermissionSheet = forwardRef<PermissionSheetRef, Props>(
             },
           ]}
         >
-          {/* Prominent-disclosure compliance badge — always visible in
-              that mode so a Play reviewer watching the demo video can
-              spot the disclosure at a glance. */}
-          {isProminent && (
-            <View
-              style={styles.badge}
-              accessibilityRole="text"
-              accessibilityLiveRegion="polite"
-            >
-              <MapPin size={14} color={Colors.warning} />
-              <Text style={styles.badgeText}>Required for driver trips</Text>
-            </View>
-          )}
+          {copy && (
+            <>
+              {/* Prominent-disclosure compliance badge */}
+              {isProminent && (
+                <View
+                  style={styles.badge}
+                  accessibilityRole="text"
+                  accessibilityLiveRegion="polite"
+                >
+                  <MapPin size={14} color={Colors.warning} />
+                  <Text style={styles.badgeText}>
+                    Required for driver trips
+                  </Text>
+                </View>
+              )}
 
-          {/* Icon + title row */}
-          <View style={styles.header}>
-            {isBlocked ? (
-              <View style={styles.iconChip}>
-                <Settings2 size={20} color={Colors.textPrimary} />
+              {/* Icon + title row */}
+              <View style={styles.header}>
+                {isBlocked ? (
+                  <View style={styles.iconChip}>
+                    <Settings2 size={20} color={Colors.textPrimary} />
+                  </View>
+                ) : null}
+                <Text style={styles.title} accessibilityRole="header">
+                  {copy.title}
+                </Text>
               </View>
-            ) : null}
-            <Text style={styles.title} accessibilityRole="header">
-              {copy.title}
-            </Text>
-          </View>
 
-          {/* Body */}
-          <Text style={styles.body}>{copy.body}</Text>
+              {/* Body */}
+              <Text style={styles.body}>{copy.body}</Text>
 
-          {/* Actions */}
-          <View style={styles.actions}>
-            <Pressable
-              onPress={() => onDecision('dismiss')}
-              accessibilityRole="button"
-              accessibilityLabel="Not now"
-              style={({ pressed }) => [
-                styles.secondaryBtn,
-                pressed && styles.secondaryBtnPressed,
-              ]}
-            >
-              <Text style={styles.secondaryText}>Not now</Text>
-            </Pressable>
+              {/* Actions */}
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={() => onDecision('dismiss')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Not now"
+                  style={({ pressed }) => [
+                    styles.secondaryBtn,
+                    pressed && styles.secondaryBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.secondaryText}>Not now</Text>
+                </Pressable>
 
-            <Pressable
-              onPress={() => onDecision(primaryChoice)}
-              accessibilityRole="button"
-              accessibilityLabel={primaryLabel}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                pressed && styles.primaryBtnPressed,
-              ]}
-            >
-              <Text style={styles.primaryText}>{primaryLabel}</Text>
-            </Pressable>
-          </View>
+                <Pressable
+                  onPress={() => onDecision(primaryChoice)}
+                  accessibilityRole="button"
+                  accessibilityLabel={primaryLabel}
+                  style={({ pressed }) => [
+                    styles.primaryBtn,
+                    pressed && styles.primaryBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.primaryText}>{primaryLabel}</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
         </BottomSheetView>
       </BottomSheetModal>
     );
