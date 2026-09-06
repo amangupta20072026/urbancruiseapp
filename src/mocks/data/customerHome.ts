@@ -6,7 +6,7 @@
  *
  *   1. Active quotation summary (or null)
  *   2. Next upcoming trip (or null)
- *   3. Recent activity feed (last 3 shown; more available for the
+ *   3. Recent activity feed (last 4 shown; more available for the
  *      future full activity screen)
  *
  * Deterministic — same reload produces the same data. Keyed by user
@@ -55,6 +55,7 @@ const TRAVEL_DATE_ISO = '2026-05-12T09:00:00Z';
 const QUOTATION_PREPARED_ISO = '2026-05-11T04:30:00Z'; // 10:30 AM IST (mock shows "10:30 AM")
 const PAYMENT_RECEIVED_ISO = '2026-05-10T05:45:00Z'; // 11:15 AM IST
 const TRIP_CONFIRMED_ISO = '2026-05-09T22:50:00Z'; // 04:20 AM IST next day-ish; mock reads "04:20 PM"
+const INVOICE_GENERATED_ISO = '2026-05-09T09:15:00Z'; // 02:45 PM IST — same day as trip confirmation, a few hours earlier
 
 const AMAN_HOME: MockHomeData = {
   quotation: {
@@ -78,6 +79,9 @@ const AMAN_HOME: MockHomeData = {
      * a real vehicle photo (CDN URL from backend) — the field name
      * stays `vehicleImageUrl` for that transition. */
     vehicleImageUrl: 'placeholder-vehicle-innova',
+    /* Driver not yet assigned — swaps to the driver's name/phone
+     * once assignment happens, closer to the trip date. */
+    driverDetailsNote: 'Driver details available tomorrow',
   },
 
   recentActivity: [
@@ -103,11 +107,18 @@ const AMAN_HOME: MockHomeData = {
       subtitle: 'Delhi → Agra · 12 May 2026',
       timestamp: asISODateTime(TRIP_CONFIRMED_ISO),
     },
-    /* Additional history — not shown on the home screen (only the
-     * latest 3 are), but the full activity screen will show these
-     * once it's built. Kept here so the feed already has depth. */
     {
       id: 'ACT-2026-05-000004',
+      kind: 'invoice_generated',
+      title: 'Invoice Generated',
+      subtitle: 'INV-UC-2026-0056',
+      timestamp: asISODateTime(INVOICE_GENERATED_ISO),
+    },
+    /* Additional history — not shown on the home screen (only the
+     * latest 4 are), but the full activity screen will show these
+     * once it's built. Kept here so the feed already has depth. */
+    {
+      id: 'ACT-2026-05-000005',
       kind: 'quotation_reviewed',
       title: 'Quotation Reviewed',
       subtitle: 'Selected: Innova Crysta at ₹22,500',
@@ -115,14 +126,14 @@ const AMAN_HOME: MockHomeData = {
       amount: rupeesToMoney(22500),
     },
     {
-      id: 'ACT-2026-05-000005',
+      id: 'ACT-2026-05-000006',
       kind: 'trip_completed',
       title: 'Trip Completed',
       subtitle: 'Mumbai → Pune · 03 May 2026 · ★ 4.8',
       timestamp: asISODateTime('2026-05-03T11:00:00Z'),
     },
     {
-      id: 'ACT-2026-05-000006',
+      id: 'ACT-2026-05-000007',
       kind: 'payment_pending',
       title: 'Payment Pending',
       subtitle: 'Balance ₹18,750 due before travel date',
@@ -130,7 +141,7 @@ const AMAN_HOME: MockHomeData = {
       amount: rupeesToMoney(18750),
     },
     {
-      id: 'ACT-2026-05-000007',
+      id: 'ACT-2026-05-000008',
       kind: 'trip_cancelled',
       title: 'Trip Cancelled',
       subtitle: 'Delhi → Manali · 28 Apr 2026',

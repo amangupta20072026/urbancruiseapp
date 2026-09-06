@@ -9,13 +9,14 @@
  *   [Service switcher]
  *   [HERO CARD  — exactly one, chosen by the priority ladder below]
  *   ─────────────────────────────────────────────
+ *   [Upcoming Trip — always renders; iconified empty state]
+ *   ─────────────────────────────────────────────
  *   [Recent Activity — always renders; iconified empty state]
  *
  * ── Hero card priority ladder ────────────────────────────────────
  *   1. quotation.status === 'ready'       → QuotationReadyCard
  *   2. quotation.status === 'in_progress' → QuotationPreparingCard
- *   3. upcomingTrip present               → UpcomingTripCard
- *   4. otherwise                          → RequestQuotationCard
+ *   3. otherwise                          → RequestQuotationCard
  *                                           ("Plan your next journey")
  *
  * The ladder is strict — only ONE hero card renders. This matches
@@ -23,9 +24,17 @@
  * action: at any moment there is exactly one "most important thing"
  * we're asking them to look at.
  *
+ * "Upcoming Trip" is deliberately NOT part of the ladder — it's an
+ * always-visible section of its own (same pattern as "Recent
+ * Activity"), independent of whichever hero card is showing. A
+ * ready quotation and a confirmed trip aren't mutually exclusive in
+ * the product, so hiding one behind the other was a bug, not a
+ * feature — see git history on this file for the prior 4-rung ladder.
+ *
  * ── Non-hero state handling ──────────────────────────────────────
  *   - Loading (first mount, no cached data) → screen-level spinner
  *   - Error                                 → ErrorView with retry
+ *   - Upcoming Trip empty                   → iconified empty state
  *   - Activity empty                        → iconified empty state
  *
  * ── Navigation intents ───────────────────────────────────────────
@@ -46,7 +55,7 @@ import {
 import { useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Inbox } from 'lucide-react-native';
+import { Inbox, CalendarClock } from 'lucide-react-native';
 
 import { SafeScreen, ErrorView } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
@@ -137,6 +146,12 @@ const CustomerHomeScreen: React.FC = () => {
     }
   }, []);
 
+  const onViewAllTrips = useCallback(() => {
+    if (__DEV__) {
+      console.log('[home] TODO(nav): navigate to Trips list');
+    }
+  }, []);
+
   /* -------- Hero card selection (strict priority ladder) --------
    *
    *   1. Ready quotation      → review it
@@ -160,9 +175,6 @@ const CustomerHomeScreen: React.FC = () => {
     }
     if (quotation && quotation.status === 'in_progress') {
       return <QuotationPreparingCard />;
-    }
-    if (upcomingTrip) {
-      return <UpcomingTripCard trip={upcomingTrip} onViewPress={onViewTrip} />;
     }
     return <RequestQuotationCard onRequestPress={onRequestQuotation} />;
   };
@@ -206,6 +218,29 @@ const CustomerHomeScreen: React.FC = () => {
         ) : (
           <>
             {renderHero()}
+
+            {/* Upcoming Trip — always renders; iconified empty state. */}
+            <SectionHeader
+              title="Upcoming Trip"
+              onActionPress={upcomingTrip ? onViewAllTrips : undefined}
+            />
+            {upcomingTrip ? (
+              <UpcomingTripCard trip={upcomingTrip} onViewPress={onViewTrip} />
+            ) : (
+              <View style={styles.emptyCard}>
+                <View style={styles.emptyIcon}>
+                  <CalendarClock
+                    size={28}
+                    color={Colors.textTertiary}
+                    strokeWidth={1.75}
+                  />
+                </View>
+                <Text style={styles.emptyTitle}>No upcoming trips yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  Your next confirmed trip will show up here.
+                </Text>
+              </View>
+            )}
 
             {/* Recent Activity — always renders; iconified empty state. */}
             <SectionHeader

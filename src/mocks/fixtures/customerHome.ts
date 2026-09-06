@@ -59,7 +59,7 @@ export function getFixtureUpcomingTripForUser(
 /**
  * Full recent-activity feed for a given user, newest-first.
  * Returns an empty array if the user is unknown or has no history —
- * caller does its own slicing (home shows the latest 3, full activity
+ * caller does its own slicing (home shows the latest 4, full activity
  * screen shows everything).
  */
 export function getFixtureRecentActivityForUser(

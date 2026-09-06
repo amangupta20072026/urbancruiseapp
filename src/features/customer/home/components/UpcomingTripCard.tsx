@@ -6,23 +6,35 @@
  * header:
  *
  *   ┌──────────────────────────────────────────────────────────┐
- *   │ ┌────────────┐  [CONFIRMED]                              │
- *   │ │            │  Delhi → Agra                             │
- *   │ │  vehicle   │  📅 12 May 2026 · 9:00 AM                  │
- *   │ │   image    │  🚐 Toyota Innova Crysta                   │
- *   │ │            │                                            │
- *   │ └────────────┘                              [ View Trip ] │
+ *   │ [TOMORROW]                                    [CONFIRMED] │
+ *   │ ┌────────────┐  Delhi → Agra                              │
+ *   │ │  vehicle   │  🕐 8:00 AM · 13 May 2025                   │
+ *   │ │   image    │  🚐 Toyota Innova Crysta                    │
+ *   │ │            │  👤 Driver details available tomorrow      │
+ *   │ └────────────┘                                            │
+ *   │              [        View Trip          ›        ]       │
  *   └──────────────────────────────────────────────────────────┘
  *
  * The vehicle "image" is a coloured placeholder tile in v1. When a
  * real asset URL is available (either a bundled asset or a CDN URL
  * from backend), the placeholder swaps for `<Image source={...}>`.
  * The `vehicleImageUrl` field on the type already carries the value.
+ *
+ * The [TOMORROW] pill is calendar-day-relative ("TODAY" / "TOMORROW"
+ * / formatted date beyond that) — see `fmtRelativeDay` below. The
+ * driver-details row only renders when `driverDetailsNote` is set on
+ * the trip; omitted entirely otherwise (not blanked out).
  * ------------------------------------------------------------------ */
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowRight, Calendar, ChevronRight, Car } from 'lucide-react-native';
+import {
+  ArrowRight,
+  Calendar,
+  ChevronRight,
+  Car,
+  User,
+} from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import {
@@ -54,6 +66,23 @@ const fmtTime = (iso: string): string =>
     hour12: true,
   });
 
+/** Calendar-day-aware relative label: "TODAY" / "TOMORROW" for the
+ * next two days, otherwise the formatted date. Compares calendar
+ * days (not 24h windows) so a trip at 12:01 AM tomorrow still reads
+ * "TOMORROW" rather than falling through to a raw date. */
+const startOfDay = (d: Date): number =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+const fmtRelativeDay = (iso: string): string => {
+  const target = startOfDay(new Date(iso));
+  const today = startOfDay(new Date());
+  const diffDays = Math.round((target - today) / 86_400_000);
+
+  if (diffDays === 0) return 'TODAY';
+  if (diffDays === 1) return 'TOMORROW';
+  return fmtDate(iso).toUpperCase();
+};
+
 /* ------------------------------------------------------------------ */
 /* Component                                                          */
 /* ------------------------------------------------------------------ */
@@ -63,78 +92,107 @@ export const UpcomingTripCard: React.FC<Props> = ({ trip, onViewPress }) => {
 
   return (
     <View style={styles.card}>
-      {/* Vehicle image placeholder. Swap for <Image> when real assets
-          arrive — see file header. */}
-      <View style={styles.imageWrap}>
-        <View style={styles.imagePlaceholder}>
-          <Car size={36} color={Colors.textSecondary} strokeWidth={1.6} />
+      {/* Badge row — relative day (left) + trip status (right). Sits
+          above the image/body row so both pills stay legible even on
+          narrow screens where the image crowds the body column. */}
+      <View style={styles.badgeRow}>
+        <View style={[styles.chip, styles.chipDay]}>
+          <Text style={[styles.chipText, styles.chipTextDay]}>
+            {fmtRelativeDay(trip.scheduledAt)}
+          </Text>
         </View>
-      </View>
-
-      {/* Body */}
-      <View style={styles.body}>
-        {/* Status chip */}
         <View style={[styles.chip, { backgroundColor: statusColor.bg }]}>
           <Text style={[styles.chipText, { color: statusColor.fg }]}>
             {UPCOMING_STATUS_LABEL[trip.status]}
           </Text>
         </View>
-
-        {/* Route */}
-        <View style={styles.routeRow}>
-          <Text style={styles.city} numberOfLines={1}>
-            {trip.fromCity}
-          </Text>
-          <ArrowRight size={16} color={Colors.success} strokeWidth={2.4} />
-          <Text style={styles.city} numberOfLines={1}>
-            {trip.toCity}
-          </Text>
-        </View>
-
-        {/* Meta lines */}
-        <View style={styles.metaRow}>
-          <Calendar size={13} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.metaText} numberOfLines={1}>
-            {fmtDate(trip.scheduledAt)} · {fmtTime(trip.scheduledAt)}
-          </Text>
-        </View>
-        <View style={styles.metaRow}>
-          <Car size={13} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.metaText} numberOfLines={1}>
-            {trip.vehicleName}
-          </Text>
-        </View>
-
-        {/* CTA */}
-        <Pressable
-          onPress={onViewPress}
-          accessibilityRole="button"
-          accessibilityLabel="View trip"
-          style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
-        >
-          <Text style={styles.ctaText}>View Trip</Text>
-          <ChevronRight
-            size={14}
-            color={Colors.textOnPrimary}
-            strokeWidth={2.4}
-          />
-        </Pressable>
       </View>
+
+      <View style={styles.mainRow}>
+        {/* Vehicle image placeholder. Swap for <Image> when real assets
+            arrive — see file header. */}
+        <View style={styles.imageWrap}>
+          <View style={styles.imagePlaceholder}>
+            <Car size={36} color={Colors.textSecondary} strokeWidth={1.6} />
+          </View>
+        </View>
+
+        {/* Body */}
+        <View style={styles.body}>
+          {/* Route */}
+          <View style={styles.routeRow}>
+            <Text style={styles.city} numberOfLines={1}>
+              {trip.fromCity}
+            </Text>
+            <ArrowRight size={16} color={Colors.success} strokeWidth={2.4} />
+            <Text style={styles.city} numberOfLines={1}>
+              {trip.toCity}
+            </Text>
+          </View>
+
+          {/* Meta lines */}
+          <View style={styles.metaRow}>
+            <Calendar size={13} color={Colors.textSecondary} strokeWidth={2} />
+            <Text style={styles.metaText} numberOfLines={1}>
+              {fmtTime(trip.scheduledAt)} · {fmtDate(trip.scheduledAt)}
+            </Text>
+          </View>
+          <View style={styles.metaRow}>
+            <Car size={13} color={Colors.textSecondary} strokeWidth={2} />
+            <Text style={styles.metaText} numberOfLines={1}>
+              {trip.vehicleName}
+            </Text>
+          </View>
+          {trip.driverDetailsNote ? (
+            <View style={styles.metaRow}>
+              <User size={13} color={Colors.textSecondary} strokeWidth={2} />
+              <Text style={styles.metaText} numberOfLines={1}>
+                {trip.driverDetailsNote}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      {/* CTA — full-width, sits below the image/body row. */}
+      <Pressable
+        onPress={onViewPress}
+        accessibilityRole="button"
+        accessibilityLabel="View trip"
+        style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
+      >
+        <Text style={styles.ctaText}>View Trip</Text>
+        <ChevronRight
+          size={16}
+          color={Colors.textOnPrimary}
+          strokeWidth={2.4}
+        />
+      </Pressable>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    gap: Spacing.md,
     marginHorizontal: Spacing.md,
     padding: Spacing.md,
+    gap: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.borderLight,
     ...Shadows.xs,
+  },
+
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  mainRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
   },
 
   imageWrap: {
@@ -153,6 +211,7 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     gap: 4,
+    justifyContent: 'center',
   },
 
   chip: {
@@ -160,14 +219,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 999,
-    marginBottom: 2,
   },
+  chipDay: { backgroundColor: '#DCFCE7' },
   chipText: {
     ...Typography.caption,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
+  chipTextDay: { color: Colors.success },
 
   routeRow: {
     flexDirection: 'row',
@@ -194,22 +254,20 @@ const styles = StyleSheet.create({
   },
 
   cta: {
-    alignSelf: 'flex-start',
-    marginTop: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
+    paddingVertical: 10,
     backgroundColor: Colors.primary,
     borderRadius: Radius.md,
     ...Shadows.xs,
   },
   ctaText: {
-    ...Typography.caption,
+    ...Typography.body,
     color: Colors.textOnPrimary,
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 14,
   },
   pressed: { opacity: 0.85 },
 });

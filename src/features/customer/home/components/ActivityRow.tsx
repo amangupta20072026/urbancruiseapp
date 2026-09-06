@@ -38,6 +38,7 @@ import {
   CheckCircle2,
   FileText,
   IndianRupee,
+  Receipt,
   XCircle,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -63,6 +64,7 @@ const KIND_ICON: Record<ActivityKind, LucideIcon> = {
   trip_confirmed: Car,
   trip_completed: CheckCircle2,
   trip_cancelled: XCircle,
+  invoice_generated: Receipt,
 };
 
 const fmtDate = (iso: string): string =>
@@ -88,10 +90,7 @@ const ActivityRowImpl: React.FC<Props> = ({ activity, isFirst, isLast }) => {
       <View style={styles.rail}>
         <View style={[styles.line, isFirst && styles.lineHidden]} />
         <View
-          style={[
-            styles.dot,
-            isFirst ? styles.dotActive : styles.dotInactive,
-          ]}
+          style={[styles.dot, isFirst ? styles.dotActive : styles.dotInactive]}
         />
         <View style={[styles.line, isLast && styles.lineHidden]} />
       </View>

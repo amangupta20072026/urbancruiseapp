@@ -111,6 +111,11 @@ export type UpcomingTrip = {
   /** Local asset path or remote URL — the card `<Image source>`
    * consumer decides which. In mock we use a placeholder URL. */
   vehicleImageUrl: string;
+  /** Free-form status line about driver assignment, e.g. "Driver
+   * details available tomorrow" (not yet assigned) or "Ramesh Kumar
+   * · +91 98765 43210" (assigned). Optional — the row is omitted
+   * entirely when absent, rather than rendering a placeholder. */
+  driverDetailsNote?: string;
 };
 
 /* ------------------------------------------------------------------
@@ -133,7 +138,8 @@ export type ActivityKind =
   | 'payment_pending'
   | 'trip_confirmed'
   | 'trip_completed'
-  | 'trip_cancelled';
+  | 'trip_cancelled'
+  | 'invoice_generated';
 
 export const ACTIVITY_KIND_LABEL: Record<ActivityKind, string> = {
   quotation_prepared: 'Quotation Prepared',
@@ -143,6 +149,7 @@ export const ACTIVITY_KIND_LABEL: Record<ActivityKind, string> = {
   trip_confirmed: 'Trip Confirmed',
   trip_completed: 'Trip Completed',
   trip_cancelled: 'Trip Cancelled',
+  invoice_generated: 'Invoice Generated',
 };
 
 /* Icon-tint palette per activity kind. Same principle as
@@ -161,6 +168,7 @@ export const ACTIVITY_KIND_COLOR: Record<
   trip_confirmed: { fg: Colors.success, bg: '#E7F7EC' },
   trip_completed: { fg: Colors.completed, bg: '#DBEAFE' },
   trip_cancelled: { fg: Colors.error, bg: '#FEE2E2' },
+  invoice_generated: { fg: Colors.warning, bg: '#FFEDD5' },
 };
 
 export type ActivityItem = {
@@ -191,7 +199,8 @@ export type ActivityItem = {
 export type HomeScreenData = {
   /** Null = no active quotation → show RequestQuotationCard instead. */
   quotation: QuotationSummary | null;
-  /** Null = no upcoming trip → hide the upcoming section entirely. */
+  /** Null = no upcoming trip → the "Upcoming Trip" section still
+   * renders, but shows its iconified empty state instead of a card. */
   upcomingTrip: UpcomingTrip | null;
   /** Empty = show the Recent Activity section with an empty state. */
   recentActivity: ActivityItem[];

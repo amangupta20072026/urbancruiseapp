@@ -6,19 +6,14 @@
  * active quotation:
  *
  *   ┌────────────────────────────────────────────────────────┐
- *   │  [QUOTATION READY]                                     │
- *   │  Your quotation is ready!             ┌─────┐          │
- *   │  Prepared by Urban Cruise team        │ UC  │          │
- *   │                                       │ ═══ │          │
- *   │  Delhi → Jaipur                       │ ═══ │          │
- *   │  📅 12 May 2026 · 3 Options           │  ✔  │          │
- *   │                                       └─────┘          │
- *   │  [ Review Quotation  › ]                               │
+ *   │  [QUOTATION READY]                                      │
+ *   │  Your quotation is ready!                               │
+ *   │  Prepared by Urban Cruise team                          │
+ *   │                                                          │
+ *   │  Delhi → Jaipur                                          │
+ *   │  📅 12 May 2026 · 3 Options                             │
+ *   │  [ Review Quotation  › ]                                │
  *   └────────────────────────────────────────────────────────┘
- *
- * The right-side "document" is a stylised SVG-like block built from
- * plain <View>s (no image asset). Reason: reuses theme tokens, scales
- * with density, and doesn't require a designer to hand over PNGs.
  *
  * The two content states (`ready` vs `in_progress`) share layout and
  * differ only in copy + CTA affordance. Splitting them into two
@@ -27,7 +22,7 @@
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Calendar, ChevronRight, ArrowRight, Check } from 'lucide-react-native';
+import { Calendar, ChevronRight, ArrowRight } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { QUOTATION_STATUS_LABEL, type QuotationSummary } from '../types';
@@ -139,43 +134,9 @@ export const QuotationReadyCard: React.FC<Props> = ({
           ) : null}
         </Pressable>
       </View>
-
-      {/* Right-side illustration — pure View composition. Sits absolutely
-          positioned so it can bleed slightly into the padding. */}
-      <View pointerEvents="none" style={styles.artWrap}>
-        <QuotationDocGraphic ready={isReady} />
-      </View>
     </View>
   );
 };
-
-/* ---------------- Illustration ---------------- */
-
-/* Stylised "document" mark: rounded rectangle with brand initials at
- * top, a few horizontal lines below, and a green check badge at the
- * bottom-right (only in `ready` state).
- *
- * Kept as internal composition — extractable to `components/art/`
- * later if we want to reuse it (e.g. on a fuller-screen quotation
- * empty state). */
-const QuotationDocGraphic: React.FC<{ ready: boolean }> = ({ ready }) => (
-  <View style={artStyles.docWrap}>
-    <View style={artStyles.doc}>
-      <View style={artStyles.docLogo}>
-        <Text style={artStyles.docLogoTextU}>U</Text>
-        <Text style={artStyles.docLogoTextC}>C</Text>
-      </View>
-      <View style={artStyles.docLine1} />
-      <View style={artStyles.docLine2} />
-      <View style={artStyles.docLine3} />
-    </View>
-    {ready ? (
-      <View style={artStyles.checkBadge}>
-        <Check size={12} color={Colors.textInverse} strokeWidth={3} />
-      </View>
-    ) : null}
-  </View>
-);
 
 /* ---------------- Styles ---------------- */
 
@@ -189,7 +150,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.md,
-    paddingRight: 130, // reserve room for the illustration
   },
 
   chip: {
@@ -281,81 +241,5 @@ const styles = StyleSheet.create({
     color: Colors.textOnPrimary,
     fontWeight: '800',
     fontSize: 15,
-  },
-
-  artWrap: {
-    position: 'absolute',
-    right: Spacing.md,
-    top: Spacing.md,
-    bottom: Spacing.md,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-  },
-});
-
-const artStyles = StyleSheet.create({
-  docWrap: {
-    width: 96,
-    aspectRatio: 0.78,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doc: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    padding: 12,
-    gap: 6,
-    ...Shadows.xs,
-  },
-  docLogo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 1,
-    marginBottom: 4,
-  },
-  docLogoTextU: {
-    color: Colors.accent,
-    fontWeight: '800',
-    fontSize: 14,
-  },
-  docLogoTextC: {
-    color: Colors.primary,
-    fontWeight: '800',
-    fontSize: 14,
-  },
-  docLine1: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.borderLight,
-    width: '80%',
-  },
-  docLine2: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.borderLight,
-    width: '95%',
-  },
-  docLine3: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.borderLight,
-    width: '65%',
-  },
-  checkBadge: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.success,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.background,
   },
 });
