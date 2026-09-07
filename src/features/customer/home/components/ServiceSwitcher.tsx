@@ -47,9 +47,22 @@ const FLARE_HEIGHT = 12;
 /**
  * Builds the custom service tile shape.
  *
+ * Shape:
+ *   - Rounded top corners at `TOP_INSET` px in from the left/right edges
+ *   - Straight sides down at the inset width
+ *   - Bottom `FLARE_HEIGHT` px flares outward via Q curves to reach the
+ *     full container width at y = h
+ *
+ * Layout contract with `ServiceSwitcher` (Swiggy-inspired):
+ *   The two tiles sit edge-to-edge (`gap: 0`) inside `styles.tiles`, so
+ *   the left tile's right-bottom flare and the right tile's left-bottom
+ *   flare meet at a single point in the middle of the switcher at y = h.
+ *   Above y = flareY, a triangular V-notch opens between them (16 px wide
+ *   at the top) — that's the signature Swiggy look.
+ *
  * Important:
- * TILE_HEIGHT remains 82.
- * We do not reduce the 80 × 80 car image.
+ *   TILE_HEIGHT remains 82.
+ *   We do not reduce the 80 × 80 car image.
  */
 function buildTilePath(width: number): string {
   const w = width;
@@ -163,9 +176,25 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
 
+  /**
+   * Tiles container.
+   *
+   * `gap: 0` is intentional — this is the Swiggy pattern. Each tile's
+   * bottom flare reaches the full container width at y = TILE_HEIGHT,
+   * so with zero horizontal gap the left tile's right-bottom flare and
+   * the right tile's left-bottom flare meet at a single point in the
+   * middle of the switcher. Above the flare region, the two tiles are
+   * separated by a triangular V-notch that widens toward the top
+   * (2 × TOP_INSET = 16 px at y = 0), giving the switcher the
+   * distinctive "tabs sharing a bottom line" look.
+   *
+   * Do NOT put positive gap here without also revisiting the tile
+   * shape — a gap would leave the flares floating with visible space
+   * between them and break the pattern.
+   */
   tiles: {
     flexDirection: 'row',
-    gap: Spacing.sm + 2,
+    gap: 0,
   },
 
   tile: {

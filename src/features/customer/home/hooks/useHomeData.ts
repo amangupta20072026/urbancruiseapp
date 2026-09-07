@@ -46,7 +46,7 @@ import { selectUserId } from '@store/selectors/userSelectors';
 
 import type { ActivityItem, QuotationSummary, UpcomingTrip } from '../types';
 
-const RECENT_ACTIVITY_HOME_LIMIT = 4;
+const RECENT_ACTIVITY_HOME_LIMIT = 5;
 
 /* ------------------------------------------------------------------ */
 /* Individual fetchers                                                */

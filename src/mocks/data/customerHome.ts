@@ -6,7 +6,7 @@
  *
  *   1. Active quotation summary (or null)
  *   2. Next upcoming trip (or null)
- *   3. Recent activity feed (last 4 shown; more available for the
+ *   3. Recent activity feed (last 5 shown; more available for the
  *      future full activity screen)
  *
  * Deterministic — same reload produces the same data. Keyed by user
@@ -56,6 +56,7 @@ const QUOTATION_PREPARED_ISO = '2026-05-11T04:30:00Z'; // 10:30 AM IST (mock sho
 const PAYMENT_RECEIVED_ISO = '2026-05-10T05:45:00Z'; // 11:15 AM IST
 const TRIP_CONFIRMED_ISO = '2026-05-09T22:50:00Z'; // 04:20 AM IST next day-ish; mock reads "04:20 PM"
 const INVOICE_GENERATED_ISO = '2026-05-09T09:15:00Z'; // 02:45 PM IST — same day as trip confirmation, a few hours earlier
+const TRIP_COMPLETED_ISO = '2026-05-08T20:00:00Z'; // sits right after Invoice Generated in the feed
 
 const AMAN_HOME: MockHomeData = {
   quotation: {
@@ -88,7 +89,7 @@ const AMAN_HOME: MockHomeData = {
     {
       id: 'ACT-2026-05-000001',
       kind: 'quotation_prepared',
-      title: 'Quotation Confirmed',
+      title: 'Quotation Reviewed',
       subtitle: 'Delhi → Jaipur · 3 Options',
       timestamp: asISODateTime(QUOTATION_PREPARED_ISO),
     },
@@ -114,8 +115,15 @@ const AMAN_HOME: MockHomeData = {
       subtitle: 'INV-UC-2026-0056',
       timestamp: asISODateTime(INVOICE_GENERATED_ISO),
     },
+    {
+      id: 'ACT-2026-05-000004b',
+      kind: 'trip_completed',
+      title: 'Trip Completed',
+      subtitle: 'Jaipur → Delhi · 07 May 2026 · ★ 4.9',
+      timestamp: asISODateTime(TRIP_COMPLETED_ISO),
+    },
     /* Additional history — not shown on the home screen (only the
-     * latest 4 are), but the full activity screen will show these
+     * latest 5 are), but the full activity screen will show these
      * once it's built. Kept here so the feed already has depth. */
     {
       id: 'ACT-2026-05-000005',
