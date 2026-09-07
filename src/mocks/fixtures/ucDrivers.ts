@@ -18,7 +18,7 @@ import { fixtureUcVendorsAll } from './ucVendors';
 import { asISODateTime, type ISODateTime } from '@app-types/datetime';
 
 const NAMES = [
-  'Ramesh Kumar',
+  'Nitin Kumar',
   'Suresh Patil',
   'Anwar Sheikh',
   'Balbir Singh',

@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+
 import {
   Image,
   type ImageSourcePropType,
@@ -7,9 +8,11 @@ import {
   Text,
   View,
 } from 'react-native';
+
 import Svg, { Path } from 'react-native-svg';
 
 import { Colors, Spacing } from '@theme';
+
 import { SERVICE_MODE_LABEL, type ServiceMode } from '../types';
 
 type Props = {
@@ -41,6 +44,13 @@ const CORNER_RADIUS = 12;
 const TOP_INSET = 8;
 const FLARE_HEIGHT = 12;
 
+/**
+ * Builds the custom service tile shape.
+ *
+ * Important:
+ * TILE_HEIGHT remains 82.
+ * We do not reduce the 80 × 80 car image.
+ */
 function buildTilePath(width: number): string {
   const w = width;
   const h = TILE_HEIGHT;
@@ -92,6 +102,8 @@ const ServiceTile: React.FC<ServiceTileProps> = ({
 }) => {
   const [width, setWidth] = React.useState(0);
 
+  const isCarBus = option.value === 'car_bus';
+
   const handlePress = useCallback(() => {
     onPress(option.value);
   }, [onPress, option.value]);
@@ -103,9 +115,10 @@ const ServiceTile: React.FC<ServiceTileProps> = ({
       onPress={handlePress}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
-      onLayout={e => setWidth(e.nativeEvent.layout.width)}
+      onLayout={event => setWidth(event.nativeEvent.layout.width)}
       style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
     >
+      {/* Custom background shape */}
       {width > 0 ? (
         <Svg width={width} height={TILE_HEIGHT} style={StyleSheet.absoluteFill}>
           <Path
@@ -118,19 +131,22 @@ const ServiceTile: React.FC<ServiceTileProps> = ({
       ) : null}
 
       <View style={styles.content}>
+        {/* Vehicle / temple image */}
         <Image
           source={option.image}
           resizeMode="contain"
           style={[
-            option.value === 'car_bus' ? styles.carImage : styles.templeImage,
+            isCarBus ? styles.carImage : styles.templeImage,
             !selected && styles.imageInactive,
           ]}
         />
 
+        {/* Service label */}
         <Text
           numberOfLines={1}
           style={[
             styles.label,
+            isCarBus ? styles.carLabel : styles.templeLabel,
             selected ? styles.activeLabel : styles.inactiveLabel,
           ]}
         >
@@ -146,34 +162,95 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     marginBottom: Spacing.md,
   },
+
   tiles: {
     flexDirection: 'row',
     gap: Spacing.sm + 2,
   },
+
   tile: {
     flex: 1,
     height: TILE_HEIGHT,
+    overflow: 'visible',
   },
+
   pressed: {
     opacity: 0.85,
   },
+
   content: {
     flex: 1,
-    paddingTop: 3,
-    paddingBottom: FLARE_HEIGHT - 6,
-    paddingHorizontal: TOP_INSET + 4,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
-  carImage: { width: 58, height: 58 },
-  templeImage: { width: 58, height: 58 },
-  imageInactive: { opacity: 0.6 },
+
+  /**
+   * Keep the original image dimensions.
+   *
+   * The car is moved upward visually without:
+   * - increasing TILE_HEIGHT
+   * - reducing the image
+   *
+   * The label remains independently positioned.
+   */
+  carImage: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    top: -14,
+  },
+
+  /**
+   * Temple remains smaller and naturally centred.
+   */
+  templeImage: {
+    width: 60,
+    height: 60,
+    position: 'absolute',
+    top: 2,
+  },
+
+  imageInactive: {
+    opacity: 0.6,
+  },
+
+  /**
+   * Base label styles.
+   */
   label: {
+    position: 'absolute',
+    left: 6,
+    right: 6,
+    bottom: 3,
+
     fontSize: 14,
     lineHeight: 17,
     fontWeight: '700',
     textAlign: 'center',
   },
-  activeLabel: { color: Colors.primary },
-  inactiveLabel: { color: Colors.textSecondary, fontWeight: '600' },
+
+  /**
+   * Car & Bus Rental stays fixed inside
+   * the bottom section of the tile.
+   */
+  carLabel: {
+    bottom: 3,
+  },
+
+  /**
+   * Spiritual Tours stays at the same
+   * visual baseline as the car service.
+   */
+  templeLabel: {
+    bottom: 3,
+  },
+
+  activeLabel: {
+    color: Colors.primary,
+  },
+
+  inactiveLabel: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
 });
