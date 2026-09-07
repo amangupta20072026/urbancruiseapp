@@ -59,6 +59,7 @@ import {
   type AppConfig,
 } from './steps/appConfig';
 import { validateAuth, type AuthResolution } from './steps/auth';
+import { identifyUser } from '@services/telemetry/identify';
 
 // Tunables — keep here so ops can adjust without hunting through code.
 const AUTH_VALIDATE_TIMEOUT_MS = 3_000;
@@ -110,6 +111,14 @@ export async function runBootstrap(dispatch: AppDispatch): Promise<void> {
         auth: authResult.value,
       }),
     );
+    if (authResult.value.status === 'authenticated') {
+      identifyUser({
+        userId: authResult.value.userId,
+        role: authResult.value.role,
+        subRole: authResult.value.subRole,
+        entityId: authResult.value.entityId,
+      });
+    }
   } catch {
     // Absolute last-resort fallback. Should be unreachable — every
     // step above catches its own errors — but if something explodes

@@ -6,31 +6,21 @@
  * still want to record — user-behaviour signals, security-relevant
  * events (screenshot attempts, backgrounding during payment), etc.
  *
- * Same design contract as logError:
- *   - MUST NEVER throw. Wrap the body in try/catch once a real
- *     telemetry SDK is wired in.
- *   - Structured: name + optional properties. The name is a stable
- *     enum-like string; properties are the variable-per-call payload.
+ * Contract:
+ *   - MUST NEVER throw (analytics.ts catches internally)
+ *   - Structured: name + optional properties
+ *   - Name is a closed union (EventName) — typos caught at compile
  *
- * In production, forward to Sentry / Amplitude / DataDog / whatever
- * — a single swap point. Callers never change.
+ * Wired to Firebase Analytics via services/telemetry/analytics.ts.
+ * If we ever change analytics vendors, only analytics.ts changes.
  * ------------------------------------------------------------------
  */
 
 import type { PermissionTelemetryKey } from '@rbac/capabilities';
+import { sendAnalyticsEvent } from './analytics';
 
 /* -----------------------------------------------------------------
  * Permission events — funnel telemetry from PermissionService.
- *
- * PermissionTelemetryKey is imported from @rbac/capabilities to keep
- * the SSoT there: a capability's descriptor field IS the key we emit.
- * Verbs are defined here because they're logEvent-facing vocabulary,
- * not RBAC vocabulary.
- *
- * The final concrete strings look like:
- *   'permission.camera.prompt_shown'
- *   'permission.foreground_location.rationale_dismissed'
- *   'permission.foreground_location.gps_off'
  * ----------------------------------------------------------------- */
 
 export type PermissionTelemetryVerb =
@@ -53,26 +43,23 @@ export type PermissionEventName =
 
 /* -----------------------------------------------------------------
  * The closed EventName union
+ *
+ * Extended in step 05 with auth, home, trip, deeplink, fcm events.
  * ----------------------------------------------------------------- */
 
 export type EventName =
-  /** Screenshot detected (iOS-only signal; Android blocks it entirely). */
+  // Security
   | 'security.screenshot_detected'
-  /** Screen recording started (both platforms). */
   | 'security.recording_started'
-  /** App backgrounded while sensitive content was on screen. */
   | 'security.background_while_sensitive'
-  /** Permission service funnel events. */
+  // Permissions (funnel)
   | PermissionEventName;
-/* Add more event names here as the app grows. Keeping this a
- * closed union rather than `string` catches typos at compile time. */
 
 export type EventProperties = Record<string, unknown>;
 
 /**
  * Record a structured telemetry event. Safe to call from anywhere.
- * In development, logs to the JS console; in production, will forward
- * to a telemetry SDK once one is wired in.
+ * Fires in BOTH dev (with console echo) and prod. Never throws.
  */
 export function logEvent(
   name: EventName,
@@ -80,7 +67,6 @@ export function logEvent(
 ): void {
   if (__DEV__) {
     console.log(`[event] ${name}`, properties);
-    return;
   }
-  // TODO(telemetry): forward to Sentry / Amplitude / DataDog here.
+  sendAnalyticsEvent(name, properties);
 }

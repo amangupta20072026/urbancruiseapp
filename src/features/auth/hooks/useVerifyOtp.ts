@@ -48,6 +48,8 @@ import { userReceived, type UserProfile } from '@store/slices/userSlice';
 import type { UserRole, SubRole } from '@rbac/roles';
 import { isoNow } from '@app-types/datetime';
 import { mockCurrentUser } from '@mocks/data/currentUser';
+import { logEvent } from '@services/telemetry/logEvent';
+import { identifyUser } from '@services/telemetry/identify';
 
 /* ------------------------------------------------------------------ */
 /* Toggle                                                             */

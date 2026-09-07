@@ -1,11 +1,19 @@
 {
   "$schema": "./node_modules/@react-native-firebase/app/firebase-schema.json",
   "react-native": {
+    "analytics_auto_collection_enabled": true,
+    "analytics_collection_deactivated": false,
+    "analytics_default_allow_ad_personalization_signals": false,
+    "analytics_default_allow_ad_user_data": false,
+    "analytics_default_allow_analytics_storage": true,
+    "analytics_default_allow_ad_storage": false,
+
     "crashlytics_auto_collection_enabled": true,
     "crashlytics_debug_enabled": false,
     "crashlytics_is_error_generation_on_js_crash_enabled": true,
     "crashlytics_javascript_exception_handler_chaining_enabled": false,
     "crashlytics_ndk_enabled": true,
+
     "messaging_auto_init_enabled": true
   }
 }

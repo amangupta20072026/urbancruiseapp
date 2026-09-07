@@ -32,7 +32,7 @@
  * TELEMETRY:
  *   Every caught error flows to `logError` from the shared telemetry
  *   sink, tagged with the boundary's `name`. That's the ONE place
- *   Sentry / Crashlytics / DataDog gets wired in — no change to
+ *   Google Analytics gets wired in — no change to
  *   this file needed when telemetry lands.
  *
  * WHY A CLASS COMPONENT:
