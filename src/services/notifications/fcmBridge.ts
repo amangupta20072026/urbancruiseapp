@@ -31,6 +31,16 @@
  *   `startFcmBridge()` is safe to call more than once. Guarded so
  *   React StrictMode's double-invocation in dev cannot install
  *   duplicate FCM subscriptions.
+ *
+ * ── Analytics ─────────────────────────────────────────────────────
+ * `onMessage` (foreground receive) fires `fcm.notification_received`
+ * with `channel: 'foreground'`. Background *receive* (via
+ * `setBackgroundMessageHandler`) is NOT wired in this codebase —
+ * when that lands, emit the same event with `channel: 'background'`
+ * inside the background handler.
+ *
+ * TAP events (across all four entry points) are instrumented ONCE
+ * in `onFcmNotificationTapped()` — see deeplink.ts.
  * ------------------------------------------------------------------
  */
 
@@ -44,7 +54,8 @@ import {
 import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 
 import { logError } from '@services/telemetry/logError';
-import { onFcmNotificationTapped } from './deeplink';
+import { logEvent } from '@services/telemetry/logEvent';
+import { extractFcmClickKind, onFcmNotificationTapped } from './deeplink';
 
 /* ================================================================
  * Notifee channel
@@ -107,6 +118,20 @@ async function displayForegroundPush(message: FcmMessage): Promise<void> {
   });
 }
 
+/**
+ * Coerce the FCM `click` field back to a string, mirroring the
+ * coercion in `displayForegroundPush`. FCM's v1 API may auto-parse
+ * JSON-string values into objects; `extractFcmClickKind` expects a
+ * string, so we normalise here before the analytics call.
+ */
+function readClickString(
+  data: FcmMessage['data'] | undefined,
+): string | undefined {
+  const raw = data?.click;
+  if (raw === undefined) return undefined;
+  return typeof raw === 'string' ? raw : JSON.stringify(raw);
+}
+
 /* ================================================================
  * Bridge installer
  * ================================================================ */
@@ -133,6 +158,14 @@ export function startFcmBridge(): () => void {
 
     // (1) Foreground pushes — FCM delivers, we display + route tap
     unsubscribeOnMessage = onMessage(messaging, async message => {
+      // Analytics first — receive is the funnel top for engagement.
+      // The type param is bounded by the deep-link schema (Zod
+      // literal union); malformed payloads still emit with
+      // type='unknown' so we see delivery volume regardless.
+      logEvent('fcm.notification_received', {
+        type: extractFcmClickKind(readClickString(message.data)),
+        channel: 'foreground',
+      });
       try {
         await displayForegroundPush(message);
       } catch (err) {

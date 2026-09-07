@@ -13,6 +13,15 @@
  *
  * Wired to Firebase Analytics via services/telemetry/analytics.ts.
  * If we ever change analytics vendors, only analytics.ts changes.
+ *
+ * ── Firebase Analytics name compliance ─────────────────────────────
+ * Per Firebase's official rules (event/param names: [a-zA-Z0-9_],
+ * ≤40 chars, must start with a letter, reserved prefixes 'firebase_',
+ * 'google_', 'ga_', '_') our dot-namespaced names like
+ * 'fcm.notification_received' are transparently sanitised by
+ * analytics.ts (→ 'fcm_notification_received') before hitting the
+ * SDK. Callers get the readable dotted form; Firebase gets the
+ * sanitised form. Keep names ≤40 chars AFTER sanitisation.
  * ------------------------------------------------------------------
  */
 
@@ -44,10 +53,9 @@ export type PermissionEventName =
 /* -----------------------------------------------------------------
  * The closed EventName union
  *
- * Only the events we ACTUALLY emit today are listed. Trip lifecycle,
- * FCM push, and deeplink events are intentionally not wired yet — add
- * their names here when their emitters are added, so the compiler
- * enforces contract at the call site.
+ * Trip lifecycle names (`trip.*`) are intentionally not listed —
+ * add them in the same shape when their emitters land in
+ * DriverLocationService.ts.
  * ----------------------------------------------------------------- */
 
 export type EventName =
@@ -68,7 +76,15 @@ export type EventName =
 
   // ── Home CTAs ─────────────────────────────────────────
   | 'home.cta_tapped'
-  | 'home.service_mode_changed';
+  | 'home.service_mode_changed'
+
+  // ── Push (FCM) ────────────────────────────────────────
+  | 'fcm.notification_received'
+  | 'fcm.notification_tapped'
+
+  // ── Deeplinks ─────────────────────────────────────────
+  | 'deeplink.opened'
+  | 'deeplink.rejected';
 
 export type EventProperties = Record<string, unknown>;
 

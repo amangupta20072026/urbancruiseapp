@@ -37,12 +37,29 @@
  *   (i.e. the nested role navigator is mounted). Only then does
  *   it dispatch the navigate. See the schedule constants below
  *   for the backoff.
+ *
+ * ── Analytics ─────────────────────────────────────────────────────
+ * Four emit sites, mirroring every logError:
+ *
+ *   `deeplink.opened   { kind }`                      — decision to navigate
+ *   `deeplink.rejected { reason: 'orphan_kind', … }`  — catalog miss
+ *   `deeplink.rejected { reason: 'navigate_timeout' }`— nav retries exhausted
+ *   `deeplink.rejected { reason: 'wrong_role', … }`   — RBAC denial
+ *
+ * `deeplink.opened` fires on the drain DECISION, not when the
+ * deferred setTimeout actually dispatches. If the timeout later
+ * exhausts we ALSO emit `deeplink.rejected`; that pair is intentional
+ * — the funnel (decided → dispatched) is a signal worth measuring.
+ *
+ * All values emitted are bounded literals (kind, screen, reason)
+ * so cardinality stays low and PII risk stays zero.
  * ------------------------------------------------------------------
  */
 
 import { store } from '@store';
 import { navigate, navigationRef } from '@navigation/NavigationService';
 import { logError } from '@services/telemetry/logError';
+import { logEvent } from '@services/telemetry/logEvent';
 import { toast } from '@services/toast';
 
 import { peek, consume } from './pending';
@@ -69,8 +86,12 @@ export function drainPendingDeepLink(): DrainOutcome {
   const entry = findCatalogEntryByKind(target.kind);
   if (!entry) {
     // Orphan pending target with no catalog entry — a bug, not user
-    // input. Drop it defensively and telemeter.
+    // input. Drop it defensively, telemeter, and emit the funnel event.
     consume();
+    logEvent('deeplink.rejected', {
+      reason: 'orphan_kind',
+      kind: target.kind,
+    });
     logError(new Error(`deeplink.drain.orphan_kind:${target.kind}`), {
       boundary: 'deeplink.drain',
     });
@@ -93,7 +114,12 @@ export function drainPendingDeepLink(): DrainOutcome {
     return 'denied';
   }
 
-  // Type-narrow to the ok branch.
+  // Type-narrow to the ok branch. Emit the opened event BEFORE we
+  // dispatch — measures the DECISION to navigate. A subsequent
+  // navigate_timeout (if the nested navigator never mounts) will
+  // fire deeplink.rejected as well; the funnel between the two is
+  // the interesting signal.
+  logEvent('deeplink.opened', { kind: g.target.kind });
   dispatchNavigate(g.target);
   return 'navigated';
 }
@@ -153,6 +179,13 @@ function dispatchNavigate(target: DeepLinkTarget): void {
 
 function attemptNavigate(p: NavigatePayload, attempt: number): void {
   if (attempt >= NAVIGATE_RETRY_DELAYS_MS.length) {
+    // We agreed to open this link (deeplink.opened fired) but the
+    // nested navigator never mounted in time. Emit the failure leg
+    // of the funnel so drop-off is measurable.
+    logEvent('deeplink.rejected', {
+      reason: 'navigate_timeout',
+      screen: p.screen,
+    });
     logError(new Error(`deeplink.navigate.timeout:${p.screen}`), {
       boundary: 'deeplink.drain',
     });
@@ -193,6 +226,11 @@ function dispatchFallback(
 ): void {
   // Telemeter regardless — a wrong-role tap is a signal worth
   // aggregating (misconfigured push, shared device, phishing link).
+  // fallback?.kind is a bounded literal or null; safe to log.
+  logEvent('deeplink.rejected', {
+    reason: 'wrong_role',
+    fallback_kind: fallback?.kind ?? '',
+  });
   logError(new Error('deeplink.gate.wrong_role'), {
     boundary: 'deeplink.gate',
     extra: { fallbackKind: fallback?.kind ?? null },
