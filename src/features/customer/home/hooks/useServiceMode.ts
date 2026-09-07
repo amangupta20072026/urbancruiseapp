@@ -17,6 +17,7 @@
 import { useCallback, useState } from 'react';
 
 import type { ServiceMode } from '../types';
+import { logEvent } from '@services/telemetry/logEvent';
 
 const DEFAULT_MODE: ServiceMode = 'car_bus';
 
@@ -24,12 +25,14 @@ export function useServiceMode(initial: ServiceMode = DEFAULT_MODE) {
   const [mode, setMode] = useState<ServiceMode>(initial);
 
   const change = useCallback((next: ServiceMode) => {
-    /* No-op if the same mode is re-selected — avoids a wasted
-     * re-render on the accidental double-tap. */
-    setMode(prev => (prev === next ? prev : next));
-    /* Future analytics hook:
-     *   if (next !== previous) logEvent('home.service_mode_changed', { next });
-     * Wired via useEffect(prev, next) diff when we care. */
+    // Firing inside the functional updater guarantees the event
+    // only emits when prev !== next — matches the "no-op on
+    // accidental double-tap" contract without a separate diff hook.
+    setMode(prev => {
+      if (prev === next) return prev;
+      logEvent('home.service_mode_changed', { mode: next });
+      return next;
+    });
   }, []);
 
   return { mode, change };

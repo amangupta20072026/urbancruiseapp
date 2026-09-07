@@ -7,6 +7,8 @@
  *
  *   1. Save tokens to Keychain            (secureStorage.saveTokens)
  *   2. Dispatch loginSuccess to Redux     (appSlice.loginSuccess)
+ *   3. Attach analytics identity          (identifyUser)
+ *   4. Emit auth.otp_verified + auth.login_success
  *
  * As soon as (2) commits, RootNavigator's conditional groups swap
  * from AuthFlow to the role's navigator — the screen doesn't need
@@ -194,6 +196,25 @@ export function useVerifyOtp() {
           entityId: data.entityId,
         }),
       );
+
+      // ── Analytics ─────────────────────────────────────────────
+      // Identify BEFORE emitting login_success so the event carries
+      // the correct user_id + user properties in Firebase. Do NOT
+      // include the phone number as an event param — it's PII and
+      // Firebase's user-property system is not designed for it.
+      identifyUser({
+        userId: data.userId,
+        role: data.role,
+        subRole: data.subRole,
+        entityId: data.entityId,
+      });
+      logEvent('auth.otp_verified');
+      logEvent('auth.login_success', { role: data.role });
+    },
+    onError: err => {
+      logEvent('auth.otp_failed', {
+        reason: err instanceof ApiError ? err.kind : 'unknown',
+      });
     },
   });
 

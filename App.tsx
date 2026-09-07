@@ -59,6 +59,7 @@ import { buildLinkingConfig } from '@/services/deeplinks/linkingConfig';
 import { ToastHost } from '@services/toast';
 import { startFcmBridge } from '@/services/notifications/fcmBridge';
 import { useAppSelector } from '@store/hooks';
+import { trackScreenChange } from '@services/telemetry/screenTracker';
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -172,7 +173,18 @@ const App: React.FC = () => {
                     theme={AppNavigationTheme}
                     linking={buildLinkingConfig()}
                     onReady={() => {
+                      // Capture the FIRST screen after cold start.
+                      // Without this, the first screen the user sees
+                      // (SplashIntro / Onboarding / Login / role home)
+                      // would not get a screen_view fired.
+                      trackScreenChange();
                       drainPendingDeepLink();
+                    }}
+                    onStateChange={() => {
+                      // Every subsequent navigation funnels through
+                      // this listener. Duplicate route names are
+                      // de-duped inside trackScreenChange().
+                      trackScreenChange();
                     }}
                   >
                     <RootNavigator />

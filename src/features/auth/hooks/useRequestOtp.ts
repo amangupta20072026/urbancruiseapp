@@ -35,6 +35,7 @@ import { endpoints } from '@api/endpoints';
 import { ApiError } from '@api/errors';
 import { queryKeys } from '@constants/queryKeys';
 import type { UserRole } from '@rbac/roles';
+import { logEvent } from '@services/telemetry/logEvent';
 
 /* ------------------------------------------------------------------ */
 /* Toggle                                                             */
@@ -102,6 +103,12 @@ export function useRequestOtp() {
   const mutation = useMutation<RequestOtpResponse, ApiError, RequestOtpInput>({
     mutationKey: queryKeys.auth.requestOtp(),
     mutationFn: requestOtp,
+    onSuccess: (_data, variables) => {
+      // Segment by role so we can see which role's login funnel
+      // reaches the OTP screen. Do NOT include the phone number —
+      // it's PII and Firebase Analytics is a Google-hosted pipeline.
+      logEvent('auth.otp_sent', { role: variables.role });
+    },
   });
 
   return {

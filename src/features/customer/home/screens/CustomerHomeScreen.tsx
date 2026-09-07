@@ -40,7 +40,9 @@
  * ── Navigation intents ───────────────────────────────────────────
  *   - Bell         → NotificationCentre (already registered)
  *   - Avatar       → Profile (already registered)
- *   - Card CTAs / View All → TODO(nav) — placeholders log in dev.
+ *   - Card CTAs / View All → TODO(nav) — placeholders emit
+ *     home.cta_tapped so we still capture intent while the
+ *     destinations are being built.
  * ------------------------------------------------------------------ */
 
 import React, { useCallback } from 'react';
@@ -79,6 +81,7 @@ import { RequestQuotationCard } from '../components/RequestQuotationCard';
 import { UpcomingTripCard } from '../components/UpcomingTripCard';
 import { SectionHeader } from '../components/SectionHeader';
 import { ActivityRow } from '../components/ActivityRow';
+import { logEvent } from '@services/telemetry/logEvent';
 
 type CustomerNavigation = NativeStackNavigationProp<CustomerStackParamList>;
 
@@ -116,40 +119,39 @@ const CustomerHomeScreen: React.FC = () => {
   }, [navigation]);
 
   /* -------- Placeholder handlers for CTAs whose destinations
-   * haven't been built yet. Grep for TODO(nav) to find them all. -------- */
+   * haven't been built yet. Grep for TODO(nav) to find them all.
+   * Each fires home.cta_tapped so we can still see intent + prioritise
+   * which unbuilt screen is most needed. -------- */
 
   const onReviewQuotation = useCallback(() => {
-    if (__DEV__) {
-      console.log('[home] TODO(nav): navigate to Quotation review', {
-        quotationId: quotation?.id,
-      });
-    }
+    logEvent('home.cta_tapped', {
+      cta: 'review_quotation',
+      quotation_id: quotation?.id ?? '',
+    });
+    // TODO(nav): navigate to Quotation review once the screen is built
   }, [quotation?.id]);
 
   const onRequestQuotation = useCallback(() => {
-    if (__DEV__) {
-      console.log('[home] TODO(nav): navigate to Request quotation flow');
-    }
+    logEvent('home.cta_tapped', { cta: 'request_quotation' });
+    // TODO(nav): navigate to Request quotation flow
   }, []);
 
   const onViewTrip = useCallback(() => {
-    if (__DEV__) {
-      console.log('[home] TODO(nav): navigate to Trip detail', {
-        tripId: upcomingTrip?.id,
-      });
-    }
+    logEvent('home.cta_tapped', {
+      cta: 'view_trip',
+      trip_id: upcomingTrip?.id ?? '',
+    });
+    // TODO(nav): navigate to Trip detail
   }, [upcomingTrip?.id]);
 
   const onViewAllActivity = useCallback(() => {
-    if (__DEV__) {
-      console.log('[home] TODO(nav): navigate to Recent activity list');
-    }
+    logEvent('home.cta_tapped', { cta: 'view_all_activity' });
+    // TODO(nav): navigate to Recent activity list
   }, []);
 
   const onViewAllTrips = useCallback(() => {
-    if (__DEV__) {
-      console.log('[home] TODO(nav): navigate to Trips list');
-    }
+    logEvent('home.cta_tapped', { cta: 'view_all_trips' });
+    // TODO(nav): navigate to Trips list
   }, []);
 
   /* -------- Hero card selection (strict priority ladder) --------

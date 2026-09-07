@@ -5,57 +5,33 @@
  * Loaded via `setupFilesAfterEnv` (see jest.config.js). Runs once per
  * test file, AFTER the jest framework is installed, so jest.mock()
  * and jest.fn() are available.
- *
- * Rule of thumb: any package that reaches into the native bridge must
- * be mocked here or its first import will crash Jest. The mocks are
- * intentionally lightweight — just enough shape to satisfy imports
- * and typical usage. Tests that need richer behavior should override
- * with `jest.mock(...)` at the top of the individual test file.
- * ------------------------------------------------------------------
- */
+*
+* Rule of thumb: any package that reaches into the native bridge must
+* be mocked here or its first import will crash Jest. The mocks are
+* intentionally lightweight — just enough shape to satisfy imports
+* and typical usage. Tests that need richer behavior should override
+* with `jest.mock(...)` at the top of the individual test file.
+* ------------------------------------------------------------------
+*/
 
 // -----------------------------------------------------------------
 // Gesture Handler — ships its own jestSetup that patches RN internals.
 // Must run before any component using PanGesture / TapGesture mounts.
 // -----------------------------------------------------------------
 import 'react-native-gesture-handler/jestSetup';
+import mockSafeAreaContext from 'react-native-safe-area-context/jest/mock';
 
 // -----------------------------------------------------------------
-// Reanimated — ships an official mock. Handles worklets, shared
-// values, and useAnimatedStyle without a native runtime.
+// React Native Worklets — official Jest mock
 // -----------------------------------------------------------------
-jest.mock('react-native-reanimated', () =>
-  require('react-native-reanimated/mock'),
+jest.mock('react-native-worklets', () =>
+  require('react-native-worklets/src/mock'),
 );
 
-// react-native-worklets (v0.11) is Reanimated 4's runtime.
-// Reanimated 4 moved several helpers here from Reanimated 3, and its own
-// jest mock still transitively imports Reanimated source that touches them.
-// Stub every helper as an identity / no-op — good enough for tests where
-// no worklet actually runs off the JS thread.
-// See: https://docs.swmansion.com/react-native-reanimated/docs/guides/migration-from-3.x/
-jest.mock('react-native-worklets', () => ({
-  // --- helpers the codebase calls directly ---
-  runOnJS: (fn: any) => fn,
-  runOnUI: (fn: any) => fn,
-  createWorkletRuntime: jest.fn(),
-  scheduleOnRN: (fn: any, ...args: any[]) => fn(...args),
-
-  // --- helpers Reanimated 4's own /mock reaches for transitively ---
-  createSerializable: (v: any) => v, // new v4 name
-  makeShareableCloneRecursive: (v: any) => v, // deprecated alias, still referenced
-  makeShareable: (v: any) => v,
-  isWorkletFunction: () => false,
-  executeOnUIRuntimeSync:
-    (fn: any) =>
-    (...args: any[]) =>
-      fn(...args),
-  runOnUIImmediately: (fn: any) => fn,
-  scheduleOnUI: (fn: any) => fn?.(),
-  scheduleOnRuntime: (_rt: any, fn: any) => fn?.(),
-  WorkletsModule: {},
-}));
-
+// -----------------------------------------------------------------
+// React Native Reanimated — official Jest setup
+// -----------------------------------------------------------------
+require('react-native-reanimated').setUpTests();
 // -----------------------------------------------------------------
 // MMKV — the store used by redux-persist AND @tanstack query cache.
 // Backed by an in-memory Map so tests get realistic get/set semantics.
@@ -126,11 +102,26 @@ jest.mock('react-native-keychain', () => ({
 // Every module exports a callable factory (matches v20+ modular API
 // used by @react-native-firebase v26).
 // -----------------------------------------------------------------
-jest.mock('@react-native-firebase/app', () => ({
-  __esModule: true,
-  default: () => ({}),
-  firebase: { app: () => ({}), apps: [] },
-}));
+jest.mock('@react-native-firebase/app', () => {
+  const mockApp = {
+    name: '[DEFAULT]',
+  };
+
+  return {
+    __esModule: true,
+
+    // Modular API
+    getApp: jest.fn(() => mockApp),
+
+    // Existing compatibility API
+    default: () => mockApp,
+
+    firebase: {
+      app: () => mockApp,
+      apps: [mockApp],
+    },
+  };
+});
 
 jest.mock('@react-native-firebase/messaging', () => {
   const AuthorizationStatus = {
@@ -140,12 +131,10 @@ jest.mock('@react-native-firebase/messaging', () => {
     PROVISIONAL: 2,
     EPHEMERAL: 3,
   };
-  const messaging: any = () => ({
+
+  const mockMessaging = {
     getToken: jest.fn().mockResolvedValue('mock-fcm-token'),
     deleteToken: jest.fn().mockResolvedValue(undefined),
-    onMessage: jest.fn().mockReturnValue(() => {}),
-    onNotificationOpenedApp: jest.fn().mockReturnValue(() => {}),
-    getInitialNotification: jest.fn().mockResolvedValue(null),
     requestPermission: jest
       .fn()
       .mockResolvedValue(AuthorizationStatus.AUTHORIZED),
@@ -154,9 +143,25 @@ jest.mock('@react-native-firebase/messaging', () => {
     onTokenRefresh: jest.fn().mockReturnValue(() => {}),
     subscribeToTopic: jest.fn().mockResolvedValue(undefined),
     unsubscribeFromTopic: jest.fn().mockResolvedValue(undefined),
-  });
-  messaging.AuthorizationStatus = AuthorizationStatus;
-  return { __esModule: true, default: messaging };
+  };
+
+  return {
+    __esModule: true,
+
+    // Modular API used by fcmBridge.ts
+    getMessaging: jest.fn(() => mockMessaging),
+
+    onMessage: jest.fn(() => () => {}),
+
+    onNotificationOpenedApp: jest.fn(() => () => {}),
+
+    getInitialNotification: jest.fn().mockResolvedValue(null),
+
+    // Existing compatibility API
+    default: () => mockMessaging,
+
+    AuthorizationStatus,
+  };
 });
 
 jest.mock('@react-native-firebase/crashlytics', () => {
@@ -172,6 +177,28 @@ jest.mock('@react-native-firebase/crashlytics', () => {
   });
   return { __esModule: true, default: crashlytics };
 });
+
+// -----------------------------------------------------------------
+// Firebase Analytics — modular v20+ API (matches @react-native-firebase v26).
+// Every callable is jest.fn() so tests can assert on calls if needed
+// (e.g. expect(logEvent).toHaveBeenCalledWith('auth.login_success', ...)).
+// -----------------------------------------------------------------
+jest.mock('@react-native-firebase/analytics', () => ({
+  __esModule: true,
+  getAnalytics: jest.fn(() => ({})),
+  logEvent: jest.fn().mockResolvedValue(undefined),
+  logScreenView: jest.fn().mockResolvedValue(undefined),
+  setUserId: jest.fn().mockResolvedValue(undefined),
+  setUserProperty: jest.fn().mockResolvedValue(undefined),
+  setAnalyticsCollectionEnabled: jest.fn().mockResolvedValue(undefined),
+  default: () => ({
+    logEvent: jest.fn().mockResolvedValue(undefined),
+    logScreenView: jest.fn().mockResolvedValue(undefined),
+    setUserId: jest.fn().mockResolvedValue(undefined),
+    setUserProperty: jest.fn().mockResolvedValue(undefined),
+    setAnalyticsCollectionEnabled: jest.fn().mockResolvedValue(undefined),
+  }),
+}));
 
 // -----------------------------------------------------------------
 // Notifee — foreground notifications and channel management.
@@ -424,20 +451,11 @@ jest.mock('@gorhom/bottom-sheet', () => {
 // Safe area — insets always zero. Tests that need a specific safe
 // area (e.g. notch simulation) override per file.
 // -----------------------------------------------------------------
-jest.mock('react-native-safe-area-context', () => {
-  const inset = { top: 0, right: 0, bottom: 0, left: 0 };
-  const frame = { width: 0, height: 0, x: 0, y: 0 };
-  const React = require('react');
-  return {
-    SafeAreaProvider: ({ children }: any) => children,
-    SafeAreaConsumer: ({ children }: any) => children(inset),
-    SafeAreaView: ({ children }: any) =>
-      React.createElement(React.Fragment, null, children),
-    useSafeAreaInsets: () => inset,
-    useSafeAreaFrame: () => frame,
-    initialWindowMetrics: { insets: inset, frame },
-  };
-});
+
+jest.mock(
+  'react-native-safe-area-context',
+  () => mockSafeAreaContext,
+);
 
 // -----------------------------------------------------------------
 // FlashList — drop-in FlatList so items still render in RTL queries.

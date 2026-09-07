@@ -44,16 +44,31 @@ export type PermissionEventName =
 /* -----------------------------------------------------------------
  * The closed EventName union
  *
- * Extended in step 05 with auth, home, trip, deeplink, fcm events.
+ * Only the events we ACTUALLY emit today are listed. Trip lifecycle,
+ * FCM push, and deeplink events are intentionally not wired yet — add
+ * their names here when their emitters are added, so the compiler
+ * enforces contract at the call site.
  * ----------------------------------------------------------------- */
 
 export type EventName =
-  // Security
+  // ── Security ──────────────────────────────────────────
   | 'security.screenshot_detected'
   | 'security.recording_started'
   | 'security.background_while_sensitive'
-  // Permissions (funnel)
-  | PermissionEventName;
+
+  // ── Permissions (funnel) ──────────────────────────────
+  | PermissionEventName
+
+  // ── Auth ──────────────────────────────────────────────
+  | 'auth.otp_sent'
+  | 'auth.otp_verified'
+  | 'auth.otp_failed'
+  | 'auth.login_success'
+  | 'auth.logout'
+
+  // ── Home CTAs ─────────────────────────────────────────
+  | 'home.cta_tapped'
+  | 'home.service_mode_changed';
 
 export type EventProperties = Record<string, unknown>;
 
