@@ -556,7 +556,6 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: Spacing.md,
     gap: Spacing.md,
-    minHeight: 116,
     ...Shadows.xs,
   },
   cardIconWrap: {
@@ -580,7 +579,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 3,
     lineHeight: 18,
-    minHeight: 18 * DESCRIPTION_LINE_LIMIT,
   },
   cardMoreText: {
     ...Typography.bodySmall,

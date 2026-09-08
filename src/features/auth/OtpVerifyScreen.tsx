@@ -441,7 +441,7 @@ const OtpVerifyScreen: React.FC = () => {
           <View style={styles.heroText}>
             <Text style={styles.heroTitle}>Verify your number</Text>
             <Text style={styles.heroSubtitle}>
-              Enter the 6-digit OTP sent to
+              Enter the 6-digit OTP sent via WhatsApp to
             </Text>
 
             <View style={styles.phonePill}>
@@ -477,8 +477,7 @@ const OtpVerifyScreen: React.FC = () => {
             <View style={styles.cardHeaderText}>
               <Text style={styles.cardTitle}>Enter OTP</Text>
               <Text style={styles.cardSubtitle}>
-                We&apos;ve sent a 6-digit verification code to your mobile
-                number.
+                We've sent a 6-digit verification code to your WhatsApp number.
               </Text>
             </View>
           </View>
@@ -494,9 +493,9 @@ const OtpVerifyScreen: React.FC = () => {
             <Text style={styles.otpErrorText}>{error}</Text>
           ) : (
             <View style={styles.autoReadRow}>
-              <ShieldCheckIcon color={Colors.primary} size={13} />
+              <ShieldCheckIcon color={Colors.secondary} size={14} />
               <Text style={styles.autoReadText}>
-                OTP will be auto read if SMS is received
+                Check your WhatsApp for the code
               </Text>
             </View>
           )}
@@ -745,7 +744,7 @@ const styles = StyleSheet.create({
   },
   autoReadText: {
     ...Typography.bodySmall,
-    color: Colors.primary,
+    color: Colors.secondary,
     fontWeight: '600',
     fontSize: 13,
   },

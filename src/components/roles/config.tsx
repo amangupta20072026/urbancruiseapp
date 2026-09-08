@@ -161,7 +161,7 @@ export const ROLE_MAP: Record<UserRole, RoleConfig> = ROLES.reduce((acc, r) => {
 export const TINT_COLOR: Record<RoleTint, string> = {
   primary: Colors.primary,
   secondary: Colors.secondaryDark,
-  accent: Colors.accent,
+  accent: Colors.secondary,
   info: Colors.info,
 };
 

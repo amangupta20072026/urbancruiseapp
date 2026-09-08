@@ -703,6 +703,7 @@ const styles = StyleSheet.create({
   cardDescription: {
     ...Typography.caption,
     color: Colors.textSecondary,
+    fontWeight: '500',
     textAlign: 'center',
     marginTop: Spacing.xxs,
     fontSize: 13,
@@ -735,6 +736,7 @@ const styles = StyleSheet.create({
     ...Typography.button,
     color: Colors.buttonPrimaryText,
     fontSize: 20,
+    fontWeight: '700',
   },
   ctaSpacer: { height: Dimensions.buttonHeightLarge },
 });
