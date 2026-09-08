@@ -56,9 +56,9 @@ const StaffTabScreen: React.FC = () => {
         state={state}
         renderItem={renderItem}
         keyExtractor={item => item.id}
-        emptyTitle="No teammates"
+        emptyTitle="No uc staff found"
         emptyMessage="Try changing your search."
-        countLabel="teammates"
+        countLabel="uc staff"
       />
 
       <StaffContactSheet

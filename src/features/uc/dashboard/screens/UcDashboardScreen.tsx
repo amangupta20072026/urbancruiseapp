@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -6,15 +6,20 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Car, Users, CalendarCheck, IndianRupee } from 'lucide-react-native';
 import { SafeScreen } from '@shared/components/SafeScreen';
 import { Colors, Spacing } from '@theme';
+import type { UcStackParamList } from '@navigation/types';
 import { DashboardHeader } from '../components/DashboardHeader';
 import { GreetingBlock } from '../components/GreetingBlock';
 import { StatCard } from '../components/StatCard';
 import { InsightsBanner } from '../components/InsightsBanner';
 import { RecentBookings } from '../components/RecentBookings';
 import { useDashboard } from '../hooks/useDashboard';
+
+type UcDashboardNavigation = NativeStackNavigationProp<UcStackParamList>;
 
 /**
  * Per-stat visual config. Keeps the screen dumb about theme and lets
@@ -44,7 +49,16 @@ const statVisual = {
 } as const;
 
 const UcDashboardScreen: React.FC = () => {
+  const navigation = useNavigation<UcDashboardNavigation>();
   const { data, isLoading, refetch, isRefetching } = useDashboard();
+
+  const goToNotifications = useCallback(() => {
+    navigation.navigate('NotificationCentre');
+  }, [navigation]);
+
+  const goToProfile = useCallback(() => {
+    navigation.navigate('Profile');
+  }, [navigation]);
 
   if (isLoading || !data) {
     return (
@@ -58,6 +72,14 @@ const UcDashboardScreen: React.FC = () => {
 
   return (
     <SafeScreen edges={['top']}>
+      <View style={styles.headerWrap}>
+        <DashboardHeader
+          hasUnread
+          onBellPress={goToNotifications}
+          onAvatarPress={goToProfile}
+        />
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -69,8 +91,6 @@ const UcDashboardScreen: React.FC = () => {
           />
         }
       >
-        <DashboardHeader hasUnread />
-
         <GreetingBlock
           name={data.greeting.name}
           dateISO={data.greeting.dateISO}
@@ -109,9 +129,16 @@ export default UcDashboardScreen;
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: {
+  headerWrap: {
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    backgroundColor: Colors.background,
+  },
+  content: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.lg,
     paddingBottom: Spacing.section,
     gap: Spacing.lg,
   },

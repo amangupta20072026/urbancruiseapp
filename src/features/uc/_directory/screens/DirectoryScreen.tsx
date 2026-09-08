@@ -73,7 +73,7 @@ const DirectoryScreen: React.FC = () => {
       <View style={styles.headerWrap}>
         <ScreenHeader
           title="Directory"
-          subtitle="Customers, vendors, teammates, and drivers — all in one place."
+          subtitle="Customers, vendors, uc, and drivers — all in one place."
           onBack={() => navigation.goBack()}
         />
       </View>

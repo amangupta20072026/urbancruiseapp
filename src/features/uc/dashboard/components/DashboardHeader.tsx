@@ -101,7 +101,7 @@ export const DashboardHeader: React.FC<Props> = ({
 
 const AVATAR = 36;
 const BRAND_W = 110;
-const IMG_H = 97;
+const IMG_H = 90;
 const TOP_TRIM = 27;
 const BRAND_H = 60;
 
