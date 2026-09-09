@@ -43,6 +43,19 @@ export type AuthParamList = {
     requestId?: string;
     /** Server-suggested resend cooldown; overrides RESEND_SECONDS if present. */
     resendAfterSeconds?: number;
+    /**
+     * Channel actually used by the server. `'sms'` means the WhatsApp
+     * send failed the deliverability check and the server fell back —
+     * OtpVerify shows a "Sent via SMS" banner so users don't sit in
+     * WhatsApp waiting.
+     */
+    channel?: 'whatsapp' | 'sms';
+    /**
+     * True when the number matched a QA test mobile and the server
+     * did not dispatch a real OTP. The screen shows a hint so QA
+     * enters the fixed test code.
+     */
+    testMode?: boolean;
   };
   Support: undefined;
 };

@@ -60,6 +60,7 @@ import {
   withAlpha,
 } from '../../components/roles';
 import { ApiError } from '@api/errors';
+import { newIdempotencyKey } from '@api/idempotency';
 import { useRequestOtp } from './hooks';
 
 /* -----------------------------------------------------------------
@@ -245,10 +246,16 @@ const LoginScreen: React.FC = () => {
         if (submitting) return;
         setServerError(null);
         try {
+          // Idempotency key: ONE per user intent (this tap). Any
+          // internal retry — network blip, TanStack retry — must reuse
+          // it. A fresh Send tap after a failure gets a new key.
+          const idempotencyKey = newIdempotencyKey();
+
           const res = await requestOtp({
             phone,
             countryCode: COUNTRY_CODE,
             role,
+            idempotencyKey,
           });
           navigation.navigate('OtpVerify', {
             role,
@@ -257,12 +264,50 @@ const LoginScreen: React.FC = () => {
             // and the timer can align with server-side throttling.
             requestId: res.requestId,
             resendAfterSeconds: res.resendAfterSeconds,
+            channel: res.channel,
+            testMode: res.testMode,
           });
         } catch (err) {
           // apiClient's error interceptor normalises everything to
           // ApiError, but keep the instanceof check for the case where
           // something upstream throws a plain Error.
           if (err instanceof ApiError) {
+            // Prefer fine-grained server codes for auth-specific
+            // outcomes — the coarse `.kind` alone can't distinguish
+            // "wallet empty" from "account not provisioned".
+            switch (err.code) {
+              case 'account_not_provisioned':
+                setServerError(
+                  `We couldn't find a ${role} account for this number. If you should have access, please contact your Urban Cruise representative.`,
+                );
+                return;
+              case 'account_suspended':
+                setServerError(
+                  'This account has been suspended. Please contact support.',
+                );
+                return;
+              case 'account_locked': {
+                const mins = err.retryAfter
+                  ? Math.max(1, Math.round(err.retryAfter / 60))
+                  : 15;
+                setServerError(
+                  `Too many attempts on this number. Try again in ${mins} min.`,
+                );
+                return;
+              }
+              case 'signups_disabled':
+                setServerError(
+                  "New signups are temporarily unavailable. We're working on it — please try again shortly.",
+                );
+                return;
+              case 'captcha_required':
+                // CAPTCHA sheet is a TODO. For now, tell the user
+                // what to do so they don't sit staring at a spinner.
+                setServerError(
+                  'Please try again in a minute. If this keeps happening, contact support.',
+                );
+                return;
+            }
             switch (err.kind) {
               case 'rateLimited':
                 setServerError(

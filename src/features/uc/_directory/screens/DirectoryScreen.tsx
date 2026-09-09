@@ -28,7 +28,7 @@
  * ------------------------------------------------------------------
  */
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -44,7 +44,7 @@ import VendorsTabScreen from '@features/uc/vendors/screens/VendorsTabScreen';
 import StaffTabScreen from '@features/uc/staff/screens/StaffTabScreen';
 import DriversTabScreen from '@features/uc/drivers/screens/DriversTabScreen';
 
-import { DIRECTORY_TAB_LABEL } from '../types';
+import { DIRECTORY_TAB_LABEL, type DirectoryTab } from '../types';
 import { DirectoryTabBar } from '../components/DirectoryTabBar';
 
 /**
@@ -65,14 +65,40 @@ const tabOptions: MaterialTopTabNavigationOptions = {
   swipeEnabled: true,
 };
 
+/**
+ * Maps each tab route name to its DirectoryTab key, so the
+ * `screenListeners` focus handler below can look up the right
+ * label from DIRECTORY_TAB_LABEL without a switch statement.
+ */
+const ROUTE_TO_TAB: Record<keyof DirectoryTabParamList, DirectoryTab> = {
+  DirectoryCustomers: 'customers',
+  DirectoryVendors: 'vendors',
+  DirectoryStaff: 'staff',
+  DirectoryDrivers: 'drivers',
+};
+
 const DirectoryScreen: React.FC = () => {
   const navigation = useNavigation();
+
+  // Drives the header title — defaults to the first tab (Customers)
+  // since that's the Tab.Navigator's initial route.
+  const [activeTab, setActiveTab] = useState<DirectoryTab>('customers');
+
+  // `screenListeners` (function form) hands us the route for each
+  // screen so we can react to its `focus` event. Focus fires both on
+  // tap and on swipe, so this stays in sync either way.
+  const screenListeners = useCallback(
+    ({ route }: { route: { name: keyof DirectoryTabParamList } }) => ({
+      focus: () => setActiveTab(ROUTE_TO_TAB[route.name]),
+    }),
+    [],
+  );
 
   return (
     <SafeScreen edges={['top']}>
       <View style={styles.headerWrap}>
         <ScreenHeader
-          title="Directory"
+          title={DIRECTORY_TAB_LABEL[activeTab]}
           subtitle="Customers, vendors, uc, and drivers — all in one place."
           onBack={() => navigation.goBack()}
         />
@@ -80,6 +106,7 @@ const DirectoryScreen: React.FC = () => {
 
       <Tab.Navigator
         screenOptions={tabOptions}
+        screenListeners={screenListeners}
         // eslint-disable-next-line react/no-unstable-nested-components
         tabBar={props => <DirectoryTabBar {...props} />}
       >

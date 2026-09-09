@@ -6,34 +6,43 @@
  * logs the user in:
  *
  *   1. Save tokens to Keychain            (secureStorage.saveTokens)
- *   2. Dispatch loginSuccess to Redux     (appSlice.loginSuccess)
- *   3. Attach analytics identity          (identifyUser)
- *   4. Emit auth.otp_verified + auth.login_success
+ *   2. Hydrate user profile in Redux      (userSlice.userReceived)
+ *   3. Flip auth state in Redux           (appSlice.loginSuccess)
+ *   4. Attach analytics identity          (identifyUser)
+ *   5. Emit auth.otp_verified + auth.login_success
  *
- * As soon as (2) commits, RootNavigator's conditional groups swap
- * from AuthFlow to the role's navigator — the screen doesn't need
- * to `navigation.navigate(...)` anywhere. That's why the hook doesn't
- * take a navigation param.
+ * As soon as (3) commits, RootNavigator's conditional groups swap
+ * from AuthFlow to the role's navigator — the screen does not need
+ * to `navigation.navigate(...)` anywhere. That's why the hook has
+ * no navigation param.
  *
- * Trusting the server's role, not the selected one:
+ * DEVICE METADATA:
+ *   Every verify call includes a `device` block collected via
+ *   getDeviceInfo(). The server writes this into `auth_sessions`,
+ *   which powers a future "Signed-in devices" screen and force-
+ *   logout-all. Best-effort — failures inside getDeviceInfo() fall
+ *   back to placeholder strings so login is never blocked by a
+ *   flaky native module.
+ *
+ * TRUSTING THE SERVER'S ROLE (not the selected one):
  *   The user picked a role on the role sheet, but the same phone
  *   number could legitimately be a customer AND a vendor (different
- *   sub-roles share phones). The server is the source of truth —
- *   we dispatch whatever role /auth/otp/verify returns, and
+ *   sub-roles share phones). The server is source of truth — we
+ *   dispatch whatever role /auth/otp/verify returns, and
  *   RootNavigator branches on that.
  *
  * Backend swap:
- *   Set USE_MOCK to false when the endpoint ships. The response
+ *   Set USE_MOCK to false when /auth/otp/verify lands. The response
  *   shape here matches what bootstrap/steps/auth.ts expects from
  *   /auth/me, so no other code needs to change.
  *
- * Error surface:
- *   - 'unauthorized' → wrong OTP → screen shows "That code didn't
- *     work. Please try again."
- *   - 'rateLimited'  → too many attempts → suggest waiting / resend
- *   - 'network'      → connection issue → screen retains the code
- *     the user typed
- *   - anything else  → generic fallback
+ * Error surface (typed via ApiError.kind / .code):
+ *   - kind 'unauthorized' + code 'otp_invalid'         → "That code didn't work"
+ *   - kind 'unauthorized' + code 'otp_expired'         → "OTP expired, resend"
+ *   - kind 'rateLimited'  + code 'account_locked'      → 15-min lockout, show retryAfter
+ *   - kind 'forbidden'    + code 'account_suspended'   → "Contact support"
+ *   - kind 'network'|'timeout'                         → screen retains typed digits
+ *   - anything else                                    → generic fallback
  * ------------------------------------------------------------------
  */
 
@@ -44,6 +53,7 @@ import { endpoints } from '@api/endpoints';
 import { ApiError } from '@api/errors';
 import { queryKeys } from '@constants/queryKeys';
 import { saveTokens } from '@services/storage/secureStorage';
+import { getDeviceInfo, type DeviceInfoPayload } from '@services/device';
 import { useAppDispatch } from '@store/hooks';
 import { loginSuccess } from '@store/slices/appSlice';
 import { userReceived, type UserProfile } from '@store/slices/userSlice';
@@ -73,7 +83,9 @@ export type VerifyOtpInput = {
    * multiple roles. Server's response `role` is authoritative.
    */
   role: UserRole;
-  /** Echoed from useRequestOtp's response, if the backend uses one. */
+  /** Echoed from useRequestOtp's response — pairs OTP with send.
+   *  Optional so a lost-nav-state edge case can still verify by
+   *  looking the pending session up server-side via phone+role. */
   requestId?: string;
 };
 
@@ -89,6 +101,13 @@ export type VerifyOtpResponse = {
   role: UserRole;
   subRole: SubRole;
   entityId: string;
+  /**
+   * True on first successful login when the row was just created
+   * (customer self-signup) and the profile hasn't been filled in
+   * yet. Screen navigates to CompleteProfile in that case.
+   * Non-customer roles never see this — they're pre-provisioned.
+   */
+  requiresProfileSetup: boolean;
   /** Full display profile — mirrors GET /auth/me. */
   profile: UserProfile;
 };
@@ -98,26 +117,39 @@ export type VerifyOtpResponse = {
 /* ------------------------------------------------------------------ */
 
 async function verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
+  // Collect device info BEFORE the network call so a slow native
+  // module doesn't stretch the perceived login latency past the
+  // POST itself. Runs in parallel with the mock delay too.
+  const devicePromise = getDeviceInfo();
+
   if (USE_MOCK) {
     await new Promise<void>(resolve => setTimeout(resolve, 500));
+    await devicePromise; // eat the promise so the timing is realistic
 
-    // Mock rejection path for a specific test OTP so QA can exercise
-    // the error branch without needing a real backend. Any 6-digit
-    // code EXCEPT '000000' is accepted.
+    // Mock rejection paths for QA:
+    //   otp '000000' → otp_invalid   (wrong code)
+    //   otp '111111' → otp_expired   (session expired)
     if (input.otp === '000000') {
-      throw new ApiError('unauthorized', 'That code didn’t work.', 401);
+      throw new ApiError(
+        'unauthorized',
+        "That code didn't work. Please try again.",
+        401,
+        { code: 'otp_invalid' },
+        'otp_invalid',
+      );
+    }
+    if (input.otp === '111111') {
+      throw new ApiError(
+        'unauthorized',
+        'This OTP has expired. Tap Resend to get a new one.',
+        401,
+        { code: 'otp_expired' },
+        'otp_expired',
+      );
     }
 
-    // Dev-mode identity policy:
-    //   For the `customer` role, we reuse mockCurrentUser.id
-    //   ('USR-CUST-000001') so downstream fixture corpora
-    //   (mockCustomerHomeById, activity feeds, etc.) — all keyed by
-    //   user id — resolve to real fixture data instead of falling
-    //   through to empty state. Other roles keep the synthetic
-    //   `mock-<role>-*` ids until their fixture corpora exist.
-    //
-    //   This is a MOCK-ONLY concern. Real /auth/otp/verify returns a
-    //   real user id from the backend; no fixture keying involved.
+    // Dev-mode identity policy (mock only). Real /auth/otp/verify
+    // returns real IDs from the DB.
     const isCustomer = input.role === 'customer';
     const mockUserId = isCustomer
       ? mockCurrentUser.id
@@ -133,6 +165,7 @@ async function verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
       role: input.role,
       subRole: null,
       entityId: mockEntityId,
+      requiresProfileSetup: false,
       profile: isCustomer
         ? {
             id: mockCurrentUser.id,
@@ -153,9 +186,18 @@ async function verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
     };
   }
 
+  const device: DeviceInfoPayload = await devicePromise;
+
   const { data } = await apiClient.post<VerifyOtpResponse>(
     endpoints.auth.verifyOtp(),
-    input,
+    {
+      phone: input.phone,
+      countryCode: input.countryCode,
+      role: input.role,
+      otp: input.otp,
+      requestId: input.requestId,
+      device, // { id, name, platform, appVersion }
+    },
   );
   return data;
 }
@@ -172,21 +214,20 @@ export function useVerifyOtp() {
     mutationFn: verifyOtp,
     onSuccess: async data => {
       // Order matters:
-      //   1. Save tokens FIRST — if the app process is killed
-      //      between steps, next cold start's bootstrap sees a
-      //      valid token in Keychain and lands the user on their
-      //      role home instead of back at Login.
-      //   2. Dispatch identity to Redux — this is what flips
-      //      RootNavigator into the role navigator.
+      //   1. Save tokens FIRST — if the process is killed between
+      //      steps, next cold start's bootstrap sees a valid token
+      //      in Keychain and lands the user on their role home
+      //      instead of back at Login.
+      //   2. Hydrate user slice BEFORE flipping loginSuccess.
+      //      loginSuccess trips RootNavigator into the role stack;
+      //      the home screen's first render must already see the
+      //      profile populated so the greeting shows the real name.
+      //   3. Flip identity in appSlice — this is what actually swaps
+      //      screens.
       await saveTokens({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
       });
-      // Order matters: hydrate the user slice BEFORE loginSuccess.
-      // loginSuccess flips isAuthenticated, which triggers RootNavigator
-      // to swap into the role stack; the home screen's first render
-      // must already see state.user.profile populated so the greeting
-      // shows the real name, never the "there" fallback.
       dispatch(userReceived(data.profile));
       dispatch(
         loginSuccess({
@@ -198,10 +239,9 @@ export function useVerifyOtp() {
       );
 
       // ── Analytics ─────────────────────────────────────────────
-      // Identify BEFORE emitting login_success so the event carries
+      // identify BEFORE emitting login_success so the event carries
       // the correct user_id + user properties in Firebase. Do NOT
-      // include the phone number as an event param — it's PII and
-      // Firebase's user-property system is not designed for it.
+      // include the phone number as an event param — it's PII.
       identifyUser({
         userId: data.userId,
         role: data.role,
@@ -209,11 +249,14 @@ export function useVerifyOtp() {
         entityId: data.entityId,
       });
       logEvent('auth.otp_verified');
-      logEvent('auth.login_success', { role: data.role });
+      logEvent('auth.login_success', {
+        role: data.role,
+        first_login: data.requiresProfileSetup,
+      });
     },
     onError: err => {
       logEvent('auth.otp_failed', {
-        reason: err instanceof ApiError ? err.kind : 'unknown',
+        reason: err instanceof ApiError ? err.code ?? err.kind : 'unknown',
       });
     },
   });

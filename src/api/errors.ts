@@ -24,22 +24,48 @@ export type ApiErrorKind =
   | 'server' // 5xx
   | 'unknown';
 
+/**
+ * Fine-grained server code, when present. The backend adds these
+ * to auth-related failure bodies (see the OTP failure matrix) so
+ * screens can render the right copy without parsing English out of
+ * `.message`. Kept as `string` (not a union) so a new server code
+ * doesn't force a client release — screens fall through to
+ * `.kind`'s default message when they don't know the code.
+ *
+ *   'account_not_provisioned' — vendor/driver/uc mobile not in DB
+ *   'account_locked'          — brute-force lock, retryAfter set
+ *   'account_suspended'       — admin-blocked
+ *   'signups_disabled'        — MSG91 wallet empty (customer path)
+ *   'captcha_required'        — resend/verify threshold hit
+ *   'session_revoked'         — refresh-token reuse detected
+ *   …plus anything the backend adds later.
+ */
+export type ApiErrorCode = string;
+
 export class ApiError extends Error {
   readonly kind: ApiErrorKind;
+  readonly code?: ApiErrorCode;
   readonly status?: number;
   readonly data?: unknown;
+  /** Seconds to wait before retrying, if the server said so.
+   *  Populated from `Retry-After` header OR `data.retryAfter`. */
+  readonly retryAfter?: number;
 
   constructor(
     kind: ApiErrorKind,
     message: string,
     status?: number,
     data?: unknown,
+    code?: ApiErrorCode,
+    retryAfter?: number,
   ) {
     super(message);
     this.name = 'ApiError';
     this.kind = kind;
+    this.code = code;
     this.status = status;
     this.data = data;
+    this.retryAfter = retryAfter;
   }
 
   static from(error: unknown): ApiError {
@@ -55,8 +81,10 @@ export class ApiError extends Error {
       const status = error.response.status;
       const data = error.response.data;
       const kind = mapStatus(status);
+      const code = readServerCode(data);
       const message = readServerMessage(data) ?? defaultMessage(kind);
-      return new ApiError(kind, message, status, data);
+      const retryAfter = readRetryAfter(error.response.headers, data);
+      return new ApiError(kind, message, status, data, code, retryAfter);
     }
 
     return new ApiError(
@@ -78,6 +106,43 @@ function readServerMessage(data: unknown): string | undefined {
   if (typeof data === 'object' && data !== null && 'message' in data) {
     const msg = (data as { message: unknown }).message;
     if (typeof msg === 'string') return msg;
+  }
+  return undefined;
+}
+
+/**
+ * Reads `data.code` from the error body. The backend's envelope is
+ * `{ success: false, code: 'account_not_provisioned', message: '…' }`
+ * — keeping this parsing here (not in every hook) means every
+ * consumer gets `err.code` for free.
+ */
+function readServerCode(data: unknown): string | undefined {
+  if (typeof data === 'object' && data !== null && 'code' in data) {
+    const code = (data as { code: unknown }).code;
+    if (typeof code === 'string') return code;
+  }
+  return undefined;
+}
+
+/**
+ * Retry-After header wins over body field. Header can be either a
+ * delta-seconds int or an HTTP-date; we only handle the int form
+ * because that's what our backend sends. If header is missing,
+ * fall back to `data.retryAfter` (an int, seconds).
+ */
+function readRetryAfter(headers: unknown, data: unknown): number | undefined {
+  if (typeof headers === 'object' && headers !== null) {
+    const raw =
+      (headers as Record<string, unknown>)['retry-after'] ??
+      (headers as Record<string, unknown>)['Retry-After'];
+    if (typeof raw === 'string' || typeof raw === 'number') {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 0) return n;
+    }
+  }
+  if (typeof data === 'object' && data !== null && 'retryAfter' in data) {
+    const raw = (data as { retryAfter: unknown }).retryAfter;
+    if (typeof raw === 'number' && raw >= 0) return raw;
   }
   return undefined;
 }

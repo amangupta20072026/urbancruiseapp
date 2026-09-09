@@ -63,6 +63,7 @@ import type { AuthParamList } from '../../navigation/types';
 import { withAlpha } from '../../components/roles';
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { ApiError } from '@api/errors';
+import { newIdempotencyKey } from '@api/idempotency';
 import { useRequestOtp, useVerifyOtp } from './hooks';
 
 /* -----------------------------------------------------------------
@@ -355,6 +356,28 @@ const OtpVerifyScreen: React.FC = () => {
       });
     } catch (err) {
       if (err instanceof ApiError) {
+        // Fine-grained server codes first — the coarse `.kind` alone
+        // can't tell an expired session from a wrong digit.
+        switch (err.code) {
+          case 'otp_invalid':
+            setError('That code didn\u2019t work. Please try again.');
+            return;
+          case 'otp_expired':
+            setError('This code has expired. Tap Resend to get a new one.');
+            return;
+          case 'account_locked': {
+            const mins = err.retryAfter
+              ? Math.max(1, Math.round(err.retryAfter / 60))
+              : 15;
+            setError(`Too many wrong attempts. Try again in ${mins} min.`);
+            return;
+          }
+          case 'account_suspended':
+            setError(
+              'This account has been suspended. Please contact support.',
+            );
+            return;
+        }
         switch (err.kind) {
           case 'unauthorized':
             setError('That code didn\u2019t work. Please try again.');
@@ -384,10 +407,15 @@ const OtpVerifyScreen: React.FC = () => {
     if (resending || secondsLeft > 0) return;
     setError(null);
     try {
+      // Resend is a NEW intent, not a retry of the original send —
+      // mint a fresh idempotency key so the server actually issues
+      // a new OTP instead of replaying the previous response.
+      const idempotencyKey = newIdempotencyKey();
       const res = await requestOtp({
         phone,
         countryCode: COUNTRY_CODE,
         role,
+        idempotencyKey,
       });
       // Update the requestId ref so the NEXT verify sends the
       // freshly issued handle rather than the stale one from the
@@ -397,6 +425,21 @@ const OtpVerifyScreen: React.FC = () => {
       setSecondsLeft(res.resendAfterSeconds ?? RESEND_SECONDS);
     } catch (err) {
       if (err instanceof ApiError) {
+        switch (err.code) {
+          case 'account_locked': {
+            const mins = err.retryAfter
+              ? Math.max(1, Math.round(err.retryAfter / 60))
+              : 15;
+            setError(`This number is locked. Try again in ${mins} min.`);
+            return;
+          }
+          case 'account_suspended':
+            setError('This account has been suspended. Contact support.');
+            return;
+          case 'signups_disabled':
+            setError('OTP service is temporarily unavailable. Try shortly.');
+            return;
+        }
         switch (err.kind) {
           case 'rateLimited':
             setError('Too many requests. Please wait a moment.');
