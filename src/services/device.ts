@@ -31,7 +31,7 @@ export type DeviceInfoPayload = {
    *  user on the Sessions screen — do not put any raw fingerprint
    *  here, keep it presentational. */
   name: string;
-  platform: 'ios' | 'android' | 'web';
+  platform: 'ios' | 'android';
   /** `${version} (${build})`, e.g. "1.4.2 (127)". Kept as one field
    *  so the server row is one column, not two. */
   appVersion: string;
@@ -54,9 +54,7 @@ export async function getDeviceInfo(): Promise<DeviceInfoPayload> {
   const platform: DeviceInfoPayload['platform'] =
     Platform.OS === 'ios'
       ? 'ios'
-      : Platform.OS === 'android'
-      ? 'android'
-      : 'web';
+      : 'android';
 
   const [id, model, systemVersion] = await Promise.all([
     safeAsync(() => DeviceInfo.getUniqueId(), FALLBACK_ID),

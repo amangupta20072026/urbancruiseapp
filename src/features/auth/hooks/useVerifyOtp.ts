@@ -31,11 +31,6 @@
  *   dispatch whatever role /auth/otp/verify returns, and
  *   RootNavigator branches on that.
  *
- * Backend swap:
- *   Set USE_MOCK to false when /auth/otp/verify lands. The response
- *   shape here matches what bootstrap/steps/auth.ts expects from
- *   /auth/me, so no other code needs to change.
- *
  * Error surface (typed via ApiError.kind / .code):
  *   - kind 'unauthorized' + code 'otp_invalid'         → "That code didn't work"
  *   - kind 'unauthorized' + code 'otp_expired'         → "OTP expired, resend"
@@ -58,16 +53,8 @@ import { useAppDispatch } from '@store/hooks';
 import { loginSuccess } from '@store/slices/appSlice';
 import { userReceived, type UserProfile } from '@store/slices/userSlice';
 import type { UserRole, SubRole } from '@rbac/roles';
-import { isoNow } from '@app-types/datetime';
-import { mockCurrentUser } from '@mocks/data/currentUser';
 import { logEvent } from '@services/telemetry/logEvent';
 import { identifyUser } from '@services/telemetry/identify';
-
-/* ------------------------------------------------------------------ */
-/* Toggle                                                             */
-/* ------------------------------------------------------------------ */
-
-const USE_MOCK = true;
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -119,74 +106,8 @@ export type VerifyOtpResponse = {
 async function verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
   // Collect device info BEFORE the network call so a slow native
   // module doesn't stretch the perceived login latency past the
-  // POST itself. Runs in parallel with the mock delay too.
-  const devicePromise = getDeviceInfo();
-
-  if (USE_MOCK) {
-    await new Promise<void>(resolve => setTimeout(resolve, 500));
-    await devicePromise; // eat the promise so the timing is realistic
-
-    // Mock rejection paths for QA:
-    //   otp '000000' → otp_invalid   (wrong code)
-    //   otp '111111' → otp_expired   (session expired)
-    if (input.otp === '000000') {
-      throw new ApiError(
-        'unauthorized',
-        "That code didn't work. Please try again.",
-        401,
-        { code: 'otp_invalid' },
-        'otp_invalid',
-      );
-    }
-    if (input.otp === '111111') {
-      throw new ApiError(
-        'unauthorized',
-        'This OTP has expired. Tap Resend to get a new one.',
-        401,
-        { code: 'otp_expired' },
-        'otp_expired',
-      );
-    }
-
-    // Dev-mode identity policy (mock only). Real /auth/otp/verify
-    // returns real IDs from the DB.
-    const isCustomer = input.role === 'customer';
-    const mockUserId = isCustomer
-      ? mockCurrentUser.id
-      : `mock-${input.role}-user`;
-    const mockEntityId = isCustomer
-      ? mockCurrentUser.id
-      : `mock-${input.role}-entity`;
-
-    return {
-      accessToken: `mock-access-${input.role}-${Date.now()}`,
-      refreshToken: `mock-refresh-${input.role}-${Date.now()}`,
-      userId: mockUserId,
-      role: input.role,
-      subRole: null,
-      entityId: mockEntityId,
-      requiresProfileSetup: false,
-      profile: isCustomer
-        ? {
-            id: mockCurrentUser.id,
-            displayName: mockCurrentUser.displayName,
-            email: mockCurrentUser.email,
-            phoneIndia: mockCurrentUser.phoneIndia,
-            phoneGlobal: mockCurrentUser.phoneGlobal,
-            memberSince: mockCurrentUser.memberSince,
-          }
-        : {
-            id: mockUserId,
-            displayName: 'Aman Gupta',
-            email: 'aman@urbancruise.dev',
-            phoneIndia: `${input.countryCode}${input.phone}`,
-            phoneGlobal: `${input.countryCode}${input.phone}`,
-            memberSince: isoNow(),
-          },
-    };
-  }
-
-  const device: DeviceInfoPayload = await devicePromise;
+  // POST itself.
+  const device: DeviceInfoPayload = await getDeviceInfo();
 
   const { data } = await apiClient.post<VerifyOtpResponse>(
     endpoints.auth.verifyOtp(),

@@ -21,11 +21,6 @@
  *   Callers MUST mint a NEW key for a "resend" tap — that's a fresh
  *   intent, not a retry of the previous send.
  *
- * Backend swap:
- *   Flip USE_MOCK to false when /auth/otp/request lands. The mock
- *   response returns the same fields the real server does, so the
- *   swap is a one-line change.
- *
  * Error surface (typed via ApiError.kind / .code):
  *   - kind 'rateLimited'   + code 'account_locked'          → 15-min lockout, show retryAfter
  *   - kind 'rateLimited'   + no code                        → "Too many requests, wait a moment"
@@ -46,17 +41,6 @@ import { ApiError } from '@api/errors';
 import { queryKeys } from '@constants/queryKeys';
 import type { UserRole } from '@rbac/roles';
 import { logEvent } from '@services/telemetry/logEvent';
-
-/* ------------------------------------------------------------------ */
-/* Toggle                                                             */
-/* ------------------------------------------------------------------ */
-
-/**
- * Flip to `false` when /auth/otp/request is live. Keeping the toggle
- * at module scope (not env-driven) so the swap is explicit and shows
- * up in a code review diff.
- */
-const USE_MOCK = true;
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -115,52 +99,6 @@ export type RequestOtpResponse = {
 /* ------------------------------------------------------------------ */
 
 async function requestOtp(input: RequestOtpInput): Promise<RequestOtpResponse> {
-  if (USE_MOCK) {
-    await new Promise<void>(resolve => setTimeout(resolve, 400));
-
-    // Mock rejection paths so QA can exercise every error branch:
-    //   phone '9999999999' → account_not_provisioned (vendor/driver/uc)
-    //   phone '9000000000' → account_locked
-    //   phone '9111111111' → signups_disabled (customer wallet-empty)
-    if (input.phone === '9999999999' && input.role !== 'customer') {
-      throw new ApiError(
-        'forbidden',
-        `No ${input.role} account found for this number.`,
-        403,
-        { code: 'account_not_provisioned' },
-        'account_not_provisioned',
-      );
-    }
-    if (input.phone === '9000000000') {
-      throw new ApiError(
-        'rateLimited',
-        'This number is locked after too many attempts.',
-        429,
-        { code: 'account_locked', retryAfter: 900 },
-        'account_locked',
-        900,
-      );
-    }
-    if (input.phone === '9111111111' && input.role === 'customer') {
-      throw new ApiError(
-        'server',
-        'Signups are temporarily unavailable.',
-        503,
-        { code: 'signups_disabled' },
-        'signups_disabled',
-      );
-    }
-
-    // Happy-path mock: test mobile flips testMode on so QA sees the hint.
-    const isTest = input.phone === '9876543210';
-    return {
-      requestId: `mock-req-${Date.now()}`,
-      resendAfterSeconds: 30,
-      channel: 'whatsapp',
-      testMode: isTest,
-    };
-  }
-
   const { data } = await apiClient.post<RequestOtpResponse>(
     endpoints.auth.requestOtp(),
     // Body — do NOT include the idempotency key here; it goes in the

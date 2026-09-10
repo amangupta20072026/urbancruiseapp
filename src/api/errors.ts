@@ -103,6 +103,15 @@ function isAxiosError(error: unknown): error is AxiosError {
 }
 
 function readServerMessage(data: unknown): string | undefined {
+  // Backend envelope: { error: { code, message, requestId } }
+  if (typeof data === 'object' && data !== null && 'error' in data) {
+    const err = (data as { error: unknown }).error;
+    if (typeof err === 'object' && err !== null && 'message' in err) {
+      const msg = (err as { message: unknown }).message;
+      if (typeof msg === 'string') return msg;
+    }
+  }
+  // Legacy / non-enveloped fallback: `{ message: '...' }`
   if (typeof data === 'object' && data !== null && 'message' in data) {
     const msg = (data as { message: unknown }).message;
     if (typeof msg === 'string') return msg;
@@ -111,12 +120,18 @@ function readServerMessage(data: unknown): string | undefined {
 }
 
 /**
- * Reads `data.code` from the error body. The backend's envelope is
- * `{ success: false, code: 'account_not_provisioned', message: '…' }`
- * — keeping this parsing here (not in every hook) means every
- * consumer gets `err.code` for free.
+ * Reads the machine-readable code from the error body. Backend envelope:
+ *   { error: { code: 'account_not_provisioned', message: '…', requestId } }
+ * Falls back to a top-level `code` for any non-enveloped source.
  */
 function readServerCode(data: unknown): string | undefined {
+  if (typeof data === 'object' && data !== null && 'error' in data) {
+    const err = (data as { error: unknown }).error;
+    if (typeof err === 'object' && err !== null && 'code' in err) {
+      const code = (err as { code: unknown }).code;
+      if (typeof code === 'string') return code;
+    }
+  }
   if (typeof data === 'object' && data !== null && 'code' in data) {
     const code = (data as { code: unknown }).code;
     if (typeof code === 'string') return code;

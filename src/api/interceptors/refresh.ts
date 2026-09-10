@@ -73,13 +73,18 @@ async function runRefresh(): Promise<string | null> {
 
   try {
     // Use bare axios (NOT the intercepted client) to avoid recursion.
+    // That means the envelope-unwrap interceptor on apiClient does NOT run
+    // here — we unwrap `response.data.data` manually below.
     const response = await axios.post(
       `${ENV.apiUrl}${endpoints.auth.refresh()}`,
       { refreshToken },
       { timeout: ENV.apiTimeout || 30000 },
     );
 
-    const { accessToken, refreshToken: newRefreshToken } = response.data;
+    // Backend envelope: { data: { accessToken, refreshToken }, requestId }
+    const payload = response.data?.data ?? response.data;
+    const accessToken = payload?.accessToken;
+    const newRefreshToken = payload?.refreshToken;
     if (!accessToken || !newRefreshToken) return null;
 
     await saveTokens({ accessToken, refreshToken: newRefreshToken });

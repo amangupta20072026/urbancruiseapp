@@ -23,9 +23,6 @@
  *
  * RootNavigator picks up the Redux change and swaps to AuthFlow on
  * its next render; the screen doesn't need to navigate anywhere.
- *
- * Backend swap:
- *   Flip USE_MOCK to false. No other changes needed.
  * ------------------------------------------------------------------
  */
 
@@ -43,20 +40,10 @@ import { resetIdentity } from '@services/telemetry/identify';
 import { resetScreenTracker } from '@services/telemetry/screenTracker';
 
 /* ------------------------------------------------------------------ */
-/* Toggle                                                             */
-/* ------------------------------------------------------------------ */
-
-const USE_MOCK = true;
-
-/* ------------------------------------------------------------------ */
 /* Fetcher                                                            */
 /* ------------------------------------------------------------------ */
 
 async function callServerLogout(): Promise<void> {
-  if (USE_MOCK) {
-    await new Promise<void>(resolve => setTimeout(resolve, 200));
-    return;
-  }
   await apiClient.post(endpoints.auth.logout());
 }
 

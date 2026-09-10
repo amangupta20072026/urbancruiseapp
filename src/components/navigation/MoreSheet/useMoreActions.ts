@@ -65,9 +65,7 @@
 import { useCallback } from 'react';
 
 import { navigate } from '@navigation/NavigationService';
-import { useAppDispatch } from '@store/hooks';
-import { logout } from '@store/slices/appSlice';
-import { clearTokens } from '@services/storage/secureStorage';
+import { useLogout } from '@features/auth/hooks';
 
 import type { MoreActionId } from './moreMenuConfig';
 
@@ -87,7 +85,7 @@ export type MoreActionResult = 'navigated' | 'inline';
  * ----------------------------------------------------------------- */
 
 export function useMoreActions() {
-  const dispatch = useAppDispatch();
+  const { logout: performLogout } = useLogout();
 
   /**
    * `run` receives an actionId, executes the mapped behavior, and
@@ -125,14 +123,19 @@ export function useMoreActions() {
           return 'navigated';
 
         case 'logout':
-          // Clear secure tokens first, then dispatch redux logout —
-          // RootNavigator swaps to AuthFlow automatically. That swap
-          // unmounts this whole role navigator, which triggers
-          // useMoreTabController's useFocusEffect cleanup and releases
-          // the override anyway. Return 'navigated' so the visual
-          // override holds during the swap transition.
-          void clearTokens();
-          dispatch(logout());
+          // Fire the full logout mutation:
+          //   1. POST /auth/logout (best-effort — server-side revoke)
+          //   2. logEvent('auth.logout')
+          //   3. resetIdentity + resetScreenTracker
+          //   4. clearTokens
+          //   5. dispatch(logout())  → RootNavigator swaps to AuthFlow
+          //   6. queryClient.clear()
+          //
+          // Fire-and-forget: the mutation swallows network errors, so
+          // even offline the local teardown still runs. We return
+          // 'navigated' immediately — the visual override holds during
+          // the swap transition regardless of when the POST completes.
+          void performLogout();
           return 'navigated';
 
         /* ---- Customer ---- */
@@ -201,7 +204,7 @@ export function useMoreActions() {
         }
       }
     },
-    [dispatch],
+    [performLogout],
   );
 
   return { run };
