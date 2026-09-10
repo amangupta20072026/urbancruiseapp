@@ -44,7 +44,12 @@ import { resetScreenTracker } from '@services/telemetry/screenTracker';
 /* ------------------------------------------------------------------ */
 
 async function callServerLogout(): Promise<void> {
-  await apiClient.post(endpoints.auth.logout());
+  // Body is REQUIRED — backend's LogoutBody schema is `z.object({...})` and
+  // will reject an undefined body with 400 VALIDATION_BODY. Passing an
+  // explicit scope also makes the intent obvious at the call site.
+  //   'current' → revoke just this device
+  //   'all'     → revoke every session for this user
+  await apiClient.post(endpoints.auth.logout(), { scope: 'current' });
 }
 
 /* ------------------------------------------------------------------ */
