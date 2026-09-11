@@ -58,6 +58,10 @@ import { drainPendingDeepLink } from '@/services/deeplinks/drain';
 import { buildLinkingConfig } from '@/services/deeplinks/linkingConfig';
 import { ToastHost } from '@services/toast';
 import { startFcmBridge } from '@/services/notifications/fcmBridge';
+import {
+  registerFcmToken,
+  startFcmTokenRefreshListener,
+} from '@services/notifications/fcmToken';
 import { useAppSelector } from '@store/hooks';
 import { trackScreenChange } from '@services/telemetry/screenTracker';
 
@@ -160,6 +164,7 @@ const App: React.FC = () => {
               <BottomSheetModalProvider>
                 <StatusBar barStyle="dark-content" />
                 <NotificationPermissionGate />
+                <FcmTokenGate />
                 {/*
                   App-level ErrorBoundary sits ABOVE NavigationContainer
                   so a crash in any screen shows a graceful fallback
@@ -238,6 +243,44 @@ const NotificationPermissionGate: React.FC = () => {
     if (!isAuthenticated || !userRole) return;
     void ensureCapability('notifications', userRole);
   }, [isAuthenticated, userRole]);
+
+  return null;
+};
+
+/**
+ * FcmTokenGate
+ * -------------------------------------------------------------------
+ * Owns the FCM registration-token lifecycle for the current session.
+ * Mounts inside the Redux Provider (so it can read isAuthenticated),
+ * and runs its effect only when the user is authenticated.
+ *
+ * TWO CODE PATHS THIS COVERS:
+ *   1. Cold-start-authenticated — bootstrap flips isAuthenticated
+ *      without going through useVerifyOtp. Without this gate, the
+ *      backend would never get the current token on a returning-user
+ *      launch.
+ *   2. Token rotation — FCM can rotate tokens at any time (backup
+ *      restore, notifications toggled in system settings, etc). The
+ *      onTokenRefresh listener re-POSTs the new token.
+ *
+ * On login via useVerifyOtp, `registerFcmToken` is also called there
+ * as fire-and-forget — this gate's fetch is a no-op in that case
+ * because the service caches the last-registered token in-process.
+ * Belt-and-braces is intentional; the two paths are independent.
+ *
+ * Cleanup runs on logout (isAuthenticated flips false) — tearing down
+ * onTokenRefresh so we can't POST a rotated token to a logged-out
+ * session.
+ * -------------------------------------------------------------------
+ */
+const FcmTokenGate: React.FC = () => {
+  const isAuthenticated = useAppSelector(s => s.app.isAuthenticated);
+
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    void registerFcmToken();
+    return startFcmTokenRefreshListener();
+  }, [isAuthenticated]);
 
   return null;
 };

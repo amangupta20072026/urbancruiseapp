@@ -137,9 +137,14 @@ export function readCachedAppConfig(): AppConfig {
  * strings like "1.0.0 (1)" (version + build); the backend's Zod schema
  * demands a plain semver like "1.0.0".
  */
+
 function toSemver(appVersion: string): string {
-  const match = appVersion.match(/^\d+\.\d+\.\d+/);
-  return match ? match[0] : '0.0.0';
+  // Strip build suffix: "1.0.0 (1)" → "1.0.0", "1.0 (1)" → "1.0"
+  const core = appVersion.split(' ')[0] ?? '';
+  const parts = core.split('.').filter(p => /^\d+$/.test(p));
+  if (parts.length === 0) return '0.0.0';
+  while (parts.length < 3) parts.push('0');
+  return parts.slice(0, 3).join('.');
 }
 
 export async function fetchFreshAppConfig(): Promise<AppConfig> {

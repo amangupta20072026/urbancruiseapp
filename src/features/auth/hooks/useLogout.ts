@@ -38,6 +38,7 @@ import { logout as logoutAction } from '@store/slices/appSlice';
 import { logEvent } from '@services/telemetry/logEvent';
 import { resetIdentity } from '@services/telemetry/identify';
 import { resetScreenTracker } from '@services/telemetry/screenTracker';
+import { unregisterFcmToken } from '@services/notifications/fcmToken';
 
 /* ------------------------------------------------------------------ */
 /* Fetcher                                                            */
@@ -69,6 +70,12 @@ export function useLogout() {
   const mutation = useMutation<void, ApiError, void>({
     mutationKey: queryKeys.auth.logout(),
     mutationFn: async () => {
+      // FCM token unregister runs BEFORE the server logout call so
+      // the backend still has a valid session when we DELETE the
+      // token row — otherwise the 401 would leave stale rows in
+      // push_tokens forever. Service is best-effort (never throws).
+      await unregisterFcmToken();
+
       // Swallow server errors — local teardown must still happen.
       try {
         await callServerLogout();

@@ -141,5 +141,14 @@ export const endpoints = {
     list: () => '/notifications',
     markRead: (id: string) => `/notifications/${id}/read`,
     markAllRead: () => '/notifications/read-all',
+
+    // FCM device-token registry. Backend upserts on register (one row
+    // per user+device) and hard-deletes on unregister so a stale token
+    // never receives another push after logout.
+    tokens: {
+      register: () => '/notifications/tokens',
+      unregister: (deviceId: string) =>
+        `/notifications/tokens/${encodeURIComponent(deviceId)}`,
+    },
   },
 } as const;

@@ -81,6 +81,10 @@ export type EventName =
   // ── Push (FCM) ────────────────────────────────────────
   | 'fcm.notification_received'
   | 'fcm.notification_tapped'
+  | 'fcm.token_registered'
+  | 'fcm.token_refreshed'
+  | 'fcm.token_unregistered'
+  | 'fcm.token_unavailable'
 
   // ── Deeplinks ─────────────────────────────────────────
   | 'deeplink.opened'

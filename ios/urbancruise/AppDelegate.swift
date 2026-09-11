@@ -2,6 +2,12 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
+// MUST be imported so `FirebaseApp.configure()` below has a definition.
+// Required by @react-native-firebase/app on iOS per official docs:
+//   https://rnfirebase.io/  →  "Configure Firebase with iOS credentials (react-native 0.77+)"
+// Without the paired configure() call, every RNFirebase JS call throws:
+//   "No Firebase App '[DEFAULT]' has been created – call firebase.initializeApp()"
+import Firebase
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -14,6 +20,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // Must be the FIRST line — reads GoogleService-Info.plist from the
+    // bundle and initialises the default FirebaseApp. Every subsequent
+    // RNFirebase native module (analytics, crashlytics, messaging) needs
+    // this to have already run.
+    FirebaseApp.configure()
+
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()

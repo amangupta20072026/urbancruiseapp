@@ -55,6 +55,7 @@ import { userReceived, type UserProfile } from '@store/slices/userSlice';
 import type { UserRole, SubRole } from '@rbac/roles';
 import { logEvent } from '@services/telemetry/logEvent';
 import { identifyUser } from '@services/telemetry/identify';
+import { registerFcmToken } from '@services/notifications/fcmToken';
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -174,6 +175,14 @@ export function useVerifyOtp() {
         role: data.role,
         first_login: data.requiresProfileSetup,
       });
+
+      // Fire-and-forget: register this device's FCM token with the
+      // backend so pushes can be targeted to this session. The
+      // service is best-effort (never throws); we intentionally
+      // don't await so login latency isn't tied to the notifications
+      // endpoint's response time.
+      // eslint-disable-next-line no-void
+      void registerFcmToken();
     },
     onError: err => {
       logEvent('auth.otp_failed', {
