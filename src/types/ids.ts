@@ -26,6 +26,12 @@ export type VendorId = Brand<string, 'VendorId'>;
 export type DriverId = Brand<string, 'DriverId'>;
 export type UcUserId = Brand<string, 'UcUserId'>;
 
+/**
+ * A single financial ledger row against a booking. One booking can
+ * have many PaymentIds (advance, balance, refund).
+ */
+export type PaymentId = Brand<string, 'PaymentId'>;
+
 // -----------------------------------------------------------------
 // Constructors — use these when receiving IDs from the API.
 // -----------------------------------------------------------------
@@ -40,6 +46,8 @@ export const asCustomerId = (id: string): CustomerId => id as CustomerId;
 export const asVendorId = (id: string): VendorId => id as VendorId;
 export const asDriverId = (id: string): DriverId => id as DriverId;
 export const asUcUserId = (id: string): UcUserId => id as UcUserId;
+
+export const asPaymentId = (id: string): PaymentId => id as PaymentId;
 
 // -----------------------------------------------------------------
 // Domain conversions — the ONLY sanctioned boundaries.

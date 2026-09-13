@@ -63,6 +63,14 @@ export type AuthParamList = {
 /* ------------------ Customer stack ------------------ */
 export type CustomerStackParamList = {
   CustomerTabs: NavigatorScreenParams<CustomerTabParamList>;
+  // "Plan your next journey" flow (customer-initiated enquiry).
+  // RequestQuotation → QuotationSuccess uses navigation.replace()
+  // so pressing Back from success does not return to a completed form.
+  // In this pass QuotationSuccess.requestId is a client-generated
+  // placeholder; once /customer/enquiries is wired, the same param
+  // will carry the server's enquiry id — no route-shape change.
+  RequestQuotation: undefined;
+  QuotationSuccess: { requestId: string };
   QuotationDetail: { quotationId: QuotationId };
   BookingDetail: { bookingId: BookingId };
   PassengerList: { bookingId: BookingId };

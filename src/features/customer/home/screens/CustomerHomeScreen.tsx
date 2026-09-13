@@ -133,8 +133,8 @@ const CustomerHomeScreen: React.FC = () => {
 
   const onRequestQuotation = useCallback(() => {
     logEvent('home.cta_tapped', { cta: 'request_quotation' });
-    // TODO(nav): navigate to Request quotation flow
-  }, []);
+    navigation.navigate('RequestQuotation');
+  }, [navigation]);
 
   const onViewTrip = useCallback(() => {
     logEvent('home.cta_tapped', {

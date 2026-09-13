@@ -34,6 +34,10 @@ import { SettingsScreen } from '@features/shared/settings';
 import { NotificationCentreScreen } from '@features/shared/notifications';
 import { CustomerFeedbackScreen } from '@features/customer/feedback';
 import { ReferralsScreen } from '@features/customer/referrals';
+import {
+  RequestQuotationScreen,
+  QuotationSuccessScreen,
+} from '@features/customer/quotations';
 
 const Stack = createNativeStackNavigator<CustomerStackParamList>();
 
@@ -64,6 +68,16 @@ const CustomerNavigator: React.FC = () => {
         component={CustomerFeedbackScreen}
       />
       <Stack.Screen name="Referrals" component={ReferralsScreen} />
+
+      {/* "Plan your next journey" flow — form + success */}
+      <Stack.Screen
+        name="RequestQuotation"
+        component={RequestQuotationScreen}
+      />
+      <Stack.Screen
+        name="QuotationSuccess"
+        component={QuotationSuccessScreen}
+      />
 
       {/* Registered ghost routes — real screens land later. */}
       <Stack.Screen name="QuotationDetail" component={NotImplementedScreen} />
