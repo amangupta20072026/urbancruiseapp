@@ -257,13 +257,9 @@ export const QuotationCard: React.FC<Props> = ({
               />
               <Text style={styles.metaText} numberOfLines={1}>
                 {formatDate(item.travelDateStart)}
+                {item.travelDateEnd ? ` – ${formatDate(item.travelDateEnd)}` : ''}
               </Text>
             </View>
-            {item.travelDateEnd ? (
-              <Text style={styles.metaTextIndent}>
-                — {formatDate(item.travelDateEnd)}
-              </Text>
-            ) : null}
           </View>
 
           <View style={styles.infoDivider} />
@@ -409,12 +405,6 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontWeight: '600',
     flexShrink: 1,
-  },
-  metaTextIndent: {
-    ...Typography.caption,
-    color: Colors.textPrimary,
-    fontWeight: '600',
-    marginLeft: 20, // aligns under the text after the icon (14 icon + 6 gap)
   },
   chevron: {
     marginLeft: 'auto',

@@ -88,15 +88,12 @@ const PaymentsScreen: React.FC = () => {
         <Text style={styles.headerSubtitle}>View your payment history</Text>
       </View>
 
-      {/* Filter chip strip — same solid-fill pattern as bookings /
-          notifications; height-capped to avoid the vertical-stretch
-          bug we fixed elsewhere. */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.chipStrip}
-        contentContainerStyle={styles.chipRow}
-      >
+      {/* Filter chip row — evenly-spaced, full-width segmented style.
+          Unlike the notification centre's scrollable strip (5 longer
+          labels), Payments only has 4 short labels, so instead of
+          letting them pack to the left we stretch them to share the
+          row equally with space between. */}
+      <View style={styles.chipRow}>
         {FILTERS.map(chip => (
           <FilterChip
             key={chip.key}
@@ -105,7 +102,7 @@ const PaymentsScreen: React.FC = () => {
             onPress={() => setFilter(chip.key)}
           />
         ))}
-      </ScrollView>
+      </View>
 
       <ScrollView
         style={styles.listBg}
@@ -183,19 +180,19 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
-  /* Filter chips */
-  chipStrip: {
-    flexGrow: 0,
-    flexShrink: 0,
-  },
+  /* Filter chips — full-width row, chips share the space equally
+     (flex: 1 each) with a fixed gap between them, so the row always
+     reaches both edges regardless of how many chips there are. */
   chipRow: {
+    flexDirection: 'row',
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
     gap: Spacing.sm,
   },
   chip: {
+    flex: 1,
     height: 36,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     borderRadius: Radius.md,
     backgroundColor: Colors.surfaceMuted,
     alignItems: 'center',

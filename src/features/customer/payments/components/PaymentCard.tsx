@@ -109,7 +109,6 @@ export const PaymentCard: React.FC<Props> = ({
   onDownloadInvoice,
 }) => {
   const style = STATUS_STYLE[item.status];
-  const StatusIcon = style.Icon;
 
   return (
     <Pressable
@@ -118,17 +117,8 @@ export const PaymentCard: React.FC<Props> = ({
       accessibilityRole="button"
       accessibilityLabel={`Payment ${item.bookingNumber}, ${style.label}`}
     >
-      {/* Top region: leading icon + main details + right-column meta */}
+      {/* Top region: main details + right-column meta */}
       <View style={styles.top}>
-        <View style={[styles.iconWrap, { backgroundColor: style.bg }]}>
-          <StatusIcon
-            size={22}
-            color={Colors.textOnPrimary}
-            strokeWidth={2.5}
-            fill={style.fg}
-          />
-        </View>
-
         <View style={styles.mid}>
           <View style={styles.routeRow}>
             <Text style={styles.routeText} numberOfLines={1}>
@@ -225,13 +215,6 @@ const styles = StyleSheet.create({
   top: {
     flexDirection: 'row',
     gap: Spacing.md,
-  },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.circle,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   mid: {
     flex: 1,
