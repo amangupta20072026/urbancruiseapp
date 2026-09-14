@@ -35,6 +35,7 @@ import { NotificationCentreScreen } from '@features/shared/notifications';
 import { CustomerFeedbackScreen } from '@features/customer/feedback';
 import { ReferralsScreen } from '@features/customer/referrals';
 import {
+  QuotationDetailScreen,
   RequestQuotationScreen,
   QuotationSuccessScreen,
 } from '@features/customer/quotations';
@@ -78,9 +79,9 @@ const CustomerNavigator: React.FC = () => {
         name="QuotationSuccess"
         component={QuotationSuccessScreen}
       />
+      <Stack.Screen name="QuotationDetail" component={QuotationDetailScreen} />
 
       {/* Registered ghost routes — real screens land later. */}
-      <Stack.Screen name="QuotationDetail" component={NotImplementedScreen} />
       <Stack.Screen name="BookingDetail" component={NotImplementedScreen} />
       <Stack.Screen name="PassengerList" component={NotImplementedScreen} />
       <Stack.Screen name="TripLive" component={NotImplementedScreen} />
