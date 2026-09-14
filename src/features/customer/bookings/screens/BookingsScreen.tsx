@@ -5,9 +5,10 @@
  * Landing screen for the Customer "Bookings" tab.
  *
  * LAYOUT (top → bottom):
- *   [My Bookings                             🔍  ⚙︎]
+ *   [My Bookings]
  *   [subtitle]
  *   [All | Upcoming | Ongoing | Completed | Cancelled]  ← chip strip
+ *   [🔍 Search…                                  ⚙︎]
  *   [ BookingCard × N ]
  *
  * NAVIGATION INTENTS:
@@ -15,7 +16,14 @@
  *   - Modify Booking          → ModificationRequest (ghost)
  *   - Track Vehicle           → TripLive (ghost; ongoing bookings only)
  *   - Book Again              → RequestQuotation (pre-fills route later)
- *   - Search / filter icons   → TODO(nav)
+ *   - Filter icon in search   → TODO(nav): open a filter sheet
+ *
+ * WHY the search+filter row matches QuotationsScreen:
+ *   Both list screens share the same search-bar-plus-filter-button
+ *   pattern (rounded search field + square filter trigger) so the
+ *   two tabs read as one consistent list-screen language instead of
+ *   Bookings using header icon buttons and Quotations using an
+ *   inline bar. See QuotationsScreen for the sibling copy.
  *
  * DATA:
  *   Local mock fixture in `../mocks.ts`. Swap for a TanStack Query
@@ -26,7 +34,14 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Search, SlidersHorizontal } from 'lucide-react-native';
@@ -60,14 +75,29 @@ const FILTERS: readonly { key: BookingFilter; label: string }[] = [
 const BookingsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const [filter, setFilter] = useState<BookingFilter>('all');
+  const [search, setSearch] = useState('');
 
-  const visibleItems = useMemo<CustomerBookingListItem[]>(
-    () =>
+  /* -------- Filter + search (memoised) -------- *
+   *
+   * Search matches booking number (case-insensitive), origin, and
+   * destination — mirrors QuotationsScreen's matching rule. When
+   * the endpoint takes over, drop this and let the server do the
+   * matching for us.
+   */
+  const visibleItems = useMemo<CustomerBookingListItem[]>(() => {
+    const byFilter =
       filter === 'all'
-        ? [...MOCK_CUSTOMER_BOOKINGS]
-        : MOCK_CUSTOMER_BOOKINGS.filter(b => b.status === filter),
-    [filter],
-  );
+        ? MOCK_CUSTOMER_BOOKINGS
+        : MOCK_CUSTOMER_BOOKINGS.filter(b => b.status === filter);
+    const q = search.trim().toLowerCase();
+    if (!q) return [...byFilter];
+    return byFilter.filter(
+      b =>
+        b.bookingNumber.toLowerCase().includes(q) ||
+        b.from.toLowerCase().includes(q) ||
+        b.to.toLowerCase().includes(q),
+    );
+  }, [filter, search]);
 
   /* -------- Handlers -------- */
 
@@ -102,49 +132,23 @@ const BookingsScreen: React.FC = () => {
     [navigation],
   );
 
-  const onSearchOpen = useCallback(() => {
-    // TODO(nav): open a full-screen search overlay
-  }, []);
   const onFilterOpen = useCallback(() => {
-    // TODO(nav): open a filter-refinement bottom sheet
+    // TODO(nav): open a filter-refinement bottom sheet (date range,
+    // vehicle type, status). Kept as an affordance now so users see
+    // the entry point next to search — real UI later.
   }, []);
 
   /* -------- Render -------- */
 
   return (
     <SafeScreen edges={['top']} backgroundColor={Colors.background}>
-      {/* Custom header — title + subtitle on the left, two icon
-          buttons on the right. Not using ScreenHeader since its
-          rightSlot only comfortably holds a single element. */}
+      {/* Header — title + subtitle only. Search/filter moved into
+          the inline bar below, matching QuotationsScreen. */}
       <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>My Bookings</Text>
-          <Text style={styles.headerSubtitle}>
-            View and manage your travel bookings
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
-          <Pressable
-            onPress={onSearchOpen}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Search bookings"
-          >
-            <Search size={20} color={Colors.textPrimary} strokeWidth={2} />
-          </Pressable>
-          <Pressable
-            onPress={onFilterOpen}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Open filters"
-          >
-            <SlidersHorizontal
-              size={20}
-              color={Colors.textPrimary}
-              strokeWidth={2}
-            />
-          </Pressable>
-        </View>
+        <Text style={styles.headerTitle}>My Bookings</Text>
+        <Text style={styles.headerSubtitle}>
+          View and manage your travel bookings
+        </Text>
       </View>
 
       {/* Filter chip strip — solid-fill active, height-capped (see
@@ -166,17 +170,50 @@ const BookingsScreen: React.FC = () => {
         ))}
       </ScrollView>
 
-      {/* List */}
+      {/* Search + filter-sheet trigger — same pattern as
+          QuotationsScreen so the two list tabs read consistently. */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchWrap}>
+          <Search size={18} color={Colors.textTertiary} strokeWidth={2} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search by Booking ID or destination..."
+            placeholderTextColor={Colors.textTertiary}
+            returnKeyType="search"
+          />
+        </View>
+        <Pressable
+          onPress={onFilterOpen}
+          style={({ pressed }) => [styles.filterBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Open filters"
+        >
+          <SlidersHorizontal
+            size={20}
+            color={Colors.textPrimary}
+            strokeWidth={2}
+          />
+        </Pressable>
+      </View>
+
+      {/* List — `flex: 1` on the ScrollView container so filtered
+          short lists stack from the top; without it, RN leaves the
+          empty area above the content (see notifications history). */}
       <ScrollView
         style={styles.listBg}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {visibleItems.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No bookings</Text>
             <Text style={styles.emptySubtitle}>
-              Trips you confirm will show up here.
+              {search
+                ? 'Try a different Booking ID or destination.'
+                : 'Trips you confirm will show up here.'}
             </Text>
           </View>
         ) : (
@@ -231,16 +268,10 @@ const FilterChip: React.FC<{
 const styles = StyleSheet.create({
   /* Header */
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
+    gap: 2,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
-  },
-  headerText: {
-    flex: 1,
-    gap: 2,
   },
   headerTitle: {
     ...Typography.h4,
@@ -250,18 +281,6 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   /* Filter chips */
@@ -295,6 +314,40 @@ const styles = StyleSheet.create({
   chipLabelActive: {
     color: Colors.textOnPrimary,
     fontWeight: '700',
+  },
+
+  /* Search */
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  searchWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    height: 48,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
+  },
+  searchInput: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    flex: 1,
+    padding: 0,
+    includeFontPadding: false,
+  },
+  filterBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   /* List */

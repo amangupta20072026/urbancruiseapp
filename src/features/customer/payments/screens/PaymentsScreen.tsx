@@ -8,6 +8,7 @@
  *   [Payments]
  *   [subtitle]
  *   [All | Paid | Pending | Failed]  ← chip strip
+ *   [🔍 Search…                                  ⚙︎]
  *   [ PaymentCard × N ]
  *
  * NAVIGATION INTENTS:
@@ -16,17 +17,33 @@
  *   - Download button → TODO(fs): fetch the invoice PDF from
  *                       /customer/bookings/:id/payments/invoice and
  *                       hand off to react-native-file-viewer.
+ *   - Filter icon in search → TODO(nav): open a filter sheet
+ *
+ * WHY the search+filter row matches Bookings/QuotationsScreen:
+ *   Same rounded search field + square filter trigger pattern used
+ *   on the other two list tabs, so all three read as one consistent
+ *   list-screen language.
  *
  * DATA:
  *   Local mock fixture in `../mocks.ts`. Swap for a TanStack Query
- *   hook when /customer/payments ships.
+ *   hook when /customer/payments ships; the filter/search reducer
+ *   below can be dropped since the server would return pre-filtered
+ *   data.
  * ------------------------------------------------------------------
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Search, SlidersHorizontal } from 'lucide-react-native';
 
 import { SafeScreen } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
@@ -56,14 +73,29 @@ const FILTERS: readonly { key: PaymentFilter; label: string }[] = [
 const PaymentsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const [filter, setFilter] = useState<PaymentFilter>('all');
+  const [search, setSearch] = useState('');
 
-  const visibleItems = useMemo<CustomerPaymentListItem[]>(
-    () =>
+  /* -------- Filter + search (memoised) -------- *
+   *
+   * Search matches booking number (case-insensitive), origin, and
+   * destination — mirrors Bookings/QuotationsScreen's matching
+   * rule. When the endpoint takes over, drop this and let the
+   * server do the matching for us.
+   */
+  const visibleItems = useMemo<CustomerPaymentListItem[]>(() => {
+    const byFilter =
       filter === 'all'
-        ? [...MOCK_CUSTOMER_PAYMENTS]
-        : MOCK_CUSTOMER_PAYMENTS.filter(p => p.status === filter),
-    [filter],
-  );
+        ? MOCK_CUSTOMER_PAYMENTS
+        : MOCK_CUSTOMER_PAYMENTS.filter(p => p.status === filter);
+    const q = search.trim().toLowerCase();
+    if (!q) return [...byFilter];
+    return byFilter.filter(
+      p =>
+        p.bookingNumber.toLowerCase().includes(q) ||
+        p.from.toLowerCase().includes(q) ||
+        p.to.toLowerCase().includes(q),
+    );
+  }, [filter, search]);
 
   /* -------- Handlers -------- */
 
@@ -77,6 +109,12 @@ const PaymentsScreen: React.FC = () => {
   const onDownloadInvoice = useCallback((_item: CustomerPaymentListItem) => {
     // TODO(fs): call the invoice endpoint + hand off to
     // react-native-file-viewer once the PDF flow is wired.
+  }, []);
+
+  const onFilterOpen = useCallback(() => {
+    // TODO(nav): open a filter-refinement bottom sheet (date range,
+    // amount, status). Kept as an affordance now so users see the
+    // entry point next to search — real UI later.
   }, []);
 
   /* -------- Render -------- */
@@ -104,16 +142,48 @@ const PaymentsScreen: React.FC = () => {
         ))}
       </View>
 
+      {/* Search + filter-sheet trigger — same pattern as
+          Bookings/QuotationsScreen so all three list tabs read
+          consistently. */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchWrap}>
+          <Search size={18} color={Colors.textTertiary} strokeWidth={2} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search by Booking ID or destination..."
+            placeholderTextColor={Colors.textTertiary}
+            returnKeyType="search"
+          />
+        </View>
+        <Pressable
+          onPress={onFilterOpen}
+          style={({ pressed }) => [styles.filterBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Open filters"
+        >
+          <SlidersHorizontal
+            size={20}
+            color={Colors.textPrimary}
+            strokeWidth={2}
+          />
+        </Pressable>
+      </View>
+
       <ScrollView
         style={styles.listBg}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {visibleItems.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No payments</Text>
             <Text style={styles.emptySubtitle}>
-              Payment activity will show up here.
+              {search
+                ? 'Try a different Booking ID or destination.'
+                : 'Payment activity will show up here.'}
             </Text>
           </View>
         ) : (
@@ -211,6 +281,40 @@ const styles = StyleSheet.create({
   chipLabelActive: {
     color: Colors.textOnPrimary,
     fontWeight: '700',
+  },
+
+  /* Search */
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  searchWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    height: 48,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
+  },
+  searchInput: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    flex: 1,
+    padding: 0,
+    includeFontPadding: false,
+  },
+  filterBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   /* List */

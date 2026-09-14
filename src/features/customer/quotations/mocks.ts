@@ -2,15 +2,23 @@
  * ------------------------------------------------------------------
  * Customer Quotations — mock fixture
  * ------------------------------------------------------------------
- * Seeds the Quotations tab list. One item per status kind so every
- * filter chip has at least one hit during demo, plus enough variety
- * (round trip, single day, no-vehicle) to exercise the card
- * conditionals.
+ * Seeds the Quotations tab list. Matches the redesign spec (Image 1
+ * of the mockup set) 1:1 so the screen renders exactly what product
+ * signed off on:
  *
- * Dates are fixed (not derived from now()) because "requested on"
- * and "travel date" should feel stable across demo sessions —
- * shifting them daily makes screenshots hard to align with product
- * copy. When the endpoint ships, delete this file.
+ *   All: 6, Pending: 2, Accepted: 3, Expired: 1
+ *
+ * NOTE ON COUNTS:
+ *   The header chip strip renders live counts derived from this
+ *   array. If you edit an item's `status`, verify the chip numbers
+ *   still line up with the design (or update the design copy). The
+ *   screen has no hard-coded totals — it always trusts the data.
+ *
+ * DATES:
+ *   Fixed (not derived from `now()`) because "created on" and travel
+ *   dates should feel stable across demo sessions — shifting them
+ *   daily makes screenshots hard to align with product copy. When
+ *   the /customer/quotations endpoint ships, delete this file.
  * ------------------------------------------------------------------
  */
 
@@ -19,63 +27,87 @@ import type { CustomerQuotationListItem } from './types';
 
 export const MOCK_CUSTOMER_QUOTATIONS: readonly CustomerQuotationListItem[] = [
   {
-    id: asQuotationId('q_28996'),
-    requestNumber: 'QREQ-2026-28996',
-    status: 'ready',
-    from: 'Delhi',
-    to: 'Jaipur',
-    travelDateStart: '2026-09-15',
-    travelDateEnd: '2026-09-17',
-    passengers: 20,
-    vehicle: null,
-    requestedAt: '2026-09-10T09:00:00Z',
-  },
-  {
-    id: asQuotationId('q_28991'),
-    requestNumber: 'QREQ-2026-28991',
-    status: 'under_review',
-    from: 'Gurugram',
-    to: 'Agra',
-    travelDateStart: '2026-09-22',
-    travelDateEnd: null,
-    passengers: 10,
-    vehicle: 'Car (Sedan)',
-    requestedAt: '2026-09-08T07:30:00Z',
-  },
-  {
-    id: asQuotationId('q_28985'),
-    requestNumber: 'QREQ-2026-28985',
-    status: 'sent',
-    from: 'Mumbai',
-    to: 'Pune',
-    travelDateStart: '2026-10-05',
-    travelDateEnd: null,
-    passengers: 15,
-    vehicle: 'Urbania',
-    requestedAt: '2026-09-03T12:00:00Z',
-  },
-  {
-    id: asQuotationId('q_28972'),
-    requestNumber: 'QREQ-2026-28972',
+    id: asQuotationId('q_10257'),
+    quotationNumber: 'QU10257',
     status: 'accepted',
-    from: 'Delhi',
-    to: 'Manali',
-    travelDateStart: '2026-10-10',
-    travelDateEnd: '2026-10-12',
-    passengers: 12,
-    vehicle: 'Tempo Traveller',
-    requestedAt: '2026-08-28T08:15:00Z',
+    stops: ['Delhi', 'Agra', 'Jaipur', 'Delhi'],
+    travelDateStart: '2026-08-12',
+    travelDateEnd: '2026-08-15',
+    nights: 3,
+    days: 4,
+    adults: 2,
+    children: 1,
+    amount: 35200,
+    createdAt: '2026-08-10T09:00:00Z',
   },
   {
-    id: asQuotationId('q_28960'),
-    requestNumber: 'QREQ-2026-28960',
-    status: 'rejected',
-    from: 'Noida',
-    to: 'Rishikesh',
-    travelDateStart: '2026-08-18',
-    travelDateEnd: null,
-    passengers: 8,
-    vehicle: 'Car (SUV)',
-    requestedAt: '2026-08-15T14:45:00Z',
+    id: asQuotationId('q_10245'),
+    quotationNumber: 'QU10245',
+    status: 'accepted',
+    stops: ['Mumbai', 'Goa', 'Mumbai'],
+    travelDateStart: '2026-08-20',
+    travelDateEnd: '2026-08-27',
+    nights: 7,
+    days: 8,
+    adults: 2,
+    children: 2,
+    amount: 58400,
+    createdAt: '2026-08-08T07:30:00Z',
+  },
+  {
+    id: asQuotationId('q_10230'),
+    quotationNumber: 'QU10230',
+    status: 'pending',
+    stops: ['Bangalore', 'Mysore', 'Ooty', 'Bangalore'],
+    travelDateStart: '2026-09-10',
+    travelDateEnd: '2026-09-14',
+    nights: 4,
+    days: 5,
+    adults: 2,
+    children: 0,
+    amount: 28750,
+    createdAt: '2026-08-05T12:00:00Z',
+  },
+  {
+    id: asQuotationId('q_10218'),
+    quotationNumber: 'QU10218',
+    status: 'expired',
+    stops: ['Chennai', 'Pondicherry', 'Chennai'],
+    travelDateStart: '2026-09-18',
+    travelDateEnd: '2026-09-20',
+    nights: 2,
+    days: 3,
+    adults: 2,
+    children: 1,
+    amount: 19600,
+    createdAt: '2026-08-02T08:15:00Z',
+  },
+  {
+    id: asQuotationId('q_10205'),
+    quotationNumber: 'QU10205',
+    status: 'accepted',
+    stops: ['Hyderabad', 'Ramoji', 'Hyderabad'],
+    travelDateStart: '2026-10-05',
+    travelDateEnd: '2026-10-07',
+    nights: 2,
+    days: 3,
+    adults: 2,
+    children: 0,
+    amount: 24900,
+    createdAt: '2026-07-28T14:45:00Z',
+  },
+  {
+    id: asQuotationId('q_10198'),
+    quotationNumber: 'QU10198',
+    status: 'pending',
+    stops: ['Kolkata', 'Darjeeling', 'Gangtok', 'Kolkata'],
+    travelDateStart: '2026-10-12',
+    travelDateEnd: '2026-10-18',
+    nights: 6,
+    days: 7,
+    adults: 2,
+    children: 1,
+    amount: 46200,
+    createdAt: '2026-07-25T11:20:00Z',
   },
 ];

@@ -11,62 +11,97 @@
  * When the /customer/quotations endpoint lands, the API DTO will map
  * onto `CustomerQuotationListItem` verbatim; only `status` might
  * need a client-side enum mapping.
+ *
+ * DESIGN NOTE (Aug/Sep 2026 redesign):
+ *   The Quotations tab was reworked to a receipt-style card that
+ *   shows a priced quotation (multi-stop route, travel window with
+ *   nights/days, passenger breakdown, total amount). The prior
+ *   list showed a raw quotation REQUEST (single-hop, no price) and
+ *   was collapsed into the RequestQuotation entry point at the app
+ *   root. As a result:
+ *     - `QuotationStatus` is trimmed to the three states a priced
+ *        quotation can be in from the customer's point of view:
+ *        pending (ops still preparing / customer hasn't decided),
+ *        accepted (customer confirmed), expired (window elapsed).
+ *     - `QuotationFilter` mirrors those three states plus `all`.
+ *     - Item shape is priced + multi-stop.
  * ------------------------------------------------------------------
  */
 
 import type { QuotationId } from '@app-types/ids';
 
 /**
- * Server-side lifecycle status of a quotation request. Mapped to
- * client-side filter buckets by `statusFilter()` in the screen.
+ * Customer-facing lifecycle status of a priced quotation.
  *
- *   under_review — ops team is preparing the quote
- *   sent         — ops team has sent the quote; customer not opened
- *   ready        — quote is ready for the customer to act on
- *   accepted     — customer accepted; a booking is being created
- *   rejected     — customer rejected
+ *   pending  — quotation issued; customer has not yet accepted, and
+ *              it has not yet expired.
+ *   accepted — customer accepted; a booking is being / has been
+ *              created downstream.
+ *   expired  — the acceptance window elapsed without a decision.
+ *              Distinct from `rejected` (which was a customer-driven
+ *              decline in the older request model) — expiry is
+ *              time-driven and not the customer's fault.
  */
-export type QuotationStatus =
-  | 'under_review'
-  | 'sent'
-  | 'ready'
-  | 'accepted'
-  | 'rejected';
+export type QuotationStatus = 'pending' | 'accepted' | 'expired';
 
 /**
  * Chip-strip filter buckets. `all` is a virtual filter (matches
- * every status); `pending` collapses `under_review` + `sent` since
- * both mean "waiting on ops / not yet actionable" from the user's
- * point of view — the mockup surfaces one chip for both.
+ * every status); the remaining chips map 1:1 to a `QuotationStatus`.
  */
-export type QuotationFilter =
-  | 'all'
-  | 'pending'
-  | 'ready'
-  | 'accepted'
-  | 'rejected';
+export type QuotationFilter = 'all' | 'pending' | 'accepted' | 'expired';
 
 export type CustomerQuotationListItem = {
   id: QuotationId;
-  /** Human-facing request id, e.g. "QREQ-2026-28996". */
-  requestNumber: string;
+
+  /**
+   * Human-facing quotation number, e.g. "QU10257".
+   * NB: distinct from the older QREQ- (request) numbering — a
+   * quotation is issued by ops in response to a request, so the
+   * numbers do not share a namespace with request IDs.
+   */
+  quotationNumber: string;
+
   status: QuotationStatus;
 
-  /* Journey — free-text city names for the demo; will become a
-   * typed Place object when the backend ships. */
-  from: string;
-  to: string;
+  /**
+   * Ordered list of cities on the itinerary. First entry is the
+   * origin; last entry is the final drop-off (which may equal the
+   * origin for round trips). Modelled as `readonly string[]` for
+   * flexibility with future intermediate stops; the card renders
+   * them joined with arrows.
+   *
+   * INVARIANT: length ≥ 2. A zero- or single-stop trip has no
+   * meaningful visualisation on this card.
+   */
+  stops: readonly string[];
 
-  /** ISO date of travel start. */
+  /** ISO date of travel start (inclusive). */
   travelDateStart: string;
-  /** ISO date of travel end for round trips; null for single-day. */
-  travelDateEnd: string | null;
+  /** ISO date of travel end (inclusive). */
+  travelDateEnd: string;
 
-  passengers: number;
-  /** Human-facing vehicle string, e.g. "Car (Sedan)". Nullable
-   *  because it's not always chosen at request time. */
-  vehicle: string | null;
+  /**
+   * Duration components as ops quoted them. Kept as separate ints
+   * rather than derived from the date pair because ops sometimes
+   * quotes fractional-night packages (e.g. red-eye returns) that a
+   * naïve `dateDiff / 24h` calculation would miscount.
+   */
+  nights: number;
+  days: number;
 
-  /** ISO timestamp when the request was submitted. */
-  requestedAt: string;
+  /** Adult passenger count. */
+  adults: number;
+  /** Child passenger count (0 or more). */
+  children: number;
+
+  /**
+   * Total quotation amount in Indian rupees (INR, whole rupees —
+   * paise are irrelevant at quotation granularity and the backend
+   * currently rounds server-side). Rendered with `₹` grouping in
+   * `en-IN` locale by the card.
+   */
+  amount: number;
+
+  /** ISO timestamp when the quotation was issued to the customer. */
+  createdAt: string;
 };
