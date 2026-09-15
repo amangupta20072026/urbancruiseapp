@@ -110,6 +110,7 @@ import {
   Calendar,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Clock,
   FileText,
@@ -946,19 +947,30 @@ const BottomBar: React.FC<{
           <Pressable
             onPress={onRequestNew}
             style={({ pressed }) => [
-              styles.primaryBtn,
-              styles.fullWidth,
-              pressed && styles.pressed,
+              styles.requestNewBtn,
+              pressed && styles.requestNewBtnPressed,
             ]}
             accessibilityRole="button"
             accessibilityLabel="Request a new quotation"
           >
-            <RefreshCw
-              size={18}
+            <View style={styles.requestNewIconWrap}>
+              <RefreshCw
+                size={18}
+                color={Colors.textOnPrimary}
+                strokeWidth={2.5}
+              />
+            </View>
+            <View style={styles.requestNewBody}>
+              <Text style={styles.requestNewTitle}>Request New Quotation</Text>
+              <Text style={styles.requestNewSubtitle} numberOfLines={1}>
+                Get a fresh quote for this trip
+              </Text>
+            </View>
+            <ChevronRight
+              size={20}
               color={Colors.textOnPrimary}
-              strokeWidth={2.25}
+              strokeWidth={2.5}
             />
-            <Text style={styles.primaryBtnText}>Request New Quotation</Text>
           </Pressable>
         ) : (
           <>
@@ -1004,12 +1016,12 @@ const BottomBar: React.FC<{
                 <Text style={styles.primaryBtnText}>
                   {status === 'accepted'
                     ? 'Continue to Booking'
-                    : 'Confirm & Continue'}
+                    : 'Accept & Continue'}
                 </Text>
                 <Text style={styles.primaryBtnSubtitle} numberOfLines={1}>
                   {status === 'accepted'
-                    ? 'Proceed with this quotation'
-                    : 'I have reviewed and accept this quotation'}
+                    ? 'Proceed to book This Trip'
+                    : 'Proceed with this quotation'}
                 </Text>
               </View>
             </Pressable>
@@ -1642,6 +1654,50 @@ const styles = StyleSheet.create({
     color: Colors.textOnPrimary,
     fontWeight: '500',
     opacity: 0.9,
+    marginTop: 1,
+  },
+
+  /* Expired state — single full-width CTA. Gets its own treatment
+   * (icon badge + title/subtitle + trailing chevron) since it's the
+   * only action on screen and deserves more visual weight than the
+   * paired pending/accepted buttons. */
+  requestNewBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primary,
+    ...Shadows.sm,
+  },
+  requestNewBtnPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
+  },
+  requestNewIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.circle,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  requestNewBody: {
+    flex: 1,
+  },
+  requestNewTitle: {
+    ...Typography.bodySmall,
+    fontWeight: '800',
+    fontSize:16,
+    color: Colors.textOnPrimary,
+  },
+  requestNewSubtitle: {
+    ...Typography.caption,
+    color: Colors.textOnPrimary,
+    fontWeight: '500',
+    opacity: 0.85,
     marginTop: 1,
   },
 

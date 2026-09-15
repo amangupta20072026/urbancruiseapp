@@ -214,6 +214,7 @@ const QuotationsScreen: React.FC = () => {
             count={counts[chip.key]}
             active={filter === chip.key}
             onPress={() => setFilter(chip.key)}
+            badgeColor={chip.key === 'expired' ? Colors.error : undefined}
           />
         ))}
       </ScrollView>
@@ -296,7 +297,10 @@ const FilterChip: React.FC<{
   count: number;
   active: boolean;
   onPress: () => void;
-}> = ({ label, count, active, onPress }) => (
+  /** Overrides the badge fill for chips that need a fixed semantic
+   * color (e.g. "Expired" is always red) regardless of active state. */
+  badgeColor?: string;
+}> = ({ label, count, active, onPress, badgeColor }) => (
   <Pressable
     onPress={onPress}
     style={({ pressed }) => [
@@ -311,7 +315,13 @@ const FilterChip: React.FC<{
     <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
       {label}
     </Text>
-    <View style={[styles.countBadge, active && styles.countBadgeActive]}>
+    <View
+      style={[
+        styles.countBadge,
+        active && styles.countBadgeActive,
+        badgeColor ? { backgroundColor: badgeColor } : null,
+      ]}
+    >
       <Text style={[styles.countText, active && styles.countTextActive]}>
         {count}
       </Text>
