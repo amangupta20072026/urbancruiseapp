@@ -186,15 +186,17 @@ const PLACEHOLDER_VEHICLE_IMG = require('@assets/images/service-car.png');
  * production this is per-quotation (or at least per-customer); the
  * mock keeps a single record to avoid multiplying placeholders.
  *
- * No `avatar` asset — the "Request Changes" sheet renders an
- * initials-based fallback when it's absent, which is also what
- * happens for real execs who haven't uploaded a photo yet.
+ * The shared default-avatar asset is used by the quotation-detail
+ * advisor card and the Request Changes sheet until an executive
+ * profile photo is supplied by the backend.
  */
 const STANDARD_EXECUTIVE: TravelExecutive = {
-  id: 'exec_rahul_sharma',
-  name: 'Rahul Sharma',
-  role: 'Travel Consultant',
-  phoneE164: '+919876543210',
+  id: 'exec_aman_gupta',
+  name: 'Amit Sharma',
+  role: 'Sales Executive',
+  phoneE164: '+918655664746',
+  email: 'india.urbancruise03@gmail.com',
+  avatar: require('@assets/images/default-avatar.png'),
   slaLine: 'Usually replies within 5 minutes',
 };
 

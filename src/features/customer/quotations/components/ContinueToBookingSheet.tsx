@@ -1,8 +1,10 @@
 /**
  * ------------------------------------------------------------------
- * ContinueToBookingSheet — "Confirm & Continue" bottom sheet
+ * ContinueToBookingSheet — quotation confirmation bottom sheet
  * ------------------------------------------------------------------
- * Opens from the "Continue to Booking" CTA on an ACCEPTED
+ * Opens from the quotation CTA. In `accept` mode it confirms a
+ * PENDING quotation; in `booking` mode it confirms the next booking
+ * step for an ACCEPTED quotation.
  * QuotationDetailScreen. This is a lightweight review-and-confirm
  * surface: the customer sees a compact summary of the quotation
  * they're about to book and either backs out (Cancel) or proceeds
@@ -93,6 +95,7 @@ import {
   FileText,
   IndianRupee,
   Lock,
+  MapPin,
   Users,
 } from 'lucide-react-native';
 
@@ -119,10 +122,14 @@ export type ConfirmSummary = {
   children: number;
   /** Total amount in INR (whole rupees). */
   amount: number;
+  /** Human-readable route shown in the confirmation sheet. */
+  trip: string;
 };
 
 type Props = {
   summary: ConfirmSummary;
+  /** `accept` is used for a pending quotation; `booking` is used after acceptance. */
+  mode?: 'accept' | 'booking';
   /**
    * Called when the customer confirms. Should resolve on success
    * (sheet dismisses, parent may route onward) or reject on
@@ -142,7 +149,7 @@ type Props = {
  * enough of the parent screen visible for context. Bump this if
  * the summary grows past 4 rows.
  */
-const SNAP_POINTS = ['55%'];
+const SNAP_POINTS = ['54%'];
 
 /** ISO → "12 Aug 2026". */
 function formatDate(iso: string): string {
@@ -171,7 +178,7 @@ function formatPassengers(adults: number, children: number): string {
  * ================================================================ */
 
 export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
-  ({ summary, onConfirm }, ref) => {
+  ({ summary, mode = 'booking', onConfirm }, ref) => {
     const internalRef = useRef<BottomSheetModal>(null);
     useImperativeHandle(ref, () => internalRef.current as BottomSheetModal, []);
 
@@ -197,9 +204,16 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
         } else {
           await new Promise(resolve => setTimeout(resolve, 700));
         }
-        toast.success('Booking confirmed', {
-          description: 'Redirecting you to payment…',
-        });
+        if (mode === 'accept') {
+          toast.success('Quotation accepted', {
+            description:
+              'Acceptance saved locally for now. Backend API is not connected yet.',
+          });
+        } else {
+          toast.success('Booking confirmed', {
+            description: 'Redirecting you to payment…',
+          });
+        }
         dismiss();
       } catch {
         toast.error('Could not confirm booking', {
@@ -208,7 +222,7 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
       } finally {
         setConfirming(false);
       }
-    }, [confirming, onConfirm, dismiss]);
+    }, [confirming, mode, onConfirm, dismiss]);
 
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
@@ -262,6 +276,10 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
         handleIndicatorStyle={styles.handle}
         backgroundStyle={styles.sheetBg}
         enablePanDownToClose
+        // Keep the confirmation sheet at a single fixed height.
+        // Dynamic sizing is intentionally disabled so dragging upward
+        // cannot expand the sheet into a full-screen page. The single
+        // snap point keeps the quotation screen visible behind it.
         enableDynamicSizing={false}
         enableOverDrag={false}
         onChange={handleSheetChange}
@@ -273,9 +291,15 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
               <Check size={26} color={Colors.textOnPrimary} strokeWidth={3} />
             </View>
             <View style={styles.heroText}>
-              <Text style={styles.heroTitle}>Confirm & Continue</Text>
+              <Text style={styles.heroTitle}>
+                {mode === 'accept'
+                  ? 'Accept this quotation?'
+                  : 'Confirm & Continue'}
+              </Text>
               <Text style={styles.heroSubtitle}>
-                Please review the details below before proceeding to booking.
+                {mode === 'accept'
+                  ? "Please confirm that you've reviewed the quotation details before proceeding."
+                  : 'Please review the details below before proceeding to booking.'}
               </Text>
             </View>
           </View>
@@ -294,6 +318,7 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
               label="Quotation ID"
               value={summary.quotationNumber}
             />
+            <SummaryRow Icon={MapPin} label="Trip" value={summary.trip} />
             <SummaryRow
               Icon={Calendar}
               label="Travel Date"
@@ -337,15 +362,21 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
                 pressed && !confirming && styles.pressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel={`Pay ${formatAmount(
-                summary.amount,
-              )} and continue to booking`}
+              accessibilityLabel={
+                mode === 'accept'
+                  ? 'Accept quotation and continue'
+                  : `Pay ${formatAmount(
+                      summary.amount,
+                    )} and continue to booking`
+              }
             >
               {confirming ? (
                 <ActivityIndicator color={Colors.textOnPrimary} />
               ) : (
                 <Text style={styles.confirmText}>
-                  Pay {formatAmount(summary.amount)}
+                  {mode === 'accept'
+                    ? 'Accept & Continue'
+                    : `Pay ${formatAmount(summary.amount)}`}
                 </Text>
               )}
             </Pressable>
@@ -355,7 +386,9 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
           <View style={styles.trustRow}>
             <Lock size={12} color={Colors.textTertiary} strokeWidth={2} />
             <Text style={styles.trustText}>
-              Your booking will be processed securely with Urban Cruise
+              {mode === 'accept'
+                ? 'You can continue to booking after accepting this quotation'
+                : 'Your booking will be processed securely with Urban Cruise'}
             </Text>
           </View>
         </BottomSheetView>
@@ -423,8 +456,8 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.xl,
-    gap: Spacing.lg,
+    paddingBottom: Spacing.md,
+    gap: Spacing.md,
   },
 
   /* Hero */
@@ -469,7 +502,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: Radius.lg,
     backgroundColor: Colors.primaryTint,
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   summaryRow: {
     flexDirection: 'row',

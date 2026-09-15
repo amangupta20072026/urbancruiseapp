@@ -48,10 +48,11 @@
  * STATUS BRANCHING
  * ------------------------------------------------------------------
  * A single component tree renders three flavours, keyed off
- * `detail.status`. The differences are limited to two places:
+ * `detail.status`. The body contains no status confirmation banners;
+ * the status is represented only by the header pill and the CTA flow.
+ * Pending acceptance opens the existing confirmation bottom sheet.
  *
- *   1. The confirmation box on the meta card (green success box on
- *      accepted, amber pending banner, red expired banner).
+ *   1. The header status pill.
  *   2. The sticky bottom bar CTAs:
  *
  *      - pending  → [Need Changes]  [Confirm & Continue]
@@ -83,9 +84,9 @@
  * ------------------------------------------------------------------
  * TODO(nav):
  *   - "Need Changes"        → ModificationRequest (ghost route)
- *   - "Confirm & Continue"  → accept flow (backend mutation) + then
- *                              route into the booking or payment
- *                              screen once those land.
+ *   - "Confirm & Continue"  → opens the existing confirmation sheet;
+ *                              the sheet currently shows a success toast
+ *                              because the accept API is not connected yet.
  *   - "Continue to Booking" → BookingDetail (ghost) for the booking
  *                              that came from this quotation.
  *   - "Request New"         → RequestQuotation, pre-filling route
@@ -116,12 +117,15 @@ import {
   FileText,
   IndianRupee,
   Info,
+  Mail,
+  MessageCircle,
   Lock,
   MapPin,
   Milestone,
   Moon,
   ParkingSquare,
   PenSquare,
+  Phone,
   RefreshCw,
   Users,
   XCircle,
@@ -129,6 +133,7 @@ import {
 
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
+import { makePhoneCall, openWhatsApp, sendEmail } from '@services/contact';
 import type { CustomerStackParamList } from '@navigation/types';
 
 import type {
@@ -172,24 +177,6 @@ function formatDate(iso: string): string {
     month: 'short',
     year: 'numeric',
   });
-}
-
-/** ISO → "10 Aug 2026 at 02:30 PM". Used on the meta card. */
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  const date = d.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-  const time = d
-    .toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    })
-    .toUpperCase();
-  return `${date} at ${time}`;
 }
 
 function formatAmount(rupees: number): string {
@@ -264,7 +251,7 @@ const QuotationDetailScreen: React.FC = () => {
    * `@gorhom/bottom-sheet`'s docs for the rationale over the
    * declarative visible-prop approach. */
   const needChangesRef = useRef<BottomSheetModal>(null);
-  const bookingRef = useRef<BottomSheetModal>(null);
+  const confirmationRef = useRef<BottomSheetModal>(null);
 
   /* -------- Handlers -------- */
 
@@ -273,13 +260,14 @@ const QuotationDetailScreen: React.FC = () => {
   }, []);
 
   const onConfirmAccept = useCallback(() => {
-    // TODO(nav): fire the accept mutation, then route into the
-    // resulting booking / payment screen. Placeholder for now.
+    // TODO(api): replace the sheet's local success toast with the
+    // quotation-accept API mutation when the backend is available.
+    confirmationRef.current?.present();
   }, []);
 
   const onContinueToBooking = useCallback(() => {
     if (!detail) return;
-    bookingRef.current?.present();
+    confirmationRef.current?.present();
   }, [detail]);
 
   const onRequestNew = useCallback(() => {
@@ -363,7 +351,8 @@ const QuotationDetailScreen: React.FC = () => {
         executive={detail.travelExecutive}
       />
       <ContinueToBookingSheet
-        ref={bookingRef}
+        ref={confirmationRef}
+        mode={detail.status === 'pending' ? 'accept' : 'booking'}
         summary={{
           quotationNumber: detail.quotationNumber,
           travelDateStart: detail.travelDateStart,
@@ -373,6 +362,7 @@ const QuotationDetailScreen: React.FC = () => {
           adults: detail.adults,
           children: detail.children,
           amount: detail.amount,
+          trip: detail.stops.join(' → '),
         }}
       />
     </SafeScreen>
@@ -407,91 +397,127 @@ const StatusPill: React.FC<{ status: QuotationStatus }> = ({ status }) => {
 const MetaCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
   detail,
 }) => {
-  return (
-    <View style={styles.card}>
-      <View style={styles.metaRow}>
-        <View style={styles.iconTile}>
-          <FileText size={22} color={Colors.primary} strokeWidth={2} />
-        </View>
-        <View style={styles.metaTextCol}>
-          <Text style={styles.metaLabel}>Quotation ID</Text>
-          <Text style={styles.metaValue}>{detail.quotationNumber}</Text>
-          <Text style={styles.metaSubtle}>
-            Created on {formatDateTime(detail.createdAt)}
-          </Text>
-        </View>
+  const executive = detail.travelExecutive;
 
-        {/* Status-specific info box. Kept in the same row so the
-            card presents "who you are" (left) + "where you are in
-            the lifecycle" (right) side by side. On narrow screens
-            it wraps below the meta column via `flexWrap` on the
-            row style. */}
-        <StatusNotice detail={detail} />
-      </View>
-    </View>
-  );
-};
+  const handleCall = useCallback(() => {
+    makePhoneCall(executive.phoneE164).catch(() => {
+      // The contact service handles the failure path.
+    });
+  }, [executive.phoneE164]);
 
-const StatusNotice: React.FC<{ detail: CustomerQuotationDetail }> = ({
-  detail,
-}) => {
-  const v = STATUS_VISUAL[detail.status];
-  const { Icon } = v;
+  const handleWhatsApp = useCallback(() => {
+    openWhatsApp(
+      executive.phoneE164,
+      `Hi ${executive.name}, I have a question about quotation ${detail.quotationNumber}.`,
+    ).catch(() => {
+      // The contact service handles the failure path.
+    });
+  }, [executive.name, executive.phoneE164, detail.quotationNumber]);
 
-  const { title, body } = statusNoticeCopy(detail);
+  const handleEmail = useCallback(() => {
+    if (!executive.email) return;
+
+    sendEmail({
+      to: executive.email,
+      subject: `Quotation ${detail.quotationNumber} - Urban Cruise`,
+      body: `Hi ${executive.name},\n\nI have a question regarding quotation ${detail.quotationNumber}.\n\nThanks.`,
+    }).catch(() => {
+      // The contact service handles the failure path.
+    });
+  }, [executive.email, executive.name, detail.quotationNumber]);
 
   return (
-    <View style={[styles.notice, { backgroundColor: v.bg }]}>
-      <View style={styles.noticeHeader}>
-        <Icon size={16} color={v.fg} strokeWidth={2.5} />
-        <Text style={[styles.noticeTitle, { color: v.fg }]}>{title}</Text>
+    <>
+      <View style={styles.advisorCard}>
+        <View style={styles.advisorTopRow}>
+          <View style={styles.advisorProfile}>
+            <Image
+              source={require('@assets/images/default-avatar.png')}
+              style={styles.advisorAvatar}
+              resizeMode="cover"
+            />
+
+            <View style={styles.advisorIdentity}>
+              <Text style={styles.advisorEyebrow}>Your Travel Advisor</Text>
+              <Text style={styles.advisorName}>{executive.name}</Text>
+              <Text style={styles.advisorRole}>{executive.role}</Text>
+            </View>
+          </View>
+
+          <View style={styles.advisorContactActions}>
+            <Pressable
+              onPress={handleCall}
+              style={({ pressed }) => [
+                styles.advisorContactButton,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Call ${executive.name}`}
+              hitSlop={6}
+            >
+              <Phone size={22} color={Colors.primary} strokeWidth={2.5} />
+            </Pressable>
+
+            <Pressable
+              onPress={handleWhatsApp}
+              style={({ pressed }) => [
+                styles.advisorContactButton,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Contact ${executive.name} on WhatsApp`}
+              hitSlop={6}
+            >
+              <MessageCircle
+                size={22}
+                color={Colors.primary}
+                strokeWidth={2.5}
+              />
+            </Pressable>
+
+            <Pressable
+              onPress={handleEmail}
+              disabled={!executive.email}
+              style={({ pressed }) => [
+                styles.advisorContactButton,
+                !executive.email && styles.advisorContactButtonDisabled,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Email ${executive.name}`}
+              accessibilityState={{ disabled: !executive.email }}
+              hitSlop={6}
+            >
+              <Mail
+                size={22}
+                color={executive.email ? Colors.primary : Colors.textTertiary}
+                strokeWidth={2.5}
+              />
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.advisorMessageBox}>
+          <View style={styles.advisorMessageIcon}>
+            <MessageCircle
+              size={24}
+              color={Colors.primary}
+              strokeWidth={2.25}
+            />
+          </View>
+          <View style={styles.advisorMessageBody}>
+            <Text style={styles.advisorMessageTitle}>
+              This quotation has been prepared for you.
+            </Text>
+            <Text style={styles.advisorMessageSubtitle}>
+              Feel free to reach out for any queries or changes.
+            </Text>
+          </View>
+        </View>
       </View>
-      <Text style={styles.noticeBody}>{body}</Text>
-    </View>
+    </>
   );
 };
-
-/**
- * Copy generator kept as a pure function so it's easy to unit-test
- * (and so the caller stays a plain JSX tree). One switch per state
- * with fallbacks that don't crash even if a timestamp is missing —
- * timestamps SHOULD be present per invariant, but defensiveness
- * here costs nothing.
- */
-function statusNoticeCopy(detail: CustomerQuotationDetail): {
-  title: string;
-  body: string;
-} {
-  switch (detail.status) {
-    case 'accepted':
-      return {
-        title: 'Quotation Accepted',
-        body: detail.acceptedAt
-          ? `You have accepted this quotation on ${formatDateTime(
-              detail.acceptedAt,
-            )}`
-          : 'You have accepted this quotation.',
-      };
-    case 'pending':
-      return {
-        title: 'Awaiting Your Review',
-        body: detail.expiresAt
-          ? `Please review and accept before ${formatDateTime(
-              detail.expiresAt,
-            )}.`
-          : 'Please review and accept this quotation.',
-      };
-    case 'expired':
-      return {
-        title: 'Quotation Expired',
-        body: detail.expiresAt
-          ? `This quotation expired on ${formatDateTime(
-              detail.expiresAt,
-            )}. Request a fresh one to continue.`
-          : 'This quotation has expired. Request a fresh one to continue.',
-      };
-  }
-}
 
 /* ================================================================
  * TripCard  — trip icon header, horizontal stop timeline, then
@@ -1180,56 +1206,101 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  /* Meta card row */
-  metaRow: {
+  /* Travel advisor card */
+  advisorCard: {
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Shadows.xs,
+  },
+  advisorTopRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
-  metaTextCol: {
+  advisorProfile: {
     flex: 1,
-    minWidth: 140,
-    gap: 2,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
-  metaLabel: {
+  advisorAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.surfaceMuted,
+  },
+  advisorIdentity: {
+    flex: 1,
+    minWidth: 0,
+  },
+  advisorEyebrow: {
     ...Typography.caption,
     color: Colors.textSecondary,
     fontWeight: '600',
+    marginBottom: 1,
   },
-  metaValue: {
+  advisorName: {
     ...Typography.subtitle,
     fontWeight: '800',
     color: Colors.textPrimary,
-    letterSpacing: 0.2,
   },
-  metaSubtle: {
-    ...Typography.caption,
-    color: Colors.textTertiary,
+  advisorRole: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
     fontWeight: '500',
+    marginTop: 1,
   },
-
-  /* Status notice box (right side of meta card) */
-  notice: {
-    flex: 1,
-    minWidth: 200,
-    padding: Spacing.sm,
-    borderRadius: Radius.md,
-    gap: 4,
-  },
-  noticeHeader: {
+  advisorContactActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: Spacing.xs,
   },
-  noticeTitle: {
+  advisorContactButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.circle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primaryTint,
+  },
+  advisorContactButtonDisabled: {
+    opacity: 0.55,
+  },
+  advisorMessageBox: {
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.successTint,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  advisorMessageIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.circle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primaryTint,
+  },
+  advisorMessageBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  advisorMessageTitle: {
     ...Typography.bodySmall,
+    color: Colors.primaryDark,
     fontWeight: '800',
   },
-  noticeBody: {
+  advisorMessageSubtitle: {
     ...Typography.caption,
-    color: Colors.textPrimary,
+    color: Colors.textSecondary,
     fontWeight: '500',
+    marginTop: 2,
   },
 
   /* Trip timeline */
@@ -1690,7 +1761,7 @@ const styles = StyleSheet.create({
   requestNewTitle: {
     ...Typography.bodySmall,
     fontWeight: '800',
-    fontSize:16,
+    fontSize: 16,
     color: Colors.textOnPrimary,
   },
   requestNewSubtitle: {

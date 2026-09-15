@@ -215,6 +215,8 @@ export type TravelExecutive = {
   name: string;
   role: string; // e.g. "Travel Consultant"
   phoneE164: string; // "+919876543210"
+  /** Email address used by the quotation-detail advisor email action. */
+  email?: string;
   avatar?: number; // require('@assets/...') result, optional
   slaLine: string; // "Usually replies within 5 minutes"
 };
