@@ -111,15 +111,15 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     supportChatEnabled: false,
   },
   support: {
-    phone: '',
-    whatsapp: '',
-    email: '',
+    phone: '+919355992138',
+    whatsapp: '919355992138',
+    email: 'india.urbancruise03@gmail.com',
     helpUrl: '',
   },
   legal: {
-    termsUrl: '',
-    privacyUrl: '',
-    termsVersion: '',
+    termsUrl: 'https://urbancruise.in/terms-conditions-2/',
+    privacyUrl: 'https://urbancruise.in/privacy/',
+    termsVersion: '1.0.0',
   },
   serviceCities: [],
 };
