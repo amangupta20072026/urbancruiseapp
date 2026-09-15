@@ -34,7 +34,7 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Linking,
@@ -325,13 +325,16 @@ const SupportScreen: React.FC = () => {
   // hasn't loaded (offline first-run), fall back to empty strings and
   // the handlers will alert gracefully.
   const supportConfig = useAppSelector(s => s.app.appConfig?.support);
-  const SUPPORT_CONTACT = {
-    phone: supportConfig?.phone ?? '',
-    whatsapp: supportConfig?.whatsapp ?? '',
-    email: supportConfig?.email ?? '',
-    whatsappPrefill: 'Hi Urban Cruise, I need help with...',
-    emailSubject: 'Support Request',
-  };
+  const SUPPORT_CONTACT = useMemo(
+    () => ({
+      phone: supportConfig?.phone ?? '',
+      whatsapp: supportConfig?.whatsapp ?? '',
+      email: supportConfig?.email ?? '',
+      whatsappPrefill: 'Hi Urban Cruise, I need help with...',
+      emailSubject: 'Support Request',
+    }),
+    [supportConfig?.phone, supportConfig?.whatsapp, supportConfig?.email],
+  );
 
   // Bottom pad on the scroll content only — SafeScreen owns the top
   // inset, but scroll content must clear the home indicator / nav bar
@@ -353,7 +356,7 @@ const SupportScreen: React.FC = () => {
       `tel:${SUPPORT_CONTACT.phone}`,
       'Calling is not supported on this device.',
     );
-  }, [SUPPORT_CONTACT.phone]);
+  }, [SUPPORT_CONTACT]);
 
   const handleWhatsApp = useCallback(() => {
     if (!SUPPORT_CONTACT.whatsapp) {
@@ -365,7 +368,7 @@ const SupportScreen: React.FC = () => {
       `whatsapp://send?phone=${SUPPORT_CONTACT.whatsapp}&text=${text}`,
       'WhatsApp is not installed on this device.',
     );
-  }, [SUPPORT_CONTACT.whatsapp]);
+  }, [SUPPORT_CONTACT]);
 
   const handleEmail = useCallback(() => {
     if (!SUPPORT_CONTACT.email) {
@@ -377,7 +380,7 @@ const SupportScreen: React.FC = () => {
       `mailto:${SUPPORT_CONTACT.email}?subject=${subject}`,
       'No email app is configured on this device.',
     );
-  }, [SUPPORT_CONTACT.email]);
+  }, [SUPPORT_CONTACT]);
 
   return (
     <SafeScreen edges={['top']}>
