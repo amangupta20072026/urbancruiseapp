@@ -50,6 +50,17 @@ export type QuotationStatus = 'pending' | 'accepted' | 'expired';
  */
 export type QuotationFilter = 'all' | 'pending' | 'accepted' | 'expired';
 
+/**
+ * Service category the quotation was requested under. Distinct from
+ * `stops` (the actual route) — e.g. a `pickup_drop` job can still
+ * have the same origin/destination city as a `round_trip` one; the
+ * difference is billing/usage intent, not geometry. Shared between
+ * the Request Quotation form (where the customer picks it) and the
+ * Quotation Details screen (where it's shown read-only as a badge)
+ * so the three values only live in one place.
+ */
+export type TripType = 'one_way' | 'round_trip' | 'pickup_drop';
+
 export type CustomerQuotationListItem = {
   id: QuotationId;
 
@@ -62,6 +73,9 @@ export type CustomerQuotationListItem = {
   quotationNumber: string;
 
   status: QuotationStatus;
+
+  /** Service category the trip was requested under. */
+  tripType: TripType;
 
   /**
    * Ordered list of cities on the itinerary. First entry is the

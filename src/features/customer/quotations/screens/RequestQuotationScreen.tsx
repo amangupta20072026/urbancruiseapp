@@ -45,7 +45,6 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  ArrowLeftRight,
   Bus,
   Calendar,
   Car,
@@ -55,8 +54,6 @@ import {
   FileText,
   MapPin,
   MessageSquare,
-  Plane,
-  RefreshCw,
   Star,
   Truck,
   Users,
@@ -65,6 +62,9 @@ import {
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import type { CustomerStackParamList } from '@navigation/types';
+import { TRIP_TYPE_OPTIONS } from '../tripTypeOptions';
+import type { TripTypeOption } from '../tripTypeOptions';
+import type { TripType } from '../types';
 
 type Nav = NativeStackNavigationProp<
   CustomerStackParamList,
@@ -73,29 +73,12 @@ type Nav = NativeStackNavigationProp<
 
 /* ================================================================
  * Domain constants
+ * ================================================================
+ * `TripType` and `TRIP_TYPE_OPTIONS` now live in `../tripTypeOptions`
+ * (imported above) so this picker and the read-only badge on
+ * QuotationDetailScreen share one source of truth for the icon/
+ * label pairing.
  * ================================================================ */
-
-type TripType = 'one_way' | 'round_trip' | 'pickup_drop';
-
-type TripTypeOption = {
-  key: TripType;
-  label: string;
-  Icon: React.ComponentType<{
-    size?: number;
-    color?: string;
-    strokeWidth?: number;
-  }>;
-};
-
-/**
- * Icon set mirrors the Quotations-tab filter chips so the same
- * trip concept reads identically wherever it appears in the app.
- */
-const TRIP_TYPE_OPTIONS: readonly TripTypeOption[] = [
-  { key: 'one_way', label: 'One Way', Icon: Plane },
-  { key: 'round_trip', label: 'Round Trip', Icon: RefreshCw },
-  { key: 'pickup_drop', label: 'Pickup & Drop', Icon: ArrowLeftRight },
-];
 
 type VehicleKey = 'car' | 'tempo' | 'urbania' | 'bus';
 

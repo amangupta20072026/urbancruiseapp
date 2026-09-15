@@ -93,7 +93,7 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -109,6 +109,8 @@ import {
   Bus,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock,
   FileText,
   IndianRupee,
@@ -132,8 +134,15 @@ import type {
   CustomerQuotationDetail,
   QuotationStatus,
   QuotationTerm,
+  TripType,
 } from '../types';
 import { getCustomerQuotationDetail } from '../mocks';
+import { getTripTypeOption } from '../tripTypeOptions';
+import {
+  VEHICLE_TIER_OPTIONS,
+  type VehicleTierKey,
+  type VehicleTierOption,
+} from '../vehicleTierOptions';
 import { NeedChangesSheet } from '../components/NeedChangesSheet';
 import { ContinueToBookingSheet } from '../components/ContinueToBookingSheet';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -319,8 +328,15 @@ const QuotationDetailScreen: React.FC = () => {
       >
         <MetaCard detail={detail} />
         <TripCard detail={detail} />
-        <VehicleCard detail={detail} />
-        <TotalAmountBar amount={detail.amount} />
+        {detail.status === 'pending' ? (
+          <ChooseVehicleSection />
+        ) : (
+          <VehicleCard detail={detail} />
+        )}
+        <AdvanceToBookCard
+          amount={detail.amount}
+          advanceAmount={detail.advanceAmount}
+        />
         <TermsCard detail={detail} />
       </ScrollView>
 
@@ -490,6 +506,7 @@ const TripCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
         icon={<MapPin size={18} color={Colors.primary} strokeWidth={2} />}
         iconBg={Colors.primaryTint}
         title="Trip Details"
+        rightSlot={<TripTypeBadge tripType={detail.tripType} />}
       />
 
       <StopTimeline detail={detail} />
@@ -561,18 +578,27 @@ const StopTimeline: React.FC<{ detail: CustomerQuotationDetail }> = ({
     <View style={styles.timeline}>
       {stops.map((stop, i) => {
         const isLast = i === stops.length - 1;
+        const accent = isLast ? Colors.error : Colors.primary;
+        const accentTint = isLast ? Colors.errorTint : Colors.primaryTint;
         return (
           <View key={`${stop.city}-${i}`} style={styles.stopCol}>
             <View style={styles.stopDotRow}>
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: isLast ? Colors.error : Colors.success },
-                ]}
-              />
-              {isLast ? null : <View style={styles.connector} />}
+              <View style={[styles.dotRing, { backgroundColor: accentTint }]}>
+                <View style={[styles.dot, { backgroundColor: accent }]} />
+              </View>
+              {isLast ? null : (
+                <View
+                  style={[
+                    styles.connector,
+                    { borderColor: Colors.primaryLight },
+                  ]}
+                />
+              )}
             </View>
-            <Text style={styles.stopCity} numberOfLines={1}>
+            <Text
+              style={[styles.stopCity, { color: accent }]}
+              numberOfLines={1}
+            >
               {stop.city}
             </Text>
             <Text style={styles.stopAddress} numberOfLines={2}>
@@ -628,20 +654,149 @@ const SpecItem: React.FC<{ label: string }> = ({ label }) => (
 );
 
 /* ================================================================
- * TotalAmountBar  — green-tint bar with the total on the right.
+ * ChooseVehicleSection  — "Choose Your Vehicle" accordion, shown
+ *                         instead of the plain VehicleCard while a
+ *                         quotation is `pending` (the vehicle isn't
+ *                         locked in yet). Behaves like an FAQ list:
+ *                         each tier's feature checklist is hidden
+ *                         by default; tapping a tier's header
+ *                         expands it and collapses whichever other
+ *                         tier was open, via a single `expandedKey`
+ *                         state held here (not per-card), which is
+ *                         what makes it "only one open at a time"
+ *                         instead of independent toggles.
+ *
+ *                         `selectedKey` is separate from
+ *                         `expandedKey` on purpose — expanding a
+ *                         tier to read its features shouldn't
+ *                         silently select it; the customer commits
+ *                         via the "Select" button.
  * ================================================================ */
 
-const TotalAmountBar: React.FC<{ amount: number }> = ({ amount }) => (
-  <View style={styles.totalBar}>
-    <View style={styles.totalLeft}>
-      <View style={styles.iconTileSmall}>
-        <FileText size={16} color={Colors.primary} strokeWidth={2} />
+const ChooseVehicleSection: React.FC = () => {
+  const [expandedKey, setExpandedKey] = useState<VehicleTierKey | null>(null);
+  const [selectedKey, setSelectedKey] = useState<VehicleTierKey | null>(null);
+
+  const onToggle = useCallback((key: VehicleTierKey) => {
+    setExpandedKey(prev => (prev === key ? null : key));
+  }, []);
+
+  return (
+    <View style={styles.card}>
+      <SectionHeader
+        icon={<Bus size={18} color={Colors.primary} strokeWidth={2} />}
+        iconBg={Colors.primaryTint}
+        title="Choose Your Vehicle"
+      />
+      <Text style={styles.chooseVehicleSubtitle}>
+        Select the vehicle that best suits your journey
+      </Text>
+
+      <View style={styles.tierList}>
+        {VEHICLE_TIER_OPTIONS.map(option => (
+          <VehicleTierCard
+            key={option.key}
+            option={option}
+            expanded={expandedKey === option.key}
+            selected={selectedKey === option.key}
+            onToggle={() => onToggle(option.key)}
+            onSelect={() => setSelectedKey(option.key)}
+          />
+        ))}
       </View>
-      <Text style={styles.totalLabel}>Total Amount</Text>
     </View>
-    <Text style={styles.totalAmount}>{formatAmount(amount)}</Text>
-  </View>
-);
+  );
+};
+
+const VehicleTierCard: React.FC<{
+  option: VehicleTierOption;
+  expanded: boolean;
+  selected: boolean;
+  onToggle: () => void;
+  onSelect: () => void;
+}> = ({ option, expanded, selected, onToggle, onSelect }) => {
+  return (
+    <View style={[styles.tierCard, selected && styles.tierCardSelected]}>
+      {option.popular ? (
+        <View style={styles.tierPopularBadge}>
+          <Text style={styles.tierPopularText}>MOST POPULAR</Text>
+        </View>
+      ) : null}
+
+      {/* Header — the only always-visible part; tapping it toggles
+          the feature checklist below (FAQ-style, one open at a
+          time — see ChooseVehicleSection). */}
+      <Pressable
+        onPress={onToggle}
+        style={({ pressed }) => [styles.tierHeader, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${option.name}, ${
+          expanded ? 'collapse' : 'expand'
+        } features`}
+      >
+        <View style={styles.tierHeaderText}>
+          <Text style={styles.tierName}>{option.name}</Text>
+          <Text style={styles.tierMeta}>
+            {option.seater} Seat &nbsp;|&nbsp; {option.type}
+          </Text>
+        </View>
+        {expanded ? (
+          <ChevronUp size={18} color={Colors.textSecondary} strokeWidth={2} />
+        ) : (
+          <ChevronDown size={18} color={Colors.textSecondary} strokeWidth={2} />
+        )}
+      </Pressable>
+
+      {expanded ? (
+        <View style={styles.tierFeatures}>
+          {option.features.map(feature => (
+            <View key={feature} style={styles.tierFeatureRow}>
+              <CheckCircle2
+                size={14}
+                color={Colors.success}
+                strokeWidth={2.5}
+              />
+              <Text style={styles.tierFeatureText}>{feature}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <View style={styles.tierFooter}>
+        <Text style={styles.tierPrice}>{formatAmount(option.price)}</Text>
+        <Pressable
+          onPress={onSelect}
+          style={({ pressed }) => [
+            styles.tierSelectBtn,
+            selected && styles.tierSelectBtnActive,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={
+            selected ? `${option.name} selected` : `Select ${option.name}`
+          }
+        >
+          {selected ? (
+            <CheckCircle2
+              size={15}
+              color={Colors.textOnPrimary}
+              strokeWidth={2.5}
+            />
+          ) : null}
+          <Text
+            style={[
+              styles.tierSelectBtnText,
+              selected && styles.tierSelectBtnTextActive,
+            ]}
+          >
+            {selected ? 'Selected' : 'Select'}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+};
 
 /* ================================================================
  * TermsCard  — inclusions banner + 4-tile grid of charge callouts.
@@ -734,14 +889,37 @@ const SectionHeader: React.FC<{
   icon: React.ReactNode;
   iconBg: string;
   title: string;
-}> = ({ icon, iconBg, title }) => (
+  rightSlot?: React.ReactNode;
+}> = ({ icon, iconBg, title, rightSlot }) => (
   <View style={styles.sectionHeader}>
     <View style={[styles.sectionIcon, { backgroundColor: iconBg }]}>
       {icon}
     </View>
-    <Text style={styles.sectionTitle}>{title}</Text>
+    <Text style={[styles.sectionTitle, styles.sectionTitleGrow]}>{title}</Text>
+    {rightSlot}
   </View>
 );
+
+/* ================================================================
+ * TripTypeBadge  — read-only chip on the Trip Details header
+ *                  showing the service category (One Way / Round
+ *                  Trip / Pickup & Drop). Shares icon + label with
+ *                  the RequestQuotation picker via `tripTypeOptions`
+ *                  so the same trip concept reads identically
+ *                  wherever it appears.
+ * ================================================================ */
+
+const TripTypeBadge: React.FC<{ tripType: TripType }> = ({ tripType }) => {
+  const { Icon, label } = getTripTypeOption(tripType);
+  return (
+    <View style={styles.tripTypeBadge}>
+      <Icon size={13} color={Colors.primaryDark} strokeWidth={2.5} />
+      <Text style={styles.tripTypeBadgeText} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+};
 
 /* ================================================================
  * BottomBar  — sticky action row + trust caption. Layout differs
@@ -850,6 +1028,49 @@ const BottomBar: React.FC<{
 };
 
 /* ================================================================
+ * AdvanceToBookCard  — orange-tint info card (lives in the scroll
+ *                      content, between Vehicle Details and Terms)
+ *                      showing the upfront amount due to lock the
+ *                      booking. Read-only — no press handler, no
+ *                      navigation affordance — this is a fact
+ *                      about the quotation, not an action; paying
+ *                      the advance happens via the CTA below.
+ *                      Percentage is derived from the record
+ *                      (advanceAmount / amount) rather than hard-
+ *                      coded, so it stays correct if ops ever tunes
+ *                      the advance fraction per quotation.
+ * ================================================================ */
+
+const AdvanceToBookCard: React.FC<{
+  amount: number;
+  advanceAmount: number;
+}> = ({ amount, advanceAmount }) => {
+  const percent = amount > 0 ? Math.round((advanceAmount / amount) * 100) : 0;
+
+  return (
+    <View style={styles.advanceBar}>
+      <View style={styles.advanceIconTile}>
+        <Calendar size={20} color={Colors.accent} strokeWidth={2.25} />
+      </View>
+      <View style={styles.advanceBody}>
+        <Text style={styles.advanceTitle}>Advance to Book</Text>
+        <Text style={styles.advanceSubtitle}>
+          Please pay {percent}% to confirm your booking
+        </Text>
+      </View>
+      <View style={styles.advanceRight}>
+        <Text style={styles.advanceRightLabel}>
+          Advance Amount ({percent}%)
+        </Text>
+        <Text style={styles.advanceRightAmount}>
+          {formatAmount(advanceAmount)}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+/* ================================================================
  * Styles
  * ================================================================ */
 
@@ -900,21 +1121,34 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.textPrimary,
   },
+  sectionTitleGrow: {
+    flex: 1,
+  },
 
-  /* Icon tile — square variant used on meta + total bar */
+  /* Trip type badge — SectionHeader rightSlot on the Trip Details
+     card, showing One Way / Round Trip / Pickup & Drop. */
+  tripTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: 130,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primaryTint,
+  },
+  tripTypeBadgeText: {
+    ...Typography.caption,
+    fontWeight: '700',
+    color: Colors.primaryDark,
+  },
+
+  /* Icon tile — square variant used on the meta card */
   iconTile: {
     width: 44,
     height: 44,
     borderRadius: Radius.md,
     backgroundColor: Colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconTileSmall: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.circle,
-    backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -998,27 +1232,34 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   stopDotRow: {
-    height: 14,
+    height: 18,
     alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
   },
+  dotRing: {
+    width: 18,
+    height: 18,
+    borderRadius: Radius.circle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dot: {
-    width: 10,
-    height: 10,
+    width: 9,
+    height: 9,
     borderRadius: Radius.circle,
   },
   connector: {
     flex: 1,
-    height: 1.5,
-    backgroundColor: Colors.border,
-    marginLeft: 6,
-    marginRight: 6,
+    height: 0,
+    borderTopWidth: 2,
+    borderStyle: 'dashed',
+    marginLeft: 4,
+    marginRight: 4,
   },
   stopCity: {
     ...Typography.bodySmall,
     fontWeight: '800',
-    color: Colors.textPrimary,
   },
   stopAddress: {
     ...Typography.caption,
@@ -1106,33 +1347,114 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
-  /* Total amount bar (its own card-y block, but tinted) */
-  totalBar: {
+  /* Choose Your Vehicle — accordion (pending quotations only) */
+  chooseVehicleSubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  tierList: {
+    gap: Spacing.sm,
+  },
+  tierCard: {
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    overflow: 'hidden',
+  },
+  tierCardSelected: {
+    borderColor: Colors.primary,
+    borderWidth: 1.5,
+  },
+  tierPopularBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderBottomRightRadius: Radius.sm,
+  },
+  tierPopularText: {
+    ...Typography.caption,
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.textOnPrimary,
+    letterSpacing: 0.4,
+  },
+  tierHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.primaryTint,
-    borderWidth: 1,
-    borderColor: Colors.primaryTint,
-  },
-  totalLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
-  totalLabel: {
-    ...Typography.subtitle,
+  tierHeaderText: {
+    flex: 1,
+    gap: 2,
+  },
+  tierName: {
+    ...Typography.bodySmall,
     fontWeight: '800',
     color: Colors.primaryDark,
   },
-  totalAmount: {
-    ...Typography.h4,
+  tierMeta: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  tierFeatures: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    gap: 6,
+  },
+  tierFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tierFeatureText: {
+    ...Typography.caption,
+    color: Colors.textPrimary,
+    fontWeight: '500',
+  },
+  tierFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  tierPrice: {
+    ...Typography.subtitle,
     fontWeight: '800',
-    color: Colors.primaryDark,
-    letterSpacing: 0.2,
+    color: Colors.textPrimary,
+  },
+  tierSelectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.surface,
+  },
+  tierSelectBtnActive: {
+    backgroundColor: Colors.primary,
+  },
+  tierSelectBtnText: {
+    ...Typography.bodySmall,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  tierSelectBtnTextActive: {
+    color: Colors.textOnPrimary,
   },
 
   /* Terms — inclusions banner */
@@ -1204,6 +1526,53 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     fontWeight: '500',
     textAlign: 'center',
+  },
+
+  /* Advance-to-book card (scrollable content, between Vehicle
+     Details and Terms — read-only, no press state) */
+  advanceBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.accentTint,
+  },
+  advanceIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+  },
+  advanceBody: {
+    flex: 1,
+    gap: 2,
+  },
+  advanceTitle: {
+    ...Typography.bodySmall,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+  },
+  advanceSubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  advanceRight: {
+    alignItems: 'flex-end',
+  },
+  advanceRightLabel: {
+    ...Typography.caption,
+    fontWeight: '700',
+    color: Colors.accent,
+  },
+  advanceRightAmount: {
+    ...Typography.subtitle,
+    fontWeight: '800',
+    color: Colors.accent,
+    marginTop: 1,
   },
 
   /* Bottom action bar */
