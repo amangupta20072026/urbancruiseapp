@@ -24,6 +24,7 @@
  *
  *   What would you like to change?
  *   [ 🚗  Vehicle              ○ ]
+ *   [ ₹   Price                 ○ ]
  *   [ 📅  Travel Date          ○ ]
  *   [ 🕐  Pickup Time          ○ ]
  *   [ 🧭  Route                ○ ]
@@ -112,6 +113,7 @@ import {
   Calendar,
   Car,
   Clock,
+  IndianRupee,
   Info,
   MapPin,
   MessageCircle,
@@ -174,6 +176,7 @@ const CATEGORIES: readonly {
   }>;
 }[] = [
   { key: 'vehicle', label: 'Vehicle', Icon: Car },
+  { key: 'price', label: 'Price', Icon: IndianRupee },
   { key: 'travel_date', label: 'Travel Date', Icon: Calendar },
   { key: 'pickup_time', label: 'Pickup Time', Icon: Clock },
   { key: 'route', label: 'Route', Icon: Route },

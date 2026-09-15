@@ -217,6 +217,7 @@ export type TravelExecutive = {
  */
 export type QuotationChangeCategory =
   | 'vehicle'
+  | 'price'
   | 'travel_date'
   | 'pickup_time'
   | 'route'

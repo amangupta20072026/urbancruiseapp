@@ -537,8 +537,10 @@ const TripCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
 
 /**
  * Horizontal stop timeline. Each stop is a column with a coloured
- * dot on top, city underneath, address below. Adjacent columns are
- * joined by a hairline connector between the dots.
+ * dot on top, city underneath, address below. Each column carries its
+ * own trailing connector line to the right of the dot (except the last
+ * column), so the dots and the line share a single row and stay
+ * vertically aligned regardless of column width.
  *
  * COLOUR RULE:
  *   - Last stop dot → red (destination)
@@ -560,25 +562,23 @@ const StopTimeline: React.FC<{ detail: CustomerQuotationDetail }> = ({
       {stops.map((stop, i) => {
         const isLast = i === stops.length - 1;
         return (
-          <React.Fragment key={`${stop.city}-${i}`}>
-            <View style={styles.stopCol}>
-              <View style={styles.stopDotRow}>
-                <View
-                  style={[
-                    styles.dot,
-                    { backgroundColor: isLast ? Colors.error : Colors.success },
-                  ]}
-                />
-              </View>
-              <Text style={styles.stopCity} numberOfLines={1}>
-                {stop.city}
-              </Text>
-              <Text style={styles.stopAddress} numberOfLines={2}>
-                {stop.address}
-              </Text>
+          <View key={`${stop.city}-${i}`} style={styles.stopCol}>
+            <View style={styles.stopDotRow}>
+              <View
+                style={[
+                  styles.dot,
+                  { backgroundColor: isLast ? Colors.error : Colors.success },
+                ]}
+              />
+              {isLast ? null : <View style={styles.connector} />}
             </View>
-            {isLast ? null : <View style={styles.connector} />}
-          </React.Fragment>
+            <Text style={styles.stopCity} numberOfLines={1}>
+              {stop.city}
+            </Text>
+            <Text style={styles.stopAddress} numberOfLines={2}>
+              {stop.address}
+            </Text>
+          </View>
         );
       })}
     </View>
@@ -999,7 +999,9 @@ const styles = StyleSheet.create({
   },
   stopDotRow: {
     height: 14,
-    justifyContent: 'center',
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   dot: {
     width: 10,
@@ -1007,11 +1009,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.circle,
   },
   connector: {
-    flex: 0.6,
-    height: 1,
+    flex: 1,
+    height: 1.5,
     backgroundColor: Colors.border,
-    marginTop: 6,
-    marginHorizontal: Spacing.xs,
+    marginLeft: 6,
+    marginRight: 6,
   },
   stopCity: {
     ...Typography.bodySmall,
