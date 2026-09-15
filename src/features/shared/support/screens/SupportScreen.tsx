@@ -49,6 +49,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import Svg, { Circle, Path } from 'react-native-svg';
+import { useAppSelector } from '@store/hooks';
 
 import {
   Colors,
@@ -61,18 +62,6 @@ import {
 import { withAlpha } from '../../../../components/roles';
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import type { AuthParamList } from '../../../../navigation/types';
-
-/* -----------------------------------------------------------------
- * Contact config
- * ----------------------------------------------------------------- */
-
-const SUPPORT_CONTACT = {
-  phone: '+919355992138',
-  whatsapp: '919355992138', // no '+', no leading zeros — wa.me format
-  email: 'india.urbancruise03@gmail.com',
-  whatsappPrefill: 'Hi Urban Cruise, I need help with...',
-  emailSubject: 'Support Request',
-};
 
 /* -----------------------------------------------------------------
  * Helpers
@@ -331,6 +320,19 @@ const SupportScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<SupportNavProp>();
 
+  // Read contact details from remote AppConfig — Ops can change these
+  // in the backend without shipping a new app version. If the config
+  // hasn't loaded (offline first-run), fall back to empty strings and
+  // the handlers will alert gracefully.
+  const supportConfig = useAppSelector(s => s.app.appConfig?.support);
+  const SUPPORT_CONTACT = {
+    phone: supportConfig?.phone ?? '',
+    whatsapp: supportConfig?.whatsapp ?? '',
+    email: supportConfig?.email ?? '',
+    whatsappPrefill: 'Hi Urban Cruise, I need help with...',
+    emailSubject: 'Support Request',
+  };
+
   // Bottom pad on the scroll content only — SafeScreen owns the top
   // inset, but scroll content must clear the home indicator / nav bar
   // on its own so long content doesn't collide with system chrome.
@@ -343,27 +345,39 @@ const SupportScreen: React.FC = () => {
   }, [navigation]);
 
   const handleCall = useCallback(() => {
+    if (!SUPPORT_CONTACT.phone) {
+      Alert.alert('Support unavailable', 'Please try again in a moment.');
+      return;
+    }
     void openLink(
       `tel:${SUPPORT_CONTACT.phone}`,
       'Calling is not supported on this device.',
     );
-  }, []);
+  }, [SUPPORT_CONTACT.phone]);
 
   const handleWhatsApp = useCallback(() => {
+    if (!SUPPORT_CONTACT.whatsapp) {
+      Alert.alert('Support unavailable', 'Please try again in a moment.');
+      return;
+    }
     const text = encodeURIComponent(SUPPORT_CONTACT.whatsappPrefill);
     void openLink(
       `whatsapp://send?phone=${SUPPORT_CONTACT.whatsapp}&text=${text}`,
       'WhatsApp is not installed on this device.',
     );
-  }, []);
+  }, [SUPPORT_CONTACT.whatsapp]);
 
   const handleEmail = useCallback(() => {
+    if (!SUPPORT_CONTACT.email) {
+      Alert.alert('Support unavailable', 'Please try again in a moment.');
+      return;
+    }
     const subject = encodeURIComponent(SUPPORT_CONTACT.emailSubject);
     void openLink(
       `mailto:${SUPPORT_CONTACT.email}?subject=${subject}`,
       'No email app is configured on this device.',
     );
-  }, []);
+  }, [SUPPORT_CONTACT.email]);
 
   return (
     <SafeScreen edges={['top']}>

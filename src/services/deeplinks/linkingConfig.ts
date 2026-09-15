@@ -36,6 +36,7 @@
 
 import type { LinkingOptions } from '@react-navigation/native';
 import { Linking } from 'react-native';
+import { ENV } from '@config/env';
 
 import type { RootStackParamList } from '@navigation/types';
 
@@ -51,7 +52,10 @@ import { targetToNavigatePayload } from './toNavigate';
  * gated by ENV.
  * ================================================================ */
 
-const PREFIXES = ['urbancruise://', 'https://app.urbancruise.in'] as const;
+const PREFIXES = [
+  `${ENV.deeplink.scheme}://`,
+  `https://${ENV.deeplink.webHost}`,
+] as const;
 
 /* ================================================================
  * buildLinkingConfig
@@ -74,16 +78,16 @@ export function buildLinkingConfig(): LinkingOptions<RootStackParamList> {
     async getInitialURL(): Promise<string | null> {
       try {
         const url = await Linking.getInitialURL();
-        // console.log('[deeplink] getInitialURL raw =', url);  
+        // console.log('[deeplink] getInitialURL raw =', url);
         if (!url) return null;
         const r = resolveUrl(url);
-        // console.log('[deeplink] getInitialURL resolve =', r); 
+        // console.log('[deeplink] getInitialURL resolve =', r);
         if (!r.ok) return null;
         stash(r.target);
         return url;
       } catch (e) {
         // Linking API failure — treat as no URL. Don't propagate.
-        // console.log('[deeplink] getInitialURL threw:', e); 
+        // console.log('[deeplink] getInitialURL threw:', e);
         return null;
       }
     },
@@ -94,7 +98,7 @@ export function buildLinkingConfig(): LinkingOptions<RootStackParamList> {
      */
     subscribe(listener) {
       const sub = Linking.addEventListener('url', ({ url }) => {
-        // console.log('[deeplink] subscribe url =', url);  
+        // console.log('[deeplink] subscribe url =', url);
         const r = resolveUrl(url);
         // console.log('[deeplink] subscribe resolve =', r);
         if (!r.ok) return;
@@ -121,7 +125,7 @@ export function buildLinkingConfig(): LinkingOptions<RootStackParamList> {
       // path with a query string. Normalise to a full URL for the
       // resolver's WHATWG parser.
       const asUrl = path.startsWith('/')
-        ? `https://app.urbancruise.in${path}`
+        ? `https://${ENV.deeplink.webHost}${path}`
         : path;
       const r = resolveUrl(asUrl);
       if (!r.ok) return undefined;

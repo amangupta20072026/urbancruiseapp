@@ -61,6 +61,7 @@ import {
 } from '../../components/roles';
 import { ApiError } from '@api/errors';
 import { newIdempotencyKey } from '@api/idempotency';
+import { ENV } from '@config/env';
 import { useRequestOtp } from './hooks';
 
 /* -----------------------------------------------------------------
@@ -81,9 +82,7 @@ type PhoneForm = z.infer<typeof phoneSchema>;
  * Constants
  * ----------------------------------------------------------------- */
 
-const TERMS_URL = 'https://urbancruise.in/terms-conditions-2/';
-const PRIVACY_URL = 'https://urbancruise.in/privacy/';
-const COUNTRY_CODE = '+91';
+const COUNTRY_CODE = ENV.defaultCountryCode;
 
 // Adjust based on where `assets/` lives:
 //   • assets/ at project root  →  '../../../assets/icons/ucwithtext.png'
@@ -212,6 +211,12 @@ const LoginScreen: React.FC = () => {
 
   const sheetRef = useRef<RoleSelectionSheetRef>(null);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  // Read legal URLs from remote AppConfig (server-owned), with .env fallback.
+  // This lets Ops change Terms/Privacy URLs without shipping a new app version.
+  const legalConfig = useAppSelector(s => s.app.appConfig?.legal);
+  const TERMS_URL = legalConfig?.termsUrl || ENV.fallback.termsUrl;
+  const PRIVACY_URL = legalConfig?.privacyUrl || ENV.fallback.privacyUrl;
 
   const { requestOtp, isPending: submitting } = useRequestOtp();
 

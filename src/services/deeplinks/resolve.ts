@@ -25,7 +25,7 @@
  * it can arrive from any app, any browser, any share sheet.
  * ------------------------------------------------------------------
  */
-
+import { ENV } from '@config/env';
 import { DeepLinkTarget } from './schema';
 import { CATALOG, findCatalogEntryByKind, type CatalogEntry } from './catalog';
 
@@ -60,11 +60,11 @@ export type ResolveResult = ResolveOk | ResolveError;
  *   - new scheme    → deliberate ADR-level decision, not a drive-by
  * ================================================================ */
 
-const ALLOWED_SCHEMES = new Set<string>(['urbancruise:', 'https:']);
+const ALLOWED_SCHEMES = new Set<string>([`${ENV.deeplink.scheme}:`, 'https:']);
 
 // TODO(env): pull staging host from ENV.environment in dev/staging
 // builds. Keep production locked to the canonical host.
-const ALLOWED_HTTPS_HOSTS = new Set<string>(['app.urbancruise.in']);
+const ALLOWED_HTTPS_HOSTS = new Set<string>([ENV.deeplink.webHost]);
 
 // Custom scheme host — a placeholder to keep intents unambiguous on
 // Android. See §9.1 of the design doc. Users never see it.
@@ -93,7 +93,7 @@ const ALLOWED_CUSTOM_HOSTS = new Set<string>(['open']);
  * an allow-list check runs.
  * ================================================================ */
 
-const CUSTOM_SCHEME_PREFIX = 'urbancruise://';
+const CUSTOM_SCHEME_PREFIX = `${ENV.deeplink.scheme}://`;
 
 function parseUrlSafe(
   rawUrl: string,

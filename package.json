@@ -3,10 +3,12 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "android": "ENVFILE=.env.development react-native run-android",
+    "android:prod": "ENVFILE=.env.production react-native run-android --mode=release",
+    "ios": "ENVFILE=.env.development react-native run-ios",
+    "ios:prod": "ENVFILE=.env.production react-native run-ios --mode=Release",
+    "start": "ENVFILE=.env.development react-native start",
     "lint": "eslint .",
-    "start": "react-native start",
     "test": "jest"
   },
   "dependencies": {
