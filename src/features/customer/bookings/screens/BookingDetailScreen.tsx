@@ -37,7 +37,7 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
   Image,
   Pressable,
@@ -49,6 +49,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   Bus,
   Calendar,
@@ -77,6 +78,10 @@ import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { makePhoneCall, openWhatsApp } from '@services/contact';
 import type { CustomerStackParamList } from '@navigation/types';
+import {
+  NeedChangesSheet,
+  STANDARD_EXECUTIVE,
+} from '@features/customer/quotations';
 
 import type {
   BookingPaymentStatus,
@@ -284,14 +289,6 @@ const BookingDetailScreen: React.FC = () => {
     navigation.navigate('Support');
   }, [navigation]);
 
-  const handleNeedChanges = useCallback(() => {
-    // No dedicated "request changes" flow exists yet — Support is the
-    // working path forward for now (same TODO pattern as elsewhere
-    // on this screen), matching the mockup's "Request changes to
-    // this trip" affordance.
-    navigation.navigate('Support');
-  }, [navigation]);
-
   /* -------- Not-found guard -------- */
   if (!detail) {
     return (
@@ -338,7 +335,6 @@ const BookingDetailScreen: React.FC = () => {
         detail={detail}
         onBack={handleBack}
         onBookAgain={handleBookAgain}
-        onNeedChanges={handleNeedChanges}
       />
     );
   }
@@ -1020,16 +1016,24 @@ type UpcomingProps = {
   detail: CustomerBookingDetail;
   onBack: () => void;
   onBookAgain: () => void;
-  onNeedChanges: () => void;
 };
 
 const UpcomingDetail: React.FC<UpcomingProps> = ({
   detail,
   onBack,
   onBookAgain,
-  onNeedChanges,
 }) => {
   const status = STATUS_VISUAL.upcoming;
+
+  /* Bottom-sheet ref for the "Request Changes" sheet — reused from
+     the quotations feature (same customer-facing form, same travel
+     executive routing). Mounted once inside SafeScreen, presented
+     imperatively from the sticky-bar Need Changes button. */
+  const needChangesRef = useRef<BottomSheetModal>(null);
+
+  const handleNeedChanges = useCallback(() => {
+    needChangesRef.current?.present();
+  }, []);
 
   return (
     <SafeScreen edges={['top', 'bottom']} backgroundColor={Colors.background}>
@@ -1324,11 +1328,13 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({
             ) : null}
           </View>
         </View>
+      </ScrollView>
 
-        {/* ── Need Changes / Book Again — two-column row ── */}
-        <View style={styles.dualRow}>
+      {/* ── Sticky bottom CTA bar: Need Changes (secondary) + Book Again (primary) ── */}
+      <View style={styles.stickyBar}>
+        <View style={styles.stickyRow}>
           <Pressable
-            onPress={onNeedChanges}
+            onPress={handleNeedChanges}
             style={({ pressed }) => [
               styles.needChangesBtn,
               pressed && styles.pressed,
@@ -1336,9 +1342,11 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({
             accessibilityRole="button"
             accessibilityLabel="Request changes to this trip"
           >
-            <SquarePen size={20} color={Colors.warning} strokeWidth={2.25} />
-            <Text style={styles.needChangesTitle}>Need Changes</Text>
-            <Text style={styles.needChangesSubtitle}>
+            <View style={styles.ctaHeadRow}>
+              <SquarePen size={18} color={Colors.warning} strokeWidth={2.25} />
+              <Text style={styles.needChangesTitle}>Need Changes</Text>
+            </View>
+            <Text style={styles.needChangesSubtitle} numberOfLines={1}>
               Request changes to this trip
             </Text>
           </Pressable>
@@ -1352,18 +1360,28 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({
             accessibilityRole="button"
             accessibilityLabel="Book again"
           >
-            <RotateCw
-              size={20}
-              color={Colors.textOnPrimary}
-              strokeWidth={2.25}
-            />
-            <Text style={styles.bookAgainWideTitle}>Book Again</Text>
-            <Text style={styles.bookAgainWideSubtitle}>
+            <View style={styles.ctaHeadRow}>
+              <RotateCw
+                size={18}
+                color={Colors.textOnPrimary}
+                strokeWidth={2.25}
+              />
+              <Text style={styles.bookAgainWideTitle}>Book Again</Text>
+            </View>
+            <Text style={styles.bookAgainWideSubtitle} numberOfLines={1}>
               Use this trip for a new booking
             </Text>
           </Pressable>
         </View>
-      </ScrollView>
+      </View>
+
+      {/* Request Changes bottom sheet — mounted once, presented
+          imperatively via `needChangesRef` from the sticky Need
+          Changes button. Portaled to the app-root
+          BottomSheetModalProvider (App.tsx), so it sits above the
+          sticky bar without extra z-index plumbing. Reuses the same
+          form + executive routing as QuotationDetailScreen. */}
+      <NeedChangesSheet ref={needChangesRef} executive={STANDARD_EXECUTIVE} />
     </SafeScreen>
   );
 };
@@ -2469,44 +2487,68 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  /* ── Need Changes / Book Again dual CTA ── */
+  /* ── Upcoming sticky bar: Need Changes (secondary) + Book Again (primary) ── */
+  stickyRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    alignItems: 'stretch',
+  },
+  ctaHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
   needChangesBtn: {
     flex: 1,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
     borderWidth: 1.5,
     borderColor: Colors.warning,
     backgroundColor: Colors.surface,
     gap: 2,
+    justifyContent: 'center',
   },
   needChangesTitle: {
     ...Typography.bodySmall,
     color: Colors.warning,
     fontWeight: '800',
-    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 18,
+    includeFontPadding: false,
   },
   needChangesSubtitle: {
     ...Typography.caption,
     color: Colors.textSecondary,
     fontWeight: '500',
+    fontSize: 11,
+    lineHeight: 14,
+    includeFontPadding: false,
   },
   bookAgainWide: {
     flex: 1,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
     backgroundColor: Colors.primary,
     gap: 2,
+    justifyContent: 'center',
   },
   bookAgainWideTitle: {
     ...Typography.bodySmall,
     color: Colors.textOnPrimary,
     fontWeight: '800',
-    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 18,
+    includeFontPadding: false,
   },
   bookAgainWideSubtitle: {
     ...Typography.caption,
     color: Colors.textOnPrimary,
     fontWeight: '500',
-    opacity: 0.85,
+    fontSize: 11,
+    lineHeight: 14,
+    opacity: 0.9,
+    includeFontPadding: false,
   },
 });

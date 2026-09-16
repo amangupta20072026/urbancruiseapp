@@ -190,7 +190,7 @@ const PLACEHOLDER_VEHICLE_IMG = require('@assets/images/service-car.png');
  * advisor card and the Request Changes sheet until an executive
  * profile photo is supplied by the backend.
  */
-const STANDARD_EXECUTIVE: TravelExecutive = {
+export const STANDARD_EXECUTIVE: TravelExecutive = {
   id: 'exec_aman_gupta',
   name: 'Amit Sharma',
   role: 'Sales Executive',
