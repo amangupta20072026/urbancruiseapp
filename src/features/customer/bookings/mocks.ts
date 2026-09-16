@@ -34,8 +34,8 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
     hasAC: true,
     totalAmount: 18_500,
     bookedDate: '2026-09-10',
-    progressStep: 'confirmed',
-    progressNote: 'Pending',
+    progressStep: 'started',
+    progressNote: null,
   },
   {
     id: asBookingId('bk_00122'),
