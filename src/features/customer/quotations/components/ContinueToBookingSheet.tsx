@@ -206,8 +206,7 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
         }
         if (mode === 'accept') {
           toast.success('Quotation accepted', {
-            description:
-              'Acceptance saved locally for now. Backend API is not connected yet.',
+            description: 'Redirecting you to booking…',
           });
         } else {
           toast.success('Booking confirmed', {

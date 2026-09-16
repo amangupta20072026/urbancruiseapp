@@ -64,15 +64,24 @@ type Props = {
   /**
    * Optional sub-label per step. Keyed by step so callers pass in
    * only the ones they want to show; unspecified steps render no
-   * sub-label. Example:
+   * sub-label. Strings may contain `\n` for a two-line sub — used
+   * by BookingDetailScreen to render "05 Sept\n08:00 AM". Example:
    *   { booked: '10 Sep', confirmed: 'Pending', started: '15 Sep' }
    */
   subLabels?: Partial<Record<BookingProgressStep, string>>;
+  /**
+   * Optional per-step label override. When a step is past-tense in
+   * some contexts (e.g. detail screen for a completed booking:
+   * "Trip Started" instead of the default "Trip Starts"), the
+   * caller passes an override. Absent keys fall back to STEPS.label.
+   */
+  labelOverrides?: Partial<Record<BookingProgressStep, string>>;
 };
 
 export const BookingProgressTracker: React.FC<Props> = ({
   currentStep,
   subLabels,
+  labelOverrides,
 }) => {
   return (
     <View style={styles.row}>
@@ -83,6 +92,7 @@ export const BookingProgressTracker: React.FC<Props> = ({
         // done (i.e. we've moved past it).
         const segmentDone = state === 'done';
         const sub = subLabels?.[step.key];
+        const label = labelOverrides?.[step.key] ?? step.label;
         return (
           <React.Fragment key={step.key}>
             <View style={styles.stepCol}>
@@ -94,12 +104,12 @@ export const BookingProgressTracker: React.FC<Props> = ({
                 ]}
                 numberOfLines={1}
               >
-                {step.label}
+                {label}
               </Text>
               {sub ? (
                 <Text
                   style={[styles.sub, state === 'pending' && styles.subPending]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {sub}
                 </Text>

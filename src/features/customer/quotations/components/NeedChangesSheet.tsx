@@ -89,13 +89,11 @@ import React, {
   forwardRef,
   useCallback,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -117,18 +115,14 @@ import {
   Info,
   MapPin,
   MessageCircle,
-  Phone,
   Route,
   Send,
-  UserCog,
   Users,
   X,
 } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
-import { makePhoneCall } from '@services/contact';
 import { toast } from '@services/toast';
-import { avatarColorFor, initials } from '@shared/utils/avatar';
 
 import type {
   QuotationChangeCategory,
@@ -192,21 +186,6 @@ const CATEGORIES: readonly {
 /* ================================================================
  * Helpers
  * ================================================================ */
-
-/**
- * Format an E.164 phone number for display. "+919876543210"
- * → "+91 98765 43210". Trivial split for the Indian numbering
- * plan — good enough for demo purposes; use libphonenumber-js
- * when we go international.
- */
-function formatDisplayPhone(e164: string): string {
-  const m = e164.match(/^\+(\d{1,3})(\d+)$/);
-  if (!m) return e164;
-  const [, country, rest] = m;
-  const mid = rest.slice(0, 5);
-  const tail = rest.slice(5);
-  return `+${country} ${mid} ${tail}`;
-}
 
 /* ================================================================
  * Component
@@ -274,17 +253,6 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
       });
     }, []);
 
-    const handleCall = useCallback(() => {
-      /* Fire-and-forget: makePhoneCall surfaces its own toasts on
-         failure. We don't dismiss the sheet — the customer may
-         come back to submit the form after the call. Explicit
-         `.catch(() => {})` to swallow the rejected-promise warning
-         without importing extra ceremony. */
-      makePhoneCall(executive.phoneE164).catch(() => {
-        /* toast already fired inside contactService on failure */
-      });
-    }, [executive.phoneE164]);
-
     const handleSubmit = useCallback(async () => {
       if (!canSubmit) return;
 
@@ -339,15 +307,6 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
       [],
     );
 
-    const avatarPalette = useMemo(
-      () => avatarColorFor(executive.id),
-      [executive.id],
-    );
-    const executiveInitials = useMemo(
-      () => initials(executive.name),
-      [executive.name],
-    );
-
     /* -------- Render -------- */
 
     return (
@@ -394,65 +353,6 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Travel Executive card ── */}
-          <View style={styles.execCard}>
-            <View style={styles.execChip}>
-              <UserCog size={12} color={Colors.primary} strokeWidth={2.25} />
-              <Text style={styles.execChipText}>Your Travel Executive</Text>
-            </View>
-
-            <View style={styles.execRow}>
-              {executive.avatar ? (
-                <Image source={executive.avatar} style={styles.execAvatar} />
-              ) : (
-                <View
-                  style={[
-                    styles.execAvatar,
-                    styles.execAvatarFallback,
-                    { backgroundColor: avatarPalette.bg },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.execAvatarInitials,
-                      { color: avatarPalette.fg },
-                    ]}
-                  >
-                    {executiveInitials}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.execBody}>
-                <Text style={styles.execName}>{executive.name}</Text>
-                <Text style={styles.execRole}>{executive.role}</Text>
-
-                {/* Phone row — tappable so a customer who'd rather
-                    talk can skip the form entirely. */}
-                <Pressable
-                  onPress={handleCall}
-                  style={({ pressed }) => [
-                    styles.phoneRow,
-                    pressed && styles.pressed,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Call ${
-                    executive.name
-                  } at ${formatDisplayPhone(executive.phoneE164)}`}
-                >
-                  <Phone size={14} color={Colors.primary} strokeWidth={2.5} />
-                  <Text style={styles.phoneText}>
-                    {formatDisplayPhone(executive.phoneE164)}
-                  </Text>
-                </Pressable>
-
-                <View style={styles.slaRow}>
-                  <View style={styles.slaDot} />
-                  <Text style={styles.slaText}>{executive.slaLine}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
           {/* ── Category picker ── */}
           <Text style={styles.sectionLabel}>
             What would you like to change?
@@ -651,100 +551,6 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xxxxl,
-  },
-
-  /* Travel executive card */
-  execCard: {
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.primaryTint,
-    borderWidth: 1,
-    borderColor: Colors.primaryTint,
-    gap: Spacing.sm,
-  },
-  execChip: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.surface,
-  },
-  execChipText: {
-    ...Typography.caption,
-    color: Colors.primaryDark,
-    fontWeight: '700',
-    includeFontPadding: false,
-  },
-  execRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-  },
-  execAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: Radius.circle,
-    backgroundColor: Colors.surface,
-  },
-  execAvatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  execAvatarInitials: {
-    ...Typography.subtitle,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  execBody: {
-    flex: 1,
-    gap: 2,
-  },
-  execName: {
-    ...Typography.subtitle,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-  },
-  execRole: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  phoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-    paddingVertical: 2,
-  },
-  phoneText: {
-    ...Typography.bodySmall,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  slaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.pill,
-  },
-  slaDot: {
-    width: 6,
-    height: 6,
-    borderRadius: Radius.circle,
-    backgroundColor: Colors.success,
-  },
-  slaText: {
-    ...Typography.caption,
-    color: Colors.textPrimary,
-    fontWeight: '600',
   },
 
   /* Section header */

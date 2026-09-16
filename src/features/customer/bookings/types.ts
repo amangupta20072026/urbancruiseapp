@@ -85,3 +85,106 @@ export type CustomerBookingListItem = {
   /** Optional short label under the current step, e.g. "Pending". */
   progressNote: string | null;
 };
+
+/* ------------------------------------------------------------------
+ * Detail-only fields
+ * ------------------------------------------------------------------
+ * `CustomerBookingDetail` extends the list-item shape with the extra
+ * data the BookingDetailScreen renders: the vehicle registration plate,
+ * driver identity + rating, and a per-step timestamp map used by the
+ * full-width progress tracker to date each completed milestone.
+ *
+ * Kept as a super-set (not a sibling) so the list-to-detail navigation
+ * pass-through works without re-shaping. When /customer/bookings/:id
+ * lands, the fetched DTO is expected to match this shape 1:1 — server
+ * either includes these fields on completed bookings or omits them
+ * (nullable) on bookings that haven't reached the relevant lifecycle
+ * step (no driver assigned yet, no plate assigned yet).
+ * ------------------------------------------------------------------
+ */
+
+/**
+ * Timestamp label per progress step. Used by the detail-screen
+ * tracker to render "05 Sep" under each dot. Absent keys render no
+ * sub-label — same rule as `BookingProgressTracker.subLabels`.
+ */
+export type BookingProgressTimeline = Partial<
+  Record<BookingProgressStep, string>
+>;
+
+/**
+ * Driver assigned to the trip. Nullable at the top level because a
+ * booking in 'upcoming' state may not have a driver assigned yet.
+ * `avatarUrl` is nullable independently — a driver may exist without
+ * a profile photo, in which case the UI falls back to initials.
+ */
+export type BookingDriver = {
+  name: string;
+  /** Optional remote avatar. When null, the UI renders initials. */
+  avatarUrl: string | null;
+  /** Aggregate rating, 0-5, one decimal. Null if unrated. */
+  rating: number | null;
+  /** Total number of trips completed by this driver. Drives the
+   *  "(320 trips)" cred label next to the star rating. Null when
+   *  the metric isn't available yet. */
+  tripsCompleted: number | null;
+  /** Phone in E.164 form (e.g. "+919876543210"). Used by the Call
+   *  action; null hides the affordance. */
+  phoneE164: string | null;
+};
+
+/**
+ * Breakdown of the aggregate passenger count into adults + children.
+ * Rendered as "(10 Adults, 2 Children)" under the passenger meta
+ * item on the detail screen. Optional on the type because older
+ * bookings may not carry it; callers must fall back to `passengers`
+ * when this is null.
+ */
+export type PassengerBreakdown = {
+  adults: number;
+  children: number;
+};
+
+/**
+ * Payment status vocabulary — mirrors the backend column verbatim
+ * so no client-side remap is needed when /customer/bookings/:id
+ * ships. `unpaid` covers both 'not paid yet' and 'refunded' since
+ * neither has an amount owed by the customer; `partial` is the
+ * split-tender case (advance paid, balance pending).
+ */
+export type BookingPaymentStatus = 'paid' | 'unpaid' | 'partial';
+
+/**
+ * Payment summary line on the detail screen. Independent from the
+ * dedicated Payments tab (which drills into invoices, retries, etc)
+ * — this is only what the detail card renders.
+ */
+export type BookingPaymentSummary = {
+  status: BookingPaymentStatus;
+  /** Free-text method label ("UPI", "Card •• 4321", "Cash"). Kept
+   *  as a plain string so gateway-specific formatting stays on the
+   *  server. Null when the booking has no successful charge. */
+  method: string | null;
+};
+
+export type CustomerBookingDetail = CustomerBookingListItem & {
+  /** Vehicle registration plate, e.g. "MH 12 AB 4321". Null when the
+   *  booking is still upcoming and no specific vehicle is assigned. */
+  vehiclePlate: string | null;
+  /** Fuel type label — "Diesel" / "Petrol" / "CNG" / "EV". Rendered
+   *  in the vehicle-attributes strip. Null when unknown. */
+  vehicleFuel: string | null;
+  /** Split of the aggregate `passengers` count. Null when unknown. */
+  passengerBreakdown: PassengerBreakdown | null;
+  /** Assigned driver. Null until a driver is assigned. */
+  driver: BookingDriver | null;
+  /** ISO timestamp per lifecycle milestone reached so far. Used to
+   *  render "05 Sep" (list card) or "05 Sept\n08:00 AM" (detail
+   *  tracker) under each done step. Newline splits render as two
+   *  lines in the detail tracker. */
+  timeline: BookingProgressTimeline;
+  /** Payment summary for the detail card's Invoice & Payment block.
+   *  Null when the booking is pre-payment (e.g. cancelled before
+   *  charge). */
+  payment: BookingPaymentSummary | null;
+};
