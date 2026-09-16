@@ -167,6 +167,22 @@ const PURPLE_FG = '#8B5CF6';
 const PURPLE_TINT = '#EDE9FE';
 
 /* ================================================================
+ * Advisor contact-action tints
+ * ================================================================
+ * Kept in sync with the UC Directory customer contact modal
+ * (src/features/uc/customers/components/CustomerContactSheet.tsx)
+ * so contact affordances read the same everywhere in the app:
+ *   Call     → blue tint
+ *   WhatsApp → green (already the app's success/brand tone)
+ *   Email    → warm orange tint
+ * If a third consumer appears, hoist these into @theme/colors.
+ * ================================================================ */
+const CALL_TINT_BG = '#EAF2FF';
+const CALL_TINT_FG = '#1D6BFF';
+const EMAIL_TINT_BG = '#FFF1E0';
+const EMAIL_TINT_FG = '#D97B0A';
+
+/* ================================================================
  * Formatting helpers
  * ================================================================ */
 
@@ -449,13 +465,14 @@ const MetaCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
               onPress={handleCall}
               style={({ pressed }) => [
                 styles.advisorContactButton,
+                styles.advisorContactButtonCall,
                 pressed && styles.pressed,
               ]}
               accessibilityRole="button"
               accessibilityLabel={`Call ${executive.name}`}
               hitSlop={6}
             >
-              <Phone size={22} color={Colors.primary} strokeWidth={2.5} />
+              <Phone size={22} color={CALL_TINT_FG} strokeWidth={2.5} />
             </Pressable>
 
             <Pressable
@@ -480,6 +497,7 @@ const MetaCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
               disabled={!executive.email}
               style={({ pressed }) => [
                 styles.advisorContactButton,
+                styles.advisorContactButtonEmail,
                 !executive.email && styles.advisorContactButtonDisabled,
                 pressed && styles.pressed,
               ]}
@@ -490,7 +508,7 @@ const MetaCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
             >
               <Mail
                 size={22}
-                color={executive.email ? Colors.primary : Colors.textTertiary}
+                color={executive.email ? EMAIL_TINT_FG : Colors.textTertiary}
                 strokeWidth={2.5}
               />
             </Pressable>
@@ -1265,7 +1283,16 @@ const styles = StyleSheet.create({
     borderRadius: Radius.circle,
     alignItems: 'center',
     justifyContent: 'center',
+    // Default (WhatsApp) tint. Call + Email override with their own
+    // background via advisorContactButtonCall / advisorContactButtonEmail
+    // to match the UC Directory customer contact modal palette.
     backgroundColor: Colors.primaryTint,
+  },
+  advisorContactButtonCall: {
+    backgroundColor: CALL_TINT_BG,
+  },
+  advisorContactButtonEmail: {
+    backgroundColor: EMAIL_TINT_BG,
   },
   advisorContactButtonDisabled: {
     opacity: 0.55,

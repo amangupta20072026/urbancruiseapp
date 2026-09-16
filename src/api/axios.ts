@@ -52,8 +52,8 @@ apiClient.interceptors.response.use((response: AxiosResponse) => {
 
 // Order matters:
 //   1. auth adds Authorization header
-//   2. error normalizes response failures to ApiError
-//   3. refresh handles 401 → refresh dance (runs after error normalization)
+//   2. refresh handles 401 → refresh dance (runs after error normalization)
+//   3. error normalizes response failures to ApiError
 attachAuthInterceptor(apiClient);
-attachErrorInterceptor(apiClient);
 attachRefreshInterceptor(apiClient);
+attachErrorInterceptor(apiClient);
