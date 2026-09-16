@@ -52,15 +52,20 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Bus,
   Calendar,
+  CalendarX,
   CarFront,
+  Check,
   CheckCircle2,
   Clock,
   FileText,
+  Headphones,
+  Info,
   MessageSquare,
   Phone,
   RotateCw,
   Star,
   Users,
+  X,
   XCircle,
 } from 'lucide-react-native';
 
@@ -93,6 +98,11 @@ const PURPLE_TINT = '#F3EEFF';
 const PURPLE_FG = '#7C3AED';
 const BLUE_TINT = '#EFF6FF';
 const BLUE_FG = '#2563EB';
+
+/** Outer diameter for the cancelled-tracker's dots — matches the
+ *  `DOT` constant in BookingProgressTracker so the two trackers line
+ *  up visually if they ever appear near each other. */
+const TRACKER_DOT = 20;
 
 /* ================================================================
  * Status → header pill + subtitle
@@ -165,6 +175,23 @@ function formatWeekday(iso: string): string {
 /** ₹12,000 — Indian grouping. */
 function formatRupees(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+/** ISO timestamp → "12 Aug 2026, 02:15 PM" — used by the Cancellation
+ *  Details card. */
+function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  const datePart = date.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+  const timePart = date.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${datePart}, ${timePart}`;
 }
 
 /** Two-letter initials for the driver avatar fallback. */
@@ -249,6 +276,10 @@ const BookingDetailScreen: React.FC = () => {
     navigation.navigate('GstInvoice', { bookingId: detail.id });
   }, [navigation, detail]);
 
+  const handleContactSupport = useCallback(() => {
+    navigation.navigate('Support');
+  }, [navigation]);
+
   /* -------- Not-found guard -------- */
   if (!detail) {
     return (
@@ -266,17 +297,30 @@ const BookingDetailScreen: React.FC = () => {
     );
   }
 
-  return detail.status === 'completed' ? (
-    <CompletedDetail
-      detail={detail}
-      onBack={handleBack}
-      onBookAgain={handleBookAgain}
-      onGiveFeedback={handleGiveFeedback}
-      onViewInvoice={handleViewInvoice}
-    />
-  ) : (
-    <GenericDetail detail={detail} onBack={handleBack} />
-  );
+  if (detail.status === 'completed') {
+    return (
+      <CompletedDetail
+        detail={detail}
+        onBack={handleBack}
+        onBookAgain={handleBookAgain}
+        onGiveFeedback={handleGiveFeedback}
+        onViewInvoice={handleViewInvoice}
+      />
+    );
+  }
+
+  if (detail.status === 'cancelled') {
+    return (
+      <CancelledDetail
+        detail={detail}
+        onBack={handleBack}
+        onBookAgain={handleBookAgain}
+        onContactSupport={handleContactSupport}
+      />
+    );
+  }
+
+  return <GenericDetail detail={detail} onBack={handleBack} />;
 };
 
 export default BookingDetailScreen;
@@ -640,6 +684,299 @@ const CompletedDetail: React.FC<CompletedProps> = ({
     </SafeScreen>
   );
 };
+
+/* ================================================================
+ * CancelledDetail — post-cancellation design
+ * ================================================================
+ * Mirrors CompletedDetail's card rhythm (banner → info card → tracker
+ * card → details card → CTA) but in the cancelled palette: a red
+ * "Booking Cancelled" banner instead of the green celebratory one, a
+ * dedicated cancelled-flavoured tracker (Booked → Cancelled → Trip
+ * Starts → Completed, with the back half greyed out), a Cancellation
+ * Details card in place of Vehicle & Driver, and a Need Help support
+ * card in place of the Rate/Invoice row. The sticky Book Again CTA is
+ * kept — cancelling doesn't end the relationship, it's the fastest
+ * way back into a fresh booking for the same route.
+ * ================================================================ */
+
+type CancelledProps = {
+  detail: CustomerBookingDetail;
+  onBack: () => void;
+  onBookAgain: () => void;
+  onContactSupport: () => void;
+};
+
+const CancelledDetail: React.FC<CancelledProps> = ({
+  detail,
+  onBack,
+  onBookAgain,
+  onContactSupport,
+}) => {
+  const status = STATUS_VISUAL.cancelled;
+  const cancellation = detail.cancellation;
+
+  return (
+    <SafeScreen edges={['top', 'bottom']} backgroundColor={Colors.background}>
+      <View style={styles.headerWrap}>
+        <ScreenHeader
+          title="Booking Details"
+          subtitle={status.subtitle}
+          onBack={onBack}
+          rightSlot={
+            <View style={[styles.headerPill, { backgroundColor: status.bg }]}>
+              {status.Icon ? (
+                <status.Icon size={14} color={status.fg} strokeWidth={2.5} />
+              ) : null}
+              <Text style={[styles.headerPillText, { color: status.fg }]}>
+                {status.label}
+              </Text>
+            </View>
+          }
+        />
+      </View>
+
+      <ScrollView
+        style={styles.scrollBg}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Booking-cancelled banner ── */}
+        <View style={styles.cancelledBanner}>
+          <View style={styles.cancelledBadge}>
+            <View style={styles.cancelledBadgeIcon}>
+              <CalendarX
+                size={26}
+                color={Colors.textOnPrimary}
+                strokeWidth={2.25}
+              />
+            </View>
+          </View>
+          <View style={styles.completedTextCol}>
+            <Text style={styles.cancelledTitle}>Booking Cancelled</Text>
+            <Text style={styles.cancelledBody}>
+              {cancellation
+                ? `This booking was cancelled on ${formatLongDate(
+                    cancellation.cancelledAt,
+                  )}.`
+                : 'This booking was cancelled.'}
+              {cancellation ? `\nReason: ${cancellation.reason}` : null}
+            </Text>
+          </View>
+        </View>
+
+        {/* ── Booking info card ── */}
+        <View style={styles.card}>
+          <View style={styles.idRow}>
+            <View style={styles.idTile}>
+              <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
+            </View>
+            <View style={styles.idBody}>
+              <Text style={styles.idLabel}>Booking ID</Text>
+              <Text style={styles.idValue}>{detail.bookingNumber}</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.routeRow}>
+            <Text style={styles.routeText} numberOfLines={1}>
+              {detail.from}
+            </Text>
+            <Text style={styles.routeArrow}>→</Text>
+            <Text style={styles.routeText} numberOfLines={1}>
+              {detail.to}
+            </Text>
+          </View>
+
+          <View style={styles.metaRowLarge}>
+            <MetaCell
+              Icon={Calendar}
+              primary={formatLongDate(detail.travelDate)}
+              secondary={`(${formatWeekday(detail.travelDate)})`}
+            />
+            <MetaCell
+              Icon={Clock}
+              primary={detail.pickupTime}
+              secondary="Departure"
+            />
+            <MetaCell
+              Icon={Users}
+              primary={`${detail.passengers} Passengers`}
+              secondary={
+                detail.passengerBreakdown
+                  ? `(${formatPassengerBreakdown(
+                      detail.passengerBreakdown.adults,
+                      detail.passengerBreakdown.children,
+                    )})`
+                  : undefined
+              }
+            />
+          </View>
+        </View>
+
+        {/* ── Tracker card — cancelled-flavoured ── */}
+        <View style={styles.card}>
+          <CancelledProgressTracker
+            bookedDate={detail.timeline.booked}
+            cancelledDate={
+              cancellation ? formatLongDate(cancellation.cancelledAt) : null
+            }
+          />
+        </View>
+
+        {/* ── Cancellation Details card ── */}
+        {cancellation ? (
+          <View style={styles.cancelDetailsCard}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.cancelIconTile}>
+                <FileText size={18} color={Colors.error} strokeWidth={2.25} />
+              </View>
+              <Text
+                style={[styles.sectionHeadingText, { color: Colors.error }]}
+              >
+                Cancellation Details
+              </Text>
+            </View>
+
+            <CancelDetailRow
+              label="Cancelled On"
+              value={formatDateTime(cancellation.cancelledAt)}
+            />
+            <CancelDetailRow label="Reason" value={cancellation.reason} />
+            <CancelDetailRow
+              label="Cancelled By"
+              value={cancellation.cancelledBy}
+            />
+            <CancelDetailRow
+              label="Refund Amount"
+              value={formatRupees(cancellation.refundAmount)}
+              note={cancellation.refundNote}
+            />
+            <CancelDetailRow
+              label="Payment Status"
+              value={
+                detail.payment
+                  ? PAYMENT_STATUS_LABEL[detail.payment.status]
+                  : '—'
+              }
+            />
+          </View>
+        ) : null}
+
+        {/* ── Need Help support card ── */}
+        <View style={styles.helpCard}>
+          <View style={styles.helpIconTile}>
+            <Headphones size={20} color={BLUE_FG} strokeWidth={2.25} />
+          </View>
+          <View style={styles.helpTextCol}>
+            <Text style={styles.helpTitle}>Need Help?</Text>
+            <Text style={styles.helpBody}>
+              Contact our support team for any queries.
+            </Text>
+          </View>
+          <Pressable
+            onPress={onContactSupport}
+            style={({ pressed }) => [
+              styles.contactSupportBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Contact support"
+          >
+            <Text style={styles.contactSupportBtnText}>Contact Support</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+
+      {/* ── Sticky bottom CTA ── */}
+      <View style={styles.stickyBar}>
+        <Pressable
+          onPress={onBookAgain}
+          style={({ pressed }) => [
+            styles.primaryCta,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Book again"
+        >
+          <RotateCw size={18} color={Colors.textOnPrimary} strokeWidth={2.5} />
+          <Text style={styles.primaryCtaText}>Book Again</Text>
+        </Pressable>
+      </View>
+    </SafeScreen>
+  );
+};
+
+/* -------- CancelledProgressTracker --------------------------------
+ * Purpose-built 4-dot tracker for the cancelled flow: Booked (done,
+ * green check) → Cancelled (red X, the terminal step for this
+ * booking) → Trip Starts / Completed (both permanently pending/gray,
+ * since the trip never happens). Kept separate from the shared
+ * `BookingProgressTracker` rather than overloading it — that
+ * component's step vocabulary and "done/current/pending" cursor model
+ * are built around the happy path (booked→confirmed→started→
+ * completed) and don't have a slot for a step that replaces
+ * "Confirmed" and permanently halts the timeline. */
+const CancelledProgressTracker: React.FC<{
+  bookedDate: string | undefined;
+  cancelledDate: string | null;
+}> = ({ bookedDate, cancelledDate }) => (
+  <View style={styles.row}>
+    <View style={styles.stepCol}>
+      <View style={styles.dotDone}>
+        <Check size={12} color={Colors.textOnPrimary} strokeWidth={3} />
+      </View>
+      <Text style={styles.label}>Booked</Text>
+      {bookedDate ? <Text style={styles.sub}>{bookedDate}</Text> : null}
+    </View>
+    <View style={[styles.connector, styles.connectorDone]} />
+
+    <View style={styles.stepCol}>
+      <View style={styles.dotCancelled}>
+        <X size={12} color={Colors.textOnPrimary} strokeWidth={3} />
+      </View>
+      <Text style={[styles.label, { color: Colors.error }]}>Cancelled</Text>
+      {cancelledDate ? (
+        <Text style={[styles.sub, { color: Colors.error }]}>
+          {cancelledDate}
+        </Text>
+      ) : null}
+    </View>
+    <View style={styles.connector} />
+
+    <View style={styles.stepCol}>
+      <View style={styles.dotPending} />
+      <Text style={[styles.label, styles.labelPending]}>Trip Starts</Text>
+      <Text style={[styles.sub, styles.subPending]}>-</Text>
+    </View>
+    <View style={styles.connector} />
+
+    <View style={styles.stepCol}>
+      <View style={styles.dotPending} />
+      <Text style={[styles.label, styles.labelPending]}>Completed</Text>
+      <Text style={[styles.sub, styles.subPending]}>-</Text>
+    </View>
+  </View>
+);
+
+const CancelDetailRow: React.FC<{
+  label: string;
+  value: string;
+  note?: string | null;
+}> = ({ label, value, note }) => (
+  <View style={styles.cancelDetailRow}>
+    <Text style={styles.cancelDetailLabel}>{label}</Text>
+    <View style={styles.cancelDetailValueCol}>
+      <Text style={styles.cancelDetailValue}>{value}</Text>
+      {note ? (
+        <View style={styles.cancelDetailNoteRow}>
+          <Info size={12} color={Colors.textSecondary} strokeWidth={2} />
+          <Text style={styles.cancelDetailNote}>{note}</Text>
+        </View>
+      ) : null}
+    </View>
+  </View>
+);
 
 /* ================================================================
  * GenericDetail — status-agnostic fallback for non-completed
@@ -1379,5 +1716,205 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
+  },
+
+  /* ── Cancelled banner ── */
+  cancelledBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.errorTint,
+    borderWidth: 1,
+    borderColor: Colors.errorTint,
+  },
+  cancelledBadge: {
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelledBadgeIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelledTitle: {
+    ...Typography.subtitle,
+    color: Colors.error,
+    fontWeight: '800',
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  cancelledBody: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+
+  /* ── Cancelled-flavoured tracker (mirrors BookingProgressTracker's
+   *    internal layout so the two visually match) ── */
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 6,
+  },
+  stepCol: {
+    alignItems: 'center',
+    gap: 3,
+    width: 60,
+  },
+  connector: {
+    flex: 1,
+    height: 2,
+    backgroundColor: Colors.border,
+    marginTop: TRACKER_DOT / 2 - 1,
+    marginHorizontal: -20,
+  },
+  connectorDone: {
+    backgroundColor: Colors.primary,
+  },
+  dotDone: {
+    width: TRACKER_DOT,
+    height: TRACKER_DOT,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dotCancelled: {
+    width: TRACKER_DOT,
+    height: TRACKER_DOT,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dotPending: {
+    width: TRACKER_DOT,
+    height: TRACKER_DOT,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.border,
+  },
+  label: {
+    ...Typography.caption,
+    color: Colors.textPrimary,
+    fontWeight: '700',
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  labelPending: {
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  sub: {
+    ...Typography.caption,
+    fontSize: 10,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  subPending: {
+    color: Colors.textTertiary,
+  },
+
+  /* ── Cancellation Details card ── */
+  cancelDetailsCard: {
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.errorTint,
+    gap: Spacing.sm,
+  },
+  cancelIconTile: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  cancelDetailLabel: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  cancelDetailValueCol: {
+    alignItems: 'flex-end',
+    gap: 2,
+    flexShrink: 1,
+  },
+  cancelDetailValue: {
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  cancelDetailNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  cancelDetailNote: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+
+  /* ── Need Help support card ── */
+  helpCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: BLUE_TINT,
+  },
+  helpIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helpTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  helpTitle: {
+    ...Typography.subtitle,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  helpBody: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+  },
+  contactSupportBtn: {
+    height: 38,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: BLUE_FG,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactSupportBtnText: {
+    ...Typography.caption,
+    color: BLUE_FG,
+    fontWeight: '800',
+    includeFontPadding: false,
   },
 });

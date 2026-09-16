@@ -167,7 +167,33 @@ export type BookingPaymentSummary = {
   method: string | null;
 };
 
+/**
+ * Cancellation record — only populated when `status === 'cancelled'`.
+ * Drives the "Booking Cancelled" banner and the Cancellation Details
+ * card on the detail screen.
+ */
+export type BookingCancellation = {
+  /** ISO timestamp of the cancellation event, e.g.
+   *  "2026-08-12T14:15:00+05:30". Rendered both as the short date in
+   *  the banner ("12 Aug 2026") and the full date+time in the details
+   *  card ("12 Aug 2026, 02:15 PM"). */
+  cancelledAt: string;
+  /** Free-text reason, e.g. "Change of plans". */
+  reason: string;
+  /** Who initiated the cancellation — "You", a staff name, or
+   *  "Urban Cruise Ops" for a system/ops-side cancellation. */
+  cancelledBy: string;
+  /** Refund amount in rupees. 0 when nothing is owed back. */
+  refundAmount: number;
+  /** Optional inline note next to the refund amount, e.g. "No refund
+   *  applicable" or "Processed to original payment method". Null
+   *  hides the info affordance. */
+  refundNote: string | null;
+};
+
 export type CustomerBookingDetail = CustomerBookingListItem & {
+  /** Populated only for cancelled bookings; null otherwise. */
+  cancellation: BookingCancellation | null;
   /** Vehicle registration plate, e.g. "MH 12 AB 4321". Null when the
    *  booking is still upcoming and no specific vehicle is assigned. */
   vehiclePlate: string | null;

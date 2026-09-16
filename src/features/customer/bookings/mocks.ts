@@ -87,7 +87,7 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
     seater: null,
     hasAC: true,
     totalAmount: 0,
-    bookedDate: '2026-08-15',
+    bookedDate: '2026-08-10',
     progressStep: 'booked',
     progressNote: 'Cancelled',
   },
@@ -116,6 +116,7 @@ type DetailOverride = {
   driver: CustomerBookingDetail['driver'];
   timeline: BookingProgressTimeline;
   payment: CustomerBookingDetail['payment'];
+  cancellation: CustomerBookingDetail['cancellation'];
 };
 
 const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
@@ -126,6 +127,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     driver: null,
     timeline: { booked: '10 Sep' },
     payment: { status: 'partial', method: 'UPI' },
+    cancellation: null,
   },
   bk_00122: {
     vehiclePlate: 'DL 3C AB 7788',
@@ -140,6 +142,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
     timeline: { booked: '08 Sep', confirmed: '09 Sep', started: '12 Sep' },
     payment: { status: 'paid', method: 'Card' },
+    cancellation: null,
   },
   bk_00110: {
     vehiclePlate: 'MH 12 AB 4321',
@@ -159,14 +162,22 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       completed: '05 Sept\n06:30 PM',
     },
     payment: { status: 'paid', method: 'UPI' },
+    cancellation: null,
   },
   bk_00098: {
     vehiclePlate: null,
     vehicleFuel: null,
-    passengerBreakdown: { adults: 6, children: 0 },
+    passengerBreakdown: { adults: 4, children: 2 },
     driver: null,
-    timeline: { booked: '15 Aug' },
+    timeline: { booked: '10 Aug' },
     payment: null,
+    cancellation: {
+      cancelledAt: '2026-08-12T14:15:00+05:30',
+      reason: 'Change of plans',
+      cancelledBy: 'You',
+      refundAmount: 0,
+      refundNote: 'No refund applicable',
+    },
   },
 };
 
@@ -189,6 +200,7 @@ export function getCustomerBookingDetail(
     driver: null,
     timeline: {},
     payment: null,
+    cancellation: null,
   };
   return { ...base, ...extra };
 }
