@@ -117,6 +117,9 @@ type DetailOverride = {
   timeline: BookingProgressTimeline;
   payment: CustomerBookingDetail['payment'];
   cancellation: CustomerBookingDetail['cancellation'];
+  pickupLocation: string | null;
+  dropLocation: string | null;
+  fareBreakdown: CustomerBookingDetail['fareBreakdown'];
 };
 
 const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
@@ -124,10 +127,24 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     vehiclePlate: null,
     vehicleFuel: 'Diesel',
     passengerBreakdown: { adults: 18, children: 2 },
-    driver: null,
-    timeline: { booked: '10 Sep' },
+    driver: {
+      name: 'Rajesh Kumar',
+      avatarUrl: null,
+      rating: 4.8,
+      tripsCompleted: 320,
+      phoneE164: '+919812345678',
+    },
+    timeline: { booked: '10 Sept', confirmed: '11 Sept', started: '15 Sept' },
     payment: { status: 'partial', method: 'UPI' },
     cancellation: null,
+    pickupLocation: 'Indira Gandhi International Airport, Delhi',
+    dropLocation: 'Jaipur Railway Station, Jaipur',
+    fareBreakdown: {
+      advancePaid: 4_625,
+      advancePercent: 25,
+      remainingAmount: 13_875,
+      remainingNote: 'Pay Later',
+    },
   },
   bk_00122: {
     vehiclePlate: 'DL 3C AB 7788',
@@ -143,6 +160,9 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     timeline: { booked: '08 Sep', confirmed: '09 Sep', started: '12 Sep' },
     payment: { status: 'paid', method: 'Card' },
     cancellation: null,
+    pickupLocation: 'Sector 29, Gurugram',
+    dropLocation: 'Taj East Gate, Agra',
+    fareBreakdown: null,
   },
   bk_00110: {
     vehiclePlate: 'MH 12 AB 4321',
@@ -163,6 +183,9 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
     payment: { status: 'paid', method: 'UPI' },
     cancellation: null,
+    pickupLocation: 'Bandra Kurla Complex, Mumbai',
+    dropLocation: 'Shivajinagar, Pune',
+    fareBreakdown: null,
   },
   bk_00098: {
     vehiclePlate: null,
@@ -178,6 +201,9 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       refundAmount: 0,
       refundNote: 'No refund applicable',
     },
+    pickupLocation: 'Sector 62, Noida',
+    dropLocation: 'Laxman Jhula, Rishikesh',
+    fareBreakdown: null,
   },
 };
 
@@ -201,6 +227,9 @@ export function getCustomerBookingDetail(
     timeline: {},
     payment: null,
     cancellation: null,
+    pickupLocation: null,
+    dropLocation: null,
+    fareBreakdown: null,
   };
   return { ...base, ...extra };
 }

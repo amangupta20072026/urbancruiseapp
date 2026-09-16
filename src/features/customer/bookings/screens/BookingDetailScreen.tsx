@@ -52,6 +52,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Bus,
   Calendar,
+  CalendarClock,
   CalendarX,
   CarFront,
   Check,
@@ -59,10 +60,13 @@ import {
   Clock,
   FileText,
   Headphones,
+  IndianRupee,
   Info,
+  MapPin,
   MessageSquare,
   Phone,
   RotateCw,
+  SquarePen,
   Star,
   Users,
   X,
@@ -128,8 +132,8 @@ const STATUS_VISUAL: Record<BookingStatus, StatusVisual> = {
     label: 'Upcoming',
     fg: Colors.primary,
     bg: Colors.primaryTint,
-    Icon: null,
-    subtitle: 'Your trip is confirmed',
+    Icon: Clock,
+    subtitle: 'Your trip is upcoming',
   },
   ongoing: {
     label: 'Ongoing',
@@ -280,6 +284,14 @@ const BookingDetailScreen: React.FC = () => {
     navigation.navigate('Support');
   }, [navigation]);
 
+  const handleNeedChanges = useCallback(() => {
+    // No dedicated "request changes" flow exists yet — Support is the
+    // working path forward for now (same TODO pattern as elsewhere
+    // on this screen), matching the mockup's "Request changes to
+    // this trip" affordance.
+    navigation.navigate('Support');
+  }, [navigation]);
+
   /* -------- Not-found guard -------- */
   if (!detail) {
     return (
@@ -316,6 +328,17 @@ const BookingDetailScreen: React.FC = () => {
         onBack={handleBack}
         onBookAgain={handleBookAgain}
         onContactSupport={handleContactSupport}
+      />
+    );
+  }
+
+  if (detail.status === 'upcoming') {
+    return (
+      <UpcomingDetail
+        detail={detail}
+        onBack={handleBack}
+        onBookAgain={handleBookAgain}
+        onNeedChanges={handleNeedChanges}
       />
     );
   }
@@ -977,6 +1000,373 @@ const CancelDetailRow: React.FC<{
     </View>
   </View>
 );
+
+/* ================================================================
+ * UpcomingDetail — pre-trip design
+ * ================================================================
+ * Mirrors the same card rhythm as CompletedDetail/CancelledDetail:
+ * status banner → booking info card → tracker card → Trip
+ * Information (pickup/drop) → Vehicle + Driver as two side-by-side
+ * cards → Fare Details (advance/remaining split) → a two-button row
+ * (Need Changes / Book Again). Kept as its own component rather than
+ * folding into GenericDetail for the same reason CompletedDetail and
+ * CancelledDetail are separate: this is a fully designed surface
+ * with its own section set (pickup/drop, side-by-side vehicle+driver,
+ * advance/remaining fare split) that doesn't share layout with the
+ * generic fallback.
+ * ================================================================ */
+
+type UpcomingProps = {
+  detail: CustomerBookingDetail;
+  onBack: () => void;
+  onBookAgain: () => void;
+  onNeedChanges: () => void;
+};
+
+const UpcomingDetail: React.FC<UpcomingProps> = ({
+  detail,
+  onBack,
+  onBookAgain,
+  onNeedChanges,
+}) => {
+  const status = STATUS_VISUAL.upcoming;
+
+  return (
+    <SafeScreen edges={['top', 'bottom']} backgroundColor={Colors.background}>
+      <View style={styles.headerWrap}>
+        <ScreenHeader
+          title="Booking Details"
+          subtitle={status.subtitle}
+          onBack={onBack}
+          rightSlot={
+            <View style={[styles.headerPill, { backgroundColor: status.bg }]}>
+              {status.Icon ? (
+                <status.Icon size={14} color={status.fg} strokeWidth={2.5} />
+              ) : null}
+              <Text style={[styles.headerPillText, { color: status.fg }]}>
+                {status.label}
+              </Text>
+            </View>
+          }
+        />
+      </View>
+
+      <ScrollView
+        style={styles.scrollBg}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Trip-confirmed banner ── */}
+        <View style={styles.completedBanner}>
+          <View style={styles.completedBadge}>
+            <View style={styles.completedBadgeCheck}>
+              <CalendarClock
+                size={26}
+                color={Colors.textOnPrimary}
+                strokeWidth={2.25}
+              />
+            </View>
+          </View>
+          <View style={styles.completedTextCol}>
+            <Text style={styles.completedTitle}>Your trip is confirmed!</Text>
+            <Text style={styles.completedBody}>
+              Your vehicle and driver will be ready for your journey. We look
+              forward to serving you.
+            </Text>
+          </View>
+        </View>
+
+        {/* ── Booking info card ── */}
+        <View style={styles.card}>
+          <View style={styles.idRow}>
+            <View style={styles.idTile}>
+              <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
+            </View>
+            <View style={styles.idBody}>
+              <Text style={styles.idLabel}>Booking ID</Text>
+              <Text style={styles.idValue}>{detail.bookingNumber}</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.routeRow}>
+            <Text style={styles.routeText} numberOfLines={1}>
+              {detail.from}
+            </Text>
+            <Text style={styles.routeArrow}>→</Text>
+            <Text style={styles.routeText} numberOfLines={1}>
+              {detail.to}
+            </Text>
+          </View>
+
+          <View style={styles.metaRowLarge}>
+            <MetaCell
+              Icon={Calendar}
+              primary={formatLongDate(detail.travelDate)}
+              secondary={`(${formatWeekday(detail.travelDate)})`}
+            />
+            <MetaCell
+              Icon={Clock}
+              primary={detail.pickupTime}
+              secondary="Departure"
+            />
+            <MetaCell
+              Icon={Users}
+              primary={`${detail.passengers} Passengers`}
+              secondary={
+                detail.passengerBreakdown
+                  ? `(${formatPassengerBreakdown(
+                      detail.passengerBreakdown.adults,
+                      detail.passengerBreakdown.children,
+                    )})`
+                  : undefined
+              }
+            />
+          </View>
+        </View>
+
+        {/* ── Tracker card ── */}
+        <View style={styles.card}>
+          <BookingProgressTracker
+            currentStep={detail.progressStep}
+            subLabels={detail.timeline}
+          />
+        </View>
+
+        {/* ── Trip Information card ── */}
+        {detail.pickupLocation || detail.dropLocation ? (
+          <View style={styles.card}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionIconTile}>
+                <MapPin size={18} color={Colors.primary} strokeWidth={2.25} />
+              </View>
+              <Text style={styles.sectionHeadingText}>Trip Information</Text>
+            </View>
+
+            <View style={styles.tripInfoRow}>
+              <View style={styles.tripInfoRail}>
+                <View style={styles.tripInfoDotPickup} />
+                <View style={styles.tripInfoRailLine} />
+                <View style={styles.tripInfoDotDrop} />
+              </View>
+              <View style={styles.tripInfoTextCol}>
+                <View style={styles.tripInfoStop}>
+                  <Text style={styles.tripInfoLabel}>Pickup Location</Text>
+                  <Text style={styles.tripInfoValue}>
+                    {detail.pickupLocation ?? '—'}
+                  </Text>
+                </View>
+                <View style={styles.tripInfoStop}>
+                  <Text style={styles.tripInfoLabel}>Drop Location</Text>
+                  <Text style={styles.tripInfoValue}>
+                    {detail.dropLocation ?? '—'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {/* ── Vehicle + Driver — side-by-side cards ── */}
+        <View style={styles.sideBySideRow}>
+          <View style={[styles.card, styles.sideBySideCard]}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionIconTile}>
+                <CarFront size={16} color={Colors.primary} strokeWidth={2.25} />
+              </View>
+              <Text style={styles.sideBySideHeading}>Vehicle Details</Text>
+            </View>
+            <View style={styles.vehiclePhotoTileWide}>
+              <Bus size={32} color={Colors.primary} strokeWidth={1.75} />
+            </View>
+            <Text style={styles.vehicleName}>
+              {detail.vehicleModel ?? detail.vehicleType}
+            </Text>
+            <View style={styles.vehicleAttrList}>
+              {[
+                detail.seater ? `${detail.seater} Seater` : detail.vehicleType,
+                detail.hasAC ? 'AC' : null,
+                detail.vehicleFuel,
+              ]
+                .filter(Boolean)
+                .map(attr => (
+                  <Text key={attr} style={styles.vehicleAttrItem}>
+                    {attr}
+                  </Text>
+                ))}
+            </View>
+          </View>
+
+          <View style={[styles.card, styles.sideBySideCard]}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionIconTile}>
+                <Users size={16} color={Colors.primary} strokeWidth={2.25} />
+              </View>
+              <Text style={styles.sideBySideHeading}>Driver Details</Text>
+            </View>
+            {detail.driver ? (
+              <>
+                <View style={styles.driverRowCompact}>
+                  {detail.driver.avatarUrl ? (
+                    <Image
+                      source={{ uri: detail.driver.avatarUrl }}
+                      style={styles.driverAvatarSmall}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.driverAvatarSmall,
+                        styles.driverAvatarFallback,
+                      ]}
+                    >
+                      <Text style={styles.driverInitials}>
+                        {initialsOf(detail.driver.name)}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.driverBody}>
+                    <Text style={styles.driverNameSmall} numberOfLines={1}>
+                      {detail.driver.name}
+                    </Text>
+                    {detail.driver.rating !== null ? (
+                      <View style={styles.ratingRow}>
+                        <Star
+                          size={12}
+                          color={Colors.warning}
+                          fill={Colors.warning}
+                          strokeWidth={2}
+                        />
+                        <Text style={styles.ratingTextSmall}>
+                          {detail.driver.rating.toFixed(1)}
+                          {detail.driver.tripsCompleted !== null ? (
+                            <Text style={styles.ratingMuted}>
+                              {' '}
+                              ({detail.driver.tripsCompleted} trips)
+                            </Text>
+                          ) : null}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+                <Pressable
+                  onPress={() => callDriver(detail.driver?.phoneE164)}
+                  disabled={!detail.driver.phoneE164}
+                  style={({ pressed }) => [
+                    styles.callDriverBtn,
+                    pressed && styles.pressed,
+                    !detail.driver?.phoneE164 && styles.disabled,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Call driver"
+                >
+                  <Phone size={14} color={Colors.primary} strokeWidth={2.5} />
+                  <Text style={styles.callDriverBtnText}>Call Driver</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Text style={styles.driverPendingText}>
+                Driver will be assigned closer to your trip date.
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {/* ── Fare Details card ── */}
+        <View style={styles.card}>
+          <View style={styles.sectionHeadingRow}>
+            <View style={styles.sectionIconTile}>
+              <IndianRupee
+                size={18}
+                color={Colors.primary}
+                strokeWidth={2.25}
+              />
+            </View>
+            <Text style={styles.sectionHeadingText}>Fare Details</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.fareRow}>
+            <View style={styles.fareCell}>
+              <Text style={styles.fareCellLabel}>Total Amount</Text>
+              <Text style={styles.fareCellValue}>
+                {formatRupees(detail.totalAmount)}
+              </Text>
+            </View>
+            {detail.fareBreakdown ? (
+              <>
+                <View style={styles.fareCell}>
+                  <Text style={styles.fareCellLabel}>
+                    Advance Paid ({detail.fareBreakdown.advancePercent}%)
+                  </Text>
+                  <Text style={styles.fareCellValue}>
+                    {formatRupees(detail.fareBreakdown.advancePaid)}
+                  </Text>
+                </View>
+                <View style={styles.fareCell}>
+                  <Text style={styles.fareCellLabel}>Remaining Amount</Text>
+                  <View style={styles.fareRemainingRow}>
+                    <Text style={styles.fareCellValue}>
+                      {formatRupees(detail.fareBreakdown.remainingAmount)}
+                    </Text>
+                    {detail.fareBreakdown.remainingNote ? (
+                      <View style={styles.payLaterChip}>
+                        <Text style={styles.payLaterChipText}>
+                          {detail.fareBreakdown.remainingNote}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+              </>
+            ) : null}
+          </View>
+        </View>
+
+        {/* ── Need Changes / Book Again — two-column row ── */}
+        <View style={styles.dualRow}>
+          <Pressable
+            onPress={onNeedChanges}
+            style={({ pressed }) => [
+              styles.needChangesBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Request changes to this trip"
+          >
+            <SquarePen size={20} color={Colors.warning} strokeWidth={2.25} />
+            <Text style={styles.needChangesTitle}>Need Changes</Text>
+            <Text style={styles.needChangesSubtitle}>
+              Request changes to this trip
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={onBookAgain}
+            style={({ pressed }) => [
+              styles.bookAgainWide,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Book again"
+          >
+            <RotateCw
+              size={20}
+              color={Colors.textOnPrimary}
+              strokeWidth={2.25}
+            />
+            <Text style={styles.bookAgainWideTitle}>Book Again</Text>
+            <Text style={styles.bookAgainWideSubtitle}>
+              Use this trip for a new booking
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </SafeScreen>
+  );
+};
 
 /* ================================================================
  * GenericDetail — status-agnostic fallback for non-completed
@@ -1916,5 +2306,207 @@ const styles = StyleSheet.create({
     color: BLUE_FG,
     fontWeight: '800',
     includeFontPadding: false,
+  },
+
+  /* ── Trip Information (pickup/drop) card ── */
+  tripInfoRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  tripInfoRail: {
+    width: 16,
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  tripInfoDotPickup: {
+    width: 12,
+    height: 12,
+    borderRadius: Radius.circle,
+    borderWidth: 2.5,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.surface,
+  },
+  tripInfoRailLine: {
+    flex: 1,
+    width: 2,
+    minHeight: 28,
+    backgroundColor: Colors.border,
+    marginVertical: 4,
+  },
+  tripInfoDotDrop: {
+    width: 12,
+    height: 12,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.info,
+  },
+  tripInfoTextCol: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  tripInfoStop: {
+    gap: 2,
+  },
+  tripInfoLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  tripInfoValue: {
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+  },
+
+  /* ── Vehicle + Driver side-by-side cards ── */
+  sideBySideRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    alignItems: 'stretch',
+  },
+  sideBySideCard: {
+    flex: 1,
+  },
+  sideBySideHeading: {
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+  vehiclePhotoTileWide: {
+    height: 64,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vehicleAttrList: {
+    gap: 3,
+  },
+  vehicleAttrItem: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  driverRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  driverAvatarSmall: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.surfaceMuted,
+  },
+  driverNameSmall: {
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+  },
+  ratingTextSmall: {
+    ...Typography.caption,
+    color: Colors.warning,
+    fontWeight: '800',
+  },
+  callDriverBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 36,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.surface,
+  },
+  callDriverBtnText: {
+    ...Typography.caption,
+    color: Colors.primary,
+    fontWeight: '800',
+    includeFontPadding: false,
+  },
+  driverPendingText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+
+  /* ── Fare Details card ── */
+  fareRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  fareCell: {
+    flex: 1,
+    gap: 4,
+  },
+  fareCellLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  fareCellValue: {
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  fareRemainingRow: {
+    gap: 4,
+  },
+  payLaterChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    backgroundColor: BLUE_TINT,
+  },
+  payLaterChipText: {
+    ...Typography.caption,
+    fontSize: 10,
+    color: BLUE_FG,
+    fontWeight: '700',
+    includeFontPadding: false,
+  },
+
+  /* ── Need Changes / Book Again dual CTA ── */
+  needChangesBtn: {
+    flex: 1,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    borderColor: Colors.warning,
+    backgroundColor: Colors.surface,
+    gap: 2,
+  },
+  needChangesTitle: {
+    ...Typography.bodySmall,
+    color: Colors.warning,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  needChangesSubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  bookAgainWide: {
+    flex: 1,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.primary,
+    gap: 2,
+  },
+  bookAgainWideTitle: {
+    ...Typography.bodySmall,
+    color: Colors.textOnPrimary,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  bookAgainWideSubtitle: {
+    ...Typography.caption,
+    color: Colors.textOnPrimary,
+    fontWeight: '500',
+    opacity: 0.85,
   },
 });

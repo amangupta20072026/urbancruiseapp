@@ -191,9 +191,31 @@ export type BookingCancellation = {
   refundNote: string | null;
 };
 
+/**
+ * Fare split shown on the upcoming-booking detail screen: advance
+ * paid at booking time vs. the balance still owed. `remainingNote`
+ * renders as a small chip next to the remaining amount (e.g. "Pay
+ * Later"); null hides the chip (e.g. once the balance is settled).
+ */
+export type BookingFareBreakdown = {
+  advancePaid: number;
+  /** Whole-number percent of total, e.g. 25 for "25%". */
+  advancePercent: number;
+  remainingAmount: number;
+  remainingNote: string | null;
+};
+
 export type CustomerBookingDetail = CustomerBookingListItem & {
   /** Populated only for cancelled bookings; null otherwise. */
   cancellation: BookingCancellation | null;
+  /** Pickup / drop addresses for the Trip Information card. Null
+   *  when not yet captured (e.g. a stale or malformed booking). */
+  pickupLocation: string | null;
+  dropLocation: string | null;
+  /** Advance/remaining fare split for the upcoming-booking detail
+   *  screen. Null once the trip completes and the simple total-only
+   *  Invoice & Payment summary takes over instead. */
+  fareBreakdown: BookingFareBreakdown | null;
   /** Vehicle registration plate, e.g. "MH 12 AB 4321". Null when the
    *  booking is still upcoming and no specific vehicle is assigned. */
   vehiclePlate: string | null;
