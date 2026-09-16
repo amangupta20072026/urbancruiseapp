@@ -54,6 +54,12 @@ function stateFor(
 ): State {
   const cursorIndex = STEPS.findIndex(s => s.key === cursor);
   const stepIndex = STEPS.findIndex(s => s.key === step);
+  const lastIndex = STEPS.length - 1;
+  // When the cursor has reached the final step, the trip is fully
+  // complete — render that last dot as "done" (checkmark) rather
+  // than "current" (in-progress dot), since there's no next step
+  // left to be "in progress" toward.
+  if (cursorIndex === lastIndex && stepIndex === lastIndex) return 'done';
   if (stepIndex < cursorIndex) return 'done';
   if (stepIndex === cursorIndex) return 'current';
   return 'pending';
@@ -171,7 +177,7 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: Colors.border,
     marginTop: DOT / 2 - 1,
-    marginHorizontal: -6,
+    marginHorizontal: -20,
   },
   connectorDone: {
     backgroundColor: Colors.primary,
