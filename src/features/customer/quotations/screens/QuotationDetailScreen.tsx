@@ -269,6 +269,24 @@ const QuotationDetailScreen: React.FC = () => {
   const needChangesRef = useRef<BottomSheetModal>(null);
   const confirmationRef = useRef<BottomSheetModal>(null);
 
+  /* -------- Selection state --------
+   *
+   * Which vehicle tier the customer has committed to in the pending
+   * picker. Held HERE (not inside `ChooseVehicleSection`) so the
+   * sticky `BottomBar` can gate its "Accept & Continue" CTA on it —
+   * a customer shouldn't be able to accept a quotation before they
+   * have chosen a vehicle.
+   *
+   * Ignored for `accepted` / `expired` quotations, which don't
+   * render the picker at all (the vehicle is already locked in
+   * server-side). */
+  const [selectedTierKey, setSelectedTierKey] = useState<VehicleTierKey | null>(
+    null,
+  );
+
+  const acceptDisabled =
+    detail?.status === 'pending' && selectedTierKey === null;
+
   /* -------- Handlers -------- */
 
   const onNeedChanges = useCallback(() => {
@@ -276,10 +294,16 @@ const QuotationDetailScreen: React.FC = () => {
   }, []);
 
   const onConfirmAccept = useCallback(() => {
+    // Belt-and-braces guard. `BottomBar` also refuses to fire this
+    // when `acceptDisabled` is true (the Pressable is disabled and
+    // won't dispatch), but keep the callback defensive so any
+    // future caller (deep link, sheet result, unit test) can't
+    // sneak past.
+    if (acceptDisabled) return;
     // TODO(api): replace the sheet's local success toast with the
     // quotation-accept API mutation when the backend is available.
     confirmationRef.current?.present();
-  }, []);
+  }, [acceptDisabled]);
 
   const onContinueToBooking = useCallback(() => {
     if (!detail) return;
@@ -334,7 +358,10 @@ const QuotationDetailScreen: React.FC = () => {
         <MetaCard detail={detail} />
         <TripCard detail={detail} />
         {detail.status === 'pending' ? (
-          <ChooseVehicleSection />
+          <ChooseVehicleSection
+            selectedKey={selectedTierKey}
+            onSelect={setSelectedTierKey}
+          />
         ) : (
           <VehicleCard detail={detail} />
         )}
@@ -347,6 +374,7 @@ const QuotationDetailScreen: React.FC = () => {
 
       <BottomBar
         status={detail.status}
+        acceptDisabled={acceptDisabled}
         onNeedChanges={onNeedChanges}
         onConfirmAccept={onConfirmAccept}
         onContinueToBooking={onContinueToBooking}
@@ -657,13 +685,51 @@ const StopTimeline: React.FC<{ detail: CustomerQuotationDetail }> = ({
 };
 
 /* ================================================================
- * VehicleCard  — vehicle image on the left, name + spec grid right.
+ * VehicleCard  — the vehicle-details block shown when a quotation
+ *                is `accepted` or `expired` (the vehicle is locked
+ *                in and there's exactly one to display).
+ *
+ * Uses the same FAQ-style accordion pattern as ChooseVehicleSection
+ * below, so all three quotation states share one design language.
+ * With only one item there's no "close the other" work to do — the
+ * header just toggles open/closed on tap.
+ *
+ * Collapsed by default (matches the FAQ contract the customer sees
+ * elsewhere in the app): a compact header shows a thumbnail, the
+ * vehicle name, and a one-line summary like "7 Seater · Diesel · AC"
+ * so the customer can identify the vehicle without opening; tapping
+ * reveals the larger hero image and the full amenity checklist.
  * ================================================================ */
 
 const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
   detail,
 }) => {
   const v = detail.vehicle;
+  const [expanded, setExpanded] = useState(false);
+
+  const onToggle = useCallback(() => {
+    setExpanded(e => !e);
+  }, []);
+
+  // Compact summary line for the collapsed header — mirrors what the
+  // customer would see on a booking-confirmation SMS.
+  const summary = useMemo(() => {
+    const parts: string[] = [`${v.seater} Seater`, v.fuel];
+    if (v.ac) parts.push('AC');
+    return parts.join(' · ');
+  }, [v.seater, v.fuel, v.ac]);
+
+  // Amenity checklist shown once expanded. Kept as strings (rather
+  // than a discriminated union of icon+label) because the checklist
+  // is uniformly "green-check + text" — a heavier abstraction would
+  // just add ceremony without buying anything.
+  const features = useMemo(() => {
+    const items: string[] = [`${v.seater} Seater`, `${v.fuel} Fuel`];
+    if (v.ac) items.push('Air Conditioning');
+    if (v.hasLuggageSpace) items.push('Luggage Space');
+    return items;
+  }, [v.seater, v.fuel, v.ac, v.hasLuggageSpace]);
+
   return (
     <View style={styles.card}>
       <SectionHeader
@@ -672,31 +738,73 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
         title="Vehicle Details"
       />
 
-      <View style={styles.vehicleRow}>
-        <Image
-          source={v.image}
-          style={styles.vehicleImage}
-          resizeMode="cover"
-        />
-        <View style={styles.vehicleBody}>
-          <Text style={styles.vehicleName}>{v.name}</Text>
-          <View style={styles.specGrid}>
-            <SpecItem label={`${v.seater} Seater`} />
-            <SpecItem label={v.fuel} />
-            {v.ac ? <SpecItem label="AC" /> : null}
-            {v.hasLuggageSpace ? <SpecItem label="Luggage Space" /> : null}
+      <View
+        style={[
+          styles.vehicleAccordion,
+          expanded && styles.vehicleAccordionOpen,
+        ]}
+      >
+        <Pressable
+          onPress={onToggle}
+          style={({ pressed }) => [
+            styles.vehicleAccordionHeader,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          accessibilityLabel={`${v.name}, ${
+            expanded ? 'collapse' : 'expand'
+          } details`}
+        >
+          <Image
+            source={v.image}
+            style={styles.vehicleThumb}
+            resizeMode="cover"
+          />
+          <View style={styles.vehicleAccordionHeaderText}>
+            <Text style={styles.vehicleAccordionName} numberOfLines={1}>
+              {v.name}
+            </Text>
+            <Text style={styles.vehicleAccordionSummary} numberOfLines={1}>
+              {summary}
+            </Text>
           </View>
-        </View>
+          {expanded ? (
+            <ChevronUp size={20} color={Colors.textSecondary} strokeWidth={2} />
+          ) : (
+            <ChevronDown
+              size={20}
+              color={Colors.textSecondary}
+              strokeWidth={2}
+            />
+          )}
+        </Pressable>
+
+        {expanded ? (
+          <View style={styles.vehicleAccordionBody}>
+            <Image
+              source={v.image}
+              style={styles.vehicleHero}
+              resizeMode="cover"
+            />
+            <View style={styles.vehicleFeatureList}>
+              {features.map(feature => (
+                <View key={feature} style={styles.vehicleFeatureRow}>
+                  <CheckCircle2
+                    size={16}
+                    color={Colors.primary}
+                    strokeWidth={2.5}
+                  />
+                  <Text style={styles.vehicleFeatureText}>{feature}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
       </View>
     </View>
   );
 };
-
-const SpecItem: React.FC<{ label: string }> = ({ label }) => (
-  <View style={styles.specItem}>
-    <Text style={styles.specLabel}>{label}</Text>
-  </View>
-);
 
 /* ================================================================
  * ChooseVehicleSection  — "Choose Your Vehicle" accordion, shown
@@ -718,9 +826,16 @@ const SpecItem: React.FC<{ label: string }> = ({ label }) => (
  *                         via the "Select" button.
  * ================================================================ */
 
-const ChooseVehicleSection: React.FC = () => {
+const ChooseVehicleSection: React.FC<{
+  selectedKey: VehicleTierKey | null;
+  onSelect: (key: VehicleTierKey) => void;
+}> = ({ selectedKey, onSelect }) => {
+  // `expandedKey` remains local — only the section cares which card
+  // is open. `selectedKey` is lifted to the screen so the sticky
+  // BottomBar can disable the "Accept & Continue" CTA until the
+  // customer commits to a vehicle. See `acceptDisabled` in
+  // QuotationDetailScreen.
   const [expandedKey, setExpandedKey] = useState<VehicleTierKey | null>(null);
-  const [selectedKey, setSelectedKey] = useState<VehicleTierKey | null>(null);
 
   const onToggle = useCallback((key: VehicleTierKey) => {
     setExpandedKey(prev => (prev === key ? null : key));
@@ -745,7 +860,7 @@ const ChooseVehicleSection: React.FC = () => {
             expanded={expandedKey === option.key}
             selected={selectedKey === option.key}
             onToggle={() => onToggle(option.key)}
-            onSelect={() => setSelectedKey(option.key)}
+            onSelect={() => onSelect(option.key)}
           />
         ))}
       </View>
@@ -770,7 +885,12 @@ const VehicleTierCard: React.FC<{
 
       {/* Header — the only always-visible part; tapping it toggles
           the feature checklist below (FAQ-style, one open at a
-          time — see ChooseVehicleSection). */}
+          time — see ChooseVehicleSection).
+
+          The bus chip on the left mirrors VehicleCard's collapsed
+          header, so the pending Choose-Your-Vehicle list and the
+          accepted/expired locked-in card read as one design system
+          rather than two unrelated components. */}
       <Pressable
         onPress={onToggle}
         style={({ pressed }) => [styles.tierHeader, pressed && styles.pressed]}
@@ -780,16 +900,27 @@ const VehicleTierCard: React.FC<{
           expanded ? 'collapse' : 'expand'
         } features`}
       >
+        {option.image ? (
+          <Image
+            source={option.image}
+            style={styles.tierThumb}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.tierIconChip}>
+            <Bus size={18} color={Colors.primary} strokeWidth={2} />
+          </View>
+        )}
         <View style={styles.tierHeaderText}>
           <Text style={styles.tierName}>{option.name}</Text>
-          <Text style={styles.tierMeta}>
-            {option.seater} Seat &nbsp;|&nbsp; {option.type}
+          <Text style={styles.tierMeta} numberOfLines={1}>
+            {option.seater} Seat · {option.type}
           </Text>
         </View>
         {expanded ? (
-          <ChevronUp size={18} color={Colors.textSecondary} strokeWidth={2} />
+          <ChevronUp size={20} color={Colors.textSecondary} strokeWidth={2} />
         ) : (
-          <ChevronDown size={18} color={Colors.textSecondary} strokeWidth={2} />
+          <ChevronDown size={20} color={Colors.textSecondary} strokeWidth={2} />
         )}
       </Pressable>
 
@@ -798,8 +929,8 @@ const VehicleTierCard: React.FC<{
           {option.features.map(feature => (
             <View key={feature} style={styles.tierFeatureRow}>
               <CheckCircle2
-                size={14}
-                color={Colors.success}
+                size={16}
+                color={Colors.primary}
                 strokeWidth={2.5}
               />
               <Text style={styles.tierFeatureText}>{feature}</Text>
@@ -973,17 +1104,33 @@ const TripTypeBadge: React.FC<{ tripType: TripType }> = ({ tripType }) => {
 
 const BottomBar: React.FC<{
   status: QuotationStatus;
+  /**
+   * When true, the primary "Accept & Continue" CTA renders in its
+   * disabled treatment and won't fire. Only meaningful for
+   * `status === 'pending'` — that's the only state where the CTA
+   * depends on the customer having picked a vehicle from the tier
+   * list. `accepted` ignores this (the CTA is "Continue to Booking"
+   * and never gated); `expired` doesn't render the primary CTA at
+   * all.
+   */
+  acceptDisabled: boolean;
   onNeedChanges: () => void;
   onConfirmAccept: () => void;
   onContinueToBooking: () => void;
   onRequestNew: () => void;
 }> = ({
   status,
+  acceptDisabled,
   onNeedChanges,
   onConfirmAccept,
   onContinueToBooking,
   onRequestNew,
 }) => {
+  // Only the pending flow can hit the disabled treatment (see prop
+  // doc above). `accepted` uses `onContinueToBooking`, which has no
+  // preconditions.
+  const isDisabled = status === 'pending' && acceptDisabled;
+
   return (
     <View style={styles.bottomBar}>
       <View style={styles.bottomActions}>
@@ -1040,31 +1187,54 @@ const BottomBar: React.FC<{
               onPress={
                 status === 'accepted' ? onContinueToBooking : onConfirmAccept
               }
+              disabled={isDisabled}
               style={({ pressed }) => [
                 styles.primaryBtn,
-                pressed && styles.pressed,
+                isDisabled && styles.primaryBtnDisabled,
+                pressed && !isDisabled && styles.pressed,
               ]}
               accessibilityRole="button"
+              accessibilityState={{ disabled: isDisabled }}
               accessibilityLabel={
                 status === 'accepted'
                   ? 'Continue to booking'
+                  : isDisabled
+                  ? 'Select a vehicle to continue'
                   : 'Confirm and accept this quotation'
+              }
+              accessibilityHint={
+                isDisabled
+                  ? 'Choose a vehicle from the list above to enable this button'
+                  : undefined
               }
             >
               <CheckCircle2
                 size={22}
-                color={Colors.textOnPrimary}
+                color={isDisabled ? Colors.textInverse : Colors.textOnPrimary}
                 strokeWidth={2.25}
               />
               <View style={styles.primaryBtnBody}>
-                <Text style={styles.primaryBtnText}>
+                <Text
+                  style={[
+                    styles.primaryBtnText,
+                    isDisabled && styles.primaryBtnTextDisabled,
+                  ]}
+                >
                   {status === 'accepted'
                     ? 'Continue to Booking'
                     : 'Accept & Continue'}
                 </Text>
-                <Text style={styles.primaryBtnSubtitle} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.primaryBtnSubtitle,
+                    isDisabled && styles.primaryBtnSubtitleDisabled,
+                  ]}
+                  numberOfLines={1}
+                >
                   {status === 'accepted'
                     ? 'Proceed to book This Trip'
+                    : isDisabled
+                    ? 'Select a vehicle to continue'
                     : 'Proceed with this quotation'}
                 </Text>
               </View>
@@ -1421,43 +1591,99 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* Vehicle */
-  vehicleRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    alignItems: 'center',
-  },
-  vehicleImage: {
-    width: 130,
-    height: 90,
+  /* ================================================================
+   * Vehicle Details — unified design language across all 3 states
+   * ================================================================
+   * The same visual DNA drives BOTH:
+   *   - the single locked-in vehicle card shown when the quotation
+   *     is `accepted` / `expired` (VehicleCard), and
+   *   - each of the 4 tier options shown when it's `pending`
+   *     (VehicleTierCard).
+   *
+   * Common:
+   *   - Card container: 1px borderLight, Radius.md, surface bg,
+   *     subtle Shadows.xs elevation so cards lift slightly off the
+   *     section background.
+   *   - Header: image / icon chip on left, name + one-line summary
+   *     in the middle, chevron on the right, generous vertical
+   *     padding so the tap target is comfortable.
+   *   - Body: feature checklist using CheckCircle2 in brand primary
+   *     with `Colors.primaryTint` accents where the design calls
+   *     for a background wash.
+   * ================================================================ */
+
+  /* ── Vehicle Details (single locked-in vehicle — accepted / expired) */
+  vehicleAccordion: {
     borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surface,
+    overflow: 'hidden',
+    ...Shadows.xs,
+  },
+  vehicleAccordionOpen: {
+    // Subtle brand accent while expanded — reinforces that the row
+    // is active without competing with the status pill in the top
+    // navbar for attention.
+    borderColor: Colors.primaryLight,
+  },
+  vehicleAccordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  vehicleThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.sm,
     backgroundColor: Colors.surfaceMuted,
   },
-  vehicleBody: {
+  vehicleAccordionHeaderText: {
     flex: 1,
-    gap: Spacing.sm,
+    gap: 2,
   },
-  vehicleName: {
+  vehicleAccordionName: {
     ...Typography.subtitle,
     fontWeight: '800',
     color: Colors.textPrimary,
   },
-  specGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-  },
-  specItem: {
-    minWidth: '46%',
-    paddingVertical: 2,
-  },
-  specLabel: {
+  vehicleAccordionSummary: {
     ...Typography.caption,
-    fontWeight: '600',
     color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  vehicleAccordionBody: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+    paddingTop: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    gap: Spacing.md,
+  },
+  vehicleHero: {
+    width: '100%',
+    height: 150,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
+    marginTop: Spacing.md,
+  },
+  vehicleFeatureList: {
+    gap: 8,
+  },
+  vehicleFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  vehicleFeatureText: {
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    fontWeight: '500',
   },
 
-  /* Choose Your Vehicle — accordion (pending quotations only) */
+  /* ── Choose Your Vehicle — accordion (pending quotations only) */
   chooseVehicleSubtitle: {
     ...Typography.caption,
     color: Colors.textSecondary,
@@ -1471,13 +1697,17 @@ const styles = StyleSheet.create({
   tierCard: {
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
     backgroundColor: Colors.surface,
     overflow: 'hidden',
+    ...Shadows.xs,
   },
   tierCardSelected: {
     borderColor: Colors.primary,
     borderWidth: 1.5,
+    // Faint brand wash so the picked tier is unmistakable at a
+    // glance without needing to read the button label.
+    backgroundColor: Colors.primaryTint,
   },
   tierPopularBadge: {
     alignSelf: 'flex-start',
@@ -1496,17 +1726,33 @@ const styles = StyleSheet.create({
   tierHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+  },
+  tierIconChip: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Same slot dimensions as `vehicleThumb` above so the pending
+  // tier cards and the locked-in VehicleCard read as one design.
+  // Falls back to `tierIconChip` when a tier ships without an image.
+  tierThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surfaceMuted,
   },
   tierHeaderText: {
     flex: 1,
     gap: 2,
   },
   tierName: {
-    ...Typography.bodySmall,
+    ...Typography.subtitle,
     fontWeight: '800',
     color: Colors.primaryDark,
   },
@@ -1518,15 +1764,18 @@ const styles = StyleSheet.create({
   tierFeatures: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.sm,
-    gap: 6,
+    paddingTop: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    gap: 8,
   },
   tierFeatureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   tierFeatureText: {
-    ...Typography.caption,
+    ...Typography.bodySmall,
     color: Colors.textPrimary,
     fontWeight: '500',
   },
@@ -1734,6 +1983,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.md,
     backgroundColor: Colors.primary,
+  },
+  // Disabled treatment: uses the brand disabled-button token so the
+  // CTA is clearly inactive (not just a duller green). White text +
+  // icon retained for contrast on the mid-grey fill. The pressed
+  // opacity dim is intentionally not applied while disabled — press
+  // feedback on a non-actionable control is misleading.
+  primaryBtnDisabled: {
+    backgroundColor: Colors.buttonDisabled,
+  },
+  primaryBtnTextDisabled: {
+    color: Colors.textInverse,
+    opacity: 0.85,
+  },
+  primaryBtnSubtitleDisabled: {
+    color: Colors.textInverse,
+    opacity: 0.75,
   },
   fullWidth: {
     flex: 1,
