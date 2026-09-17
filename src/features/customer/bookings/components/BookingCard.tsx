@@ -12,7 +12,7 @@
  *   │ └────────┘ 17 Seater | AC              Total Amount   │
  *   │ ─────────────────────────────────────────────────── │
  *   │  (upcoming only) BookingProgressTracker              │
- *   │ [ View Details ]   [ Modify Booking ]                │
+ *   │ [           View Details           ]                 │
  *   └───────────────────────────────────────────────────────┘
  *
  * Status drives:
@@ -275,18 +275,11 @@ function renderActions(a: {
   switch (a.status) {
     case 'upcoming':
       return (
-        <>
-          <ActionButton
-            label="View Details"
-            variant="outline"
-            onPress={a.onViewDetails}
-          />
-          <ActionButton
-            label="Modify Booking"
-            variant="primary"
-            onPress={a.onModifyBooking}
-          />
-        </>
+        <ActionButton
+          label="View Details"
+          variant="outline"
+          onPress={a.onViewDetails}
+        />
       );
     case 'ongoing':
       return (
