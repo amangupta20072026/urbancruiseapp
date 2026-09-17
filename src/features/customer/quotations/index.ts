@@ -5,6 +5,7 @@ export { default as QuotationDetailScreen } from './screens/QuotationDetailScree
 
 export { QuotationCard } from './components/QuotationCard';
 export { NeedChangesSheet } from './components/NeedChangesSheet';
+export { NeedHelpSheet } from './components/NeedHelpSheet';
 export { STANDARD_EXECUTIVE } from './mocks';
 export {
   ContinueToBookingSheet,

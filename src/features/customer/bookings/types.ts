@@ -205,6 +205,24 @@ export type BookingFareBreakdown = {
   remainingNote: string | null;
 };
 
+/**
+ * Live tracking snapshot rendered on the ongoing-booking detail
+ * screen's Live Location card. All three fields are display-ready
+ * strings (formatted server-side / by the real telemetry pipeline
+ * eventually) so the card can render without extra formatting.
+ * Null on the detail when the booking is not currently 'ongoing'
+ * or when no live feed is available yet.
+ */
+export type BookingLiveTracking = {
+  /** Absolute ETA at the drop location, e.g. "12:45 PM". */
+  etaLabel: string;
+  /** Remaining travel time relative to now, e.g. "2h 15m remaining". */
+  remainingLabel: string;
+  /** One-line route summary shown as a chip over the map,
+   *  e.g. "En route to Agra". */
+  routeSummary: string;
+};
+
 export type CustomerBookingDetail = CustomerBookingListItem & {
   /** Populated only for cancelled bookings; null otherwise. */
   cancellation: BookingCancellation | null;
@@ -235,4 +253,8 @@ export type CustomerBookingDetail = CustomerBookingListItem & {
    *  Null when the booking is pre-payment (e.g. cancelled before
    *  charge). */
   payment: BookingPaymentSummary | null;
+  /** Live tracking snapshot for the ongoing-booking Live Location
+   *  card. Null unless the booking is currently rolling and a feed
+   *  is available. */
+  liveTracking: BookingLiveTracking | null;
 };

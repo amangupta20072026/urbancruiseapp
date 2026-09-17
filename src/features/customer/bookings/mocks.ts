@@ -120,6 +120,7 @@ type DetailOverride = {
   pickupLocation: string | null;
   dropLocation: string | null;
   fareBreakdown: CustomerBookingDetail['fareBreakdown'];
+  liveTracking: CustomerBookingDetail['liveTracking'];
 };
 
 const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
@@ -145,6 +146,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       remainingAmount: 13_875,
       remainingNote: 'Pay Later',
     },
+    liveTracking: null,
   },
   bk_00122: {
     vehiclePlate: 'DL 3C AB 7788',
@@ -163,6 +165,11 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     pickupLocation: 'Sector 29, Gurugram',
     dropLocation: 'Taj East Gate, Agra',
     fareBreakdown: null,
+    liveTracking: {
+      etaLabel: '12:45 PM',
+      remainingLabel: '2h 15m remaining',
+      routeSummary: 'En route to Agra',
+    },
   },
   bk_00110: {
     vehiclePlate: 'MH 12 AB 4321',
@@ -186,6 +193,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     pickupLocation: 'Bandra Kurla Complex, Mumbai',
     dropLocation: 'Shivajinagar, Pune',
     fareBreakdown: null,
+    liveTracking: null,
   },
   bk_00098: {
     vehiclePlate: null,
@@ -204,6 +212,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     pickupLocation: 'Sector 62, Noida',
     dropLocation: 'Laxman Jhula, Rishikesh',
     fareBreakdown: null,
+    liveTracking: null,
   },
 };
 
@@ -230,6 +239,7 @@ export function getCustomerBookingDetail(
     pickupLocation: null,
     dropLocation: null,
     fareBreakdown: null,
+    liveTracking: null,
   };
   return { ...base, ...extra };
 }

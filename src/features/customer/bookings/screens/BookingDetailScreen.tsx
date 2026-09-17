@@ -37,7 +37,7 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
   Image,
   Pressable,
@@ -49,14 +49,17 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   Bus,
   Calendar,
   CalendarClock,
   CalendarX,
+  Car,
   CarFront,
   Check,
   CheckCircle2,
+  CircleDot,
   Clock,
   FileText,
   Headphones,
@@ -64,6 +67,7 @@ import {
   Info,
   MapPin,
   MessageSquare,
+  Navigation,
   Phone,
   RotateCw,
   Star,
@@ -76,6 +80,10 @@ import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { makePhoneCall, openWhatsApp } from '@services/contact';
 import type { CustomerStackParamList } from '@navigation/types';
+import {
+  NeedHelpSheet,
+  STANDARD_EXECUTIVE,
+} from '@features/customer/quotations';
 
 import type {
   BookingPaymentStatus,
@@ -138,7 +146,7 @@ const STATUS_VISUAL: Record<BookingStatus, StatusVisual> = {
     label: 'Ongoing',
     fg: Colors.info,
     bg: Colors.infoTint,
-    Icon: null,
+    Icon: CircleDot,
     subtitle: 'Your trip is in progress',
   },
   completed: {
@@ -279,9 +287,13 @@ const BookingDetailScreen: React.FC = () => {
     navigation.navigate('GstInvoice', { bookingId: detail.id });
   }, [navigation, detail]);
 
-  const handleContactSupport = useCallback(() => {
-    navigation.navigate('Support');
-  }, [navigation]);
+  const handleTrackVehicle = useCallback(() => {
+    // Live tracking screen is a ghost destination today — same TODO
+    // as onTrackVehicle in BookingsScreen.tsx. The button stays
+    // visible so the flow is discoverable; wire this to
+    // navigation.navigate('TripLive', { tripId: tripIdFrom(detail.id, '01') })
+    // once the TripLive route lands.
+  }, []);
 
   /* -------- Not-found guard -------- */
   if (!detail) {
@@ -318,7 +330,6 @@ const BookingDetailScreen: React.FC = () => {
         detail={detail}
         onBack={handleBack}
         onBookAgain={handleBookAgain}
-        onContactSupport={handleContactSupport}
       />
     );
   }
@@ -329,6 +340,16 @@ const BookingDetailScreen: React.FC = () => {
         detail={detail}
         onBack={handleBack}
         onBookAgain={handleBookAgain}
+      />
+    );
+  }
+
+  if (detail.status === 'ongoing') {
+    return (
+      <OngoingDetail
+        detail={detail}
+        onBack={handleBack}
+        onTrackVehicle={handleTrackVehicle}
       />
     );
   }
@@ -716,17 +737,24 @@ type CancelledProps = {
   detail: CustomerBookingDetail;
   onBack: () => void;
   onBookAgain: () => void;
-  onContactSupport: () => void;
 };
 
 const CancelledDetail: React.FC<CancelledProps> = ({
   detail,
   onBack,
   onBookAgain,
-  onContactSupport,
 }) => {
   const status = STATUS_VISUAL.cancelled;
   const cancellation = detail.cancellation;
+
+  /* Bottom-sheet ref for the "Need Help?" contact sheet. Same
+     pattern as OngoingDetail — mounted once inside SafeScreen,
+     presented imperatively when the user taps Contact Support. */
+  const needHelpRef = useRef<BottomSheetModal>(null);
+
+  const openNeedHelp = useCallback(() => {
+    needHelpRef.current?.present();
+  }, []);
 
   return (
     <SafeScreen edges={['top', 'bottom']} backgroundColor={Colors.background}>
@@ -888,7 +916,7 @@ const CancelledDetail: React.FC<CancelledProps> = ({
             </Text>
           </View>
           <Pressable
-            onPress={onContactSupport}
+            onPress={openNeedHelp}
             style={({ pressed }) => [
               styles.contactSupportBtn,
               pressed && styles.pressed,
@@ -916,6 +944,17 @@ const CancelledDetail: React.FC<CancelledProps> = ({
           <Text style={styles.primaryCtaText}>Book Again</Text>
         </Pressable>
       </View>
+
+      {/* Need Help bottom sheet — mounted once, presented imperatively
+          via `needHelpRef` from the Need Help card's Contact Support
+          button. Portaled to the app-root BottomSheetModalProvider
+          (App.tsx), so it sits above the sticky bar without extra
+          z-index plumbing. */}
+      <NeedHelpSheet
+        ref={needHelpRef}
+        executive={STANDARD_EXECUTIVE}
+        contextRef={detail.bookingNumber}
+      />
     </SafeScreen>
   );
 };
@@ -1340,6 +1379,424 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({
           </Pressable>
         </View>
       </View>
+    </SafeScreen>
+  );
+};
+
+/* ================================================================
+ * OngoingDetail — mid-trip design
+ * ================================================================
+ * Rendered while the booking is `status === 'ongoing'` — the driver
+ * has picked up the party and the vehicle is en route. Layout rhythm
+ * mirrors UpcomingDetail so returning users don't have to relearn
+ * where to look, but the surface is retuned for a trip in motion:
+ *
+ *   Blue "in progress" banner (replaces the confirmation banner)
+ *   Booking info card                        [reused from upcoming]
+ *   Tracker card                             [reused, `started` step]
+ *   Trip Information (pickup/drop)           [reused, guarded]
+ *   Live Location card                       [ongoing-only]
+ *     — Header with green "Live" pill
+ *     — Map placeholder (real map SDK not wired yet — see notes)
+ *     — Overlay ETA badge + "En route to X" chip
+ *   Vehicle + Driver side-by-side            [reused from upcoming]
+ *   Need Help support card (green variant)   [ongoing-only]
+ *   Sticky "Track Vehicle" primary CTA       [ongoing-only]
+ *
+ * The Fare Details block from UpcomingDetail is intentionally
+ * dropped: the balance question is either already settled by the
+ * time the trip is rolling, or it's a post-trip conversation. Mid-
+ * trip the surface should be about "where's my car, who's driving,
+ * and how do I reach them" — not accounting.
+ *
+ * Live map is rendered as a stylised placeholder View for now. The
+ * real integration hangs off `detail.liveTracking` (etaLabel /
+ * remainingLabel / routeSummary) so swapping in a real map view
+ * later is a purely additive change — the surrounding chrome and
+ * the ETA / route chip already read from that field.
+ * ================================================================ */
+
+type OngoingProps = {
+  detail: CustomerBookingDetail;
+  onBack: () => void;
+  onTrackVehicle: () => void;
+};
+
+const OngoingDetail: React.FC<OngoingProps> = ({
+  detail,
+  onBack,
+  onTrackVehicle,
+}) => {
+  const status = STATUS_VISUAL.ongoing;
+  const live = detail.liveTracking;
+
+  /* Bottom-sheet ref for the "Need Help?" contact sheet. Mounted
+     once inside SafeScreen, presented imperatively when the user
+     taps Contact Support on the Need Help card. */
+  const needHelpRef = useRef<BottomSheetModal>(null);
+
+  const openNeedHelp = useCallback(() => {
+    needHelpRef.current?.present();
+  }, []);
+
+  return (
+    <SafeScreen edges={['top', 'bottom']} backgroundColor={Colors.background}>
+      <View style={styles.headerWrap}>
+        <ScreenHeader
+          title="Booking Details"
+          subtitle={status.subtitle}
+          onBack={onBack}
+          rightSlot={
+            <View style={[styles.headerPill, { backgroundColor: status.bg }]}>
+              {status.Icon ? (
+                <status.Icon size={14} color={status.fg} strokeWidth={2.5} />
+              ) : null}
+              <Text style={[styles.headerPillText, { color: status.fg }]}>
+                {status.label}
+              </Text>
+            </View>
+          }
+        />
+      </View>
+
+      <ScrollView
+        style={styles.scrollBg}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── In-progress banner ── */}
+        <View style={styles.progressBanner}>
+          <View style={styles.progressBadge}>
+            <View style={styles.progressBadgeIcon}>
+              <Car size={26} color={Colors.textOnPrimary} strokeWidth={2.25} />
+            </View>
+          </View>
+          <View style={styles.completedTextCol}>
+            <Text style={styles.progressTitle}>Your trip is in progress</Text>
+            <Text style={styles.completedBody}>
+              We hope you're having a safe and comfortable journey with Urban
+              Cruise.
+            </Text>
+          </View>
+        </View>
+
+        {/* ── Booking info card (reused shell) ── */}
+        <View style={styles.card}>
+          <View style={styles.idRow}>
+            <View style={styles.idTile}>
+              <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
+            </View>
+            <View style={styles.idBody}>
+              <Text style={styles.idLabel}>Booking ID</Text>
+              <Text style={styles.idValue}>{detail.bookingNumber}</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.routeRow}>
+            <Text style={styles.routeText} numberOfLines={1}>
+              {detail.from}
+            </Text>
+            <Text style={styles.routeArrow}>→</Text>
+            <Text style={styles.routeText} numberOfLines={1}>
+              {detail.to}
+            </Text>
+          </View>
+
+          <View style={styles.metaRowLarge}>
+            <MetaCell
+              Icon={Calendar}
+              primary={formatLongDate(detail.travelDate)}
+              secondary={`(${formatWeekday(detail.travelDate)})`}
+            />
+            <MetaCell
+              Icon={Clock}
+              primary={detail.pickupTime}
+              secondary="Departure"
+            />
+            <MetaCell
+              Icon={Users}
+              primary={`${detail.passengers} Passengers`}
+              secondary={
+                detail.passengerBreakdown
+                  ? `(${formatPassengerBreakdown(
+                      detail.passengerBreakdown.adults,
+                      detail.passengerBreakdown.children,
+                    )})`
+                  : undefined
+              }
+            />
+          </View>
+        </View>
+
+        {/* ── Tracker card ── */}
+        <View style={styles.card}>
+          <BookingProgressTracker
+            currentStep={detail.progressStep}
+            subLabels={detail.timeline}
+          />
+        </View>
+
+        {/* ── Live Location card ── */}
+        {live ? (
+          <View style={styles.card}>
+            <View style={styles.liveHeadRow}>
+              <View style={styles.liveHeadLeft}>
+                <View style={styles.sectionIconTile}>
+                  <MapPin size={18} color={Colors.primary} strokeWidth={2.25} />
+                </View>
+                <View style={styles.liveHeadTextCol}>
+                  <Text style={styles.sectionHeadingText}>Live Location</Text>
+                  <Text style={styles.liveHeadSubtitle}>
+                    Track your vehicle in real-time
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.livePill}>
+                <View style={styles.livePillDot} />
+                <Text style={styles.livePillText}>Live</Text>
+              </View>
+            </View>
+
+            {/*
+              Placeholder map surface. Rendered as a styled View so
+              the design stays intact without an actual maps SDK
+              integration; the ETA card + route chip overlay real
+              telemetry values via `detail.liveTracking` when the
+              map component lands.
+            */}
+            <View style={styles.liveMapPlaceholder}>
+              <View style={styles.liveMapCenterIcon}>
+                <Navigation size={40} color={Colors.primary} strokeWidth={2} />
+              </View>
+              <View style={styles.liveRouteChip}>
+                <Text style={styles.liveRouteChipText}>
+                  {live.routeSummary}
+                </Text>
+              </View>
+              <View style={styles.liveEtaCard}>
+                <View style={styles.liveEtaHeadRow}>
+                  <Clock
+                    size={14}
+                    color={Colors.textSecondary}
+                    strokeWidth={2.25}
+                  />
+                  <Text style={styles.liveEtaLabel}>Estimated Arrival</Text>
+                </View>
+                <Text style={styles.liveEtaTime}>{live.etaLabel}</Text>
+                <Text style={styles.liveEtaRemaining}>
+                  ({live.remainingLabel})
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {/* ── Trip Information card ── */}
+        {detail.pickupLocation || detail.dropLocation ? (
+          <View style={styles.card}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionIconTile}>
+                <MapPin size={18} color={Colors.primary} strokeWidth={2.25} />
+              </View>
+              <Text style={styles.sectionHeadingText}>Trip Information</Text>
+            </View>
+
+            <View style={styles.tripInfoRow}>
+              <View style={styles.tripInfoRail}>
+                <View style={styles.tripInfoDotPickup} />
+                <View style={styles.tripInfoRailLine} />
+                <View style={styles.tripInfoDotDrop} />
+              </View>
+              <View style={styles.tripInfoTextCol}>
+                <View style={styles.tripInfoStop}>
+                  <Text style={styles.tripInfoLabel}>Pickup Location</Text>
+                  <Text style={styles.tripInfoValue}>
+                    {detail.pickupLocation ?? '—'}
+                  </Text>
+                </View>
+                <View style={styles.tripInfoStop}>
+                  <Text style={styles.tripInfoLabel}>Drop Location</Text>
+                  <Text style={styles.tripInfoValue}>
+                    {detail.dropLocation ?? '—'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {/* ── Vehicle + Driver — side-by-side cards (reused shell) ── */}
+        <View style={styles.sideBySideRow}>
+          <View style={[styles.card, styles.sideBySideCard]}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionIconTile}>
+                <CarFront size={16} color={Colors.primary} strokeWidth={2.25} />
+              </View>
+              <Text style={styles.sideBySideHeading}>Vehicle Details</Text>
+            </View>
+            <View style={styles.vehiclePhotoTileWide}>
+              <Bus size={32} color={Colors.primary} strokeWidth={1.75} />
+            </View>
+            <Text style={styles.vehicleName}>
+              {detail.vehicleModel ?? detail.vehicleType}
+            </Text>
+            <View style={styles.vehicleAttrList}>
+              {[
+                detail.seater ? `${detail.seater} Seater` : detail.vehicleType,
+                detail.hasAC ? 'AC' : null,
+                detail.vehicleFuel,
+              ]
+                .filter(Boolean)
+                .map(attr => (
+                  <Text key={attr} style={styles.vehicleAttrItem}>
+                    {attr}
+                  </Text>
+                ))}
+            </View>
+            {detail.vehiclePlate ? (
+              <View style={styles.vehiclePlateChip}>
+                <Text style={styles.vehiclePlateChipText}>
+                  {detail.vehiclePlate}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={[styles.card, styles.sideBySideCard]}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionIconTile}>
+                <Users size={16} color={Colors.primary} strokeWidth={2.25} />
+              </View>
+              <Text style={styles.sideBySideHeading}>Driver Details</Text>
+            </View>
+            {detail.driver ? (
+              <>
+                <View style={styles.driverRowCompact}>
+                  {detail.driver.avatarUrl ? (
+                    <Image
+                      source={{ uri: detail.driver.avatarUrl }}
+                      style={styles.driverAvatarSmall}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.driverAvatarSmall,
+                        styles.driverAvatarFallback,
+                      ]}
+                    >
+                      <Text style={styles.driverInitials}>
+                        {initialsOf(detail.driver.name)}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.driverBody}>
+                    <Text style={styles.driverNameSmall} numberOfLines={1}>
+                      {detail.driver.name}
+                    </Text>
+                    {detail.driver.rating !== null ? (
+                      <View style={styles.ratingRow}>
+                        <Star
+                          size={12}
+                          color={Colors.warning}
+                          fill={Colors.warning}
+                          strokeWidth={2}
+                        />
+                        <Text style={styles.ratingTextSmall}>
+                          {detail.driver.rating.toFixed(1)}
+                          {detail.driver.tripsCompleted !== null ? (
+                            <Text style={styles.ratingMuted}>
+                              {' '}
+                              ({detail.driver.tripsCompleted} trips)
+                            </Text>
+                          ) : null}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+                <Pressable
+                  onPress={() => callDriver(detail.driver?.phoneE164)}
+                  disabled={!detail.driver.phoneE164}
+                  style={({ pressed }) => [
+                    styles.callDriverBtn,
+                    pressed && styles.pressed,
+                    !detail.driver?.phoneE164 && styles.disabled,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Call driver"
+                >
+                  <Phone size={14} color={Colors.primary} strokeWidth={2.5} />
+                  <Text style={styles.callDriverBtnText}>Call Driver</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Text style={styles.driverPendingText}>
+                Driver assignment pending.
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {/* ── Need Help support card (green variant) ── */}
+        <View style={styles.helpCardGreen}>
+          <View style={styles.helpIconTileGreen}>
+            <Headphones size={20} color={Colors.primary} strokeWidth={2.25} />
+          </View>
+          <View style={styles.helpTextCol}>
+            <Text style={styles.helpTitle}>Need Help?</Text>
+            <Text style={styles.helpBody}>
+              Contact our support team for any assistance during your trip.
+            </Text>
+          </View>
+          <Pressable
+            onPress={openNeedHelp}
+            style={({ pressed }) => [
+              styles.contactSupportBtnGreen,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Contact support"
+          >
+            <MessageSquare size={14} color={Colors.primary} strokeWidth={2.5} />
+            <Text style={styles.contactSupportBtnGreenText}>
+              Contact Support
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+
+      {/* ── Sticky bottom CTA bar: Track Vehicle (primary, full-width) ── */}
+      <View style={styles.stickyBar}>
+        <Pressable
+          onPress={onTrackVehicle}
+          style={({ pressed }) => [
+            styles.primaryCta,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Track vehicle"
+        >
+          <Navigation
+            size={18}
+            color={Colors.textOnPrimary}
+            strokeWidth={2.5}
+          />
+          <Text style={styles.primaryCtaText}>Track Vehicle</Text>
+        </Pressable>
+      </View>
+
+      {/* Need Help bottom sheet — mounted once, presented imperatively
+          via `needHelpRef` from the Need Help card's Contact Support
+          button. Portaled to the app-root BottomSheetModalProvider
+          (App.tsx), so it sits above the sticky bar without extra
+          z-index plumbing. */}
+      <NeedHelpSheet
+        ref={needHelpRef}
+        executive={STANDARD_EXECUTIVE}
+        contextRef={detail.bookingNumber}
+      />
     </SafeScreen>
   );
 };
@@ -2481,6 +2938,222 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     opacity: 0.9,
+    includeFontPadding: false,
+  },
+
+  /* =============================================================
+   * Ongoing screen — dedicated styles
+   * =============================================================
+   * Only styles NOT reusable from the completed/upcoming/cancelled
+   * variants live here. Everything shared (card, tracker, side-by-
+   * side vehicle/driver, pickup/drop, sticky primary CTA) is
+   * reused directly. */
+
+  /* ── "Your trip is in progress" banner (blue tint) ── */
+  progressBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: BLUE_TINT,
+    borderWidth: 1,
+    borderColor: BLUE_TINT,
+  },
+  progressBadge: {
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressBadgeIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: Radius.circle,
+    backgroundColor: BLUE_FG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressTitle: {
+    ...Typography.subtitle,
+    color: BLUE_FG,
+    fontWeight: '800',
+    fontSize: 18,
+    lineHeight: 22,
+  },
+
+  /* ── Live Location card ── */
+  liveHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  liveHeadLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flex: 1,
+  },
+  liveHeadTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  liveHeadSubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    includeFontPadding: false,
+  },
+  livePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primaryTint,
+  },
+  livePillDot: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.primary,
+  },
+  livePillText: {
+    ...Typography.caption,
+    color: Colors.primary,
+    fontWeight: '800',
+    includeFontPadding: false,
+  },
+  liveMapPlaceholder: {
+    /* Real map SDK is not wired for this build — the surface is
+       rendered as a light muted rectangle so the surrounding chrome
+       (ETA card, route chip) sits in the right layout. Swap the
+       inner icon for a MapView later. */
+    height: 200,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primaryTint,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  liveMapCenterIcon: {
+    opacity: 0.55,
+  },
+  liveRouteChip: {
+    position: 'absolute',
+    top: Spacing.md,
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.surface,
+    ...Shadows.xs,
+  },
+  liveRouteChipText: {
+    ...Typography.caption,
+    color: Colors.textPrimary,
+    fontWeight: '700',
+    includeFontPadding: false,
+  },
+  liveEtaCard: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Shadows.xs,
+    gap: 2,
+    minWidth: 130,
+  },
+  liveEtaHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  liveEtaLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    fontSize: 10,
+    lineHeight: 12,
+    includeFontPadding: false,
+  },
+  liveEtaTime: {
+    ...Typography.subtitle,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+    fontSize: 18,
+    lineHeight: 22,
+    includeFontPadding: false,
+  },
+  liveEtaRemaining: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    fontSize: 10,
+    lineHeight: 12,
+    includeFontPadding: false,
+  },
+
+  /* ── Vehicle plate chip (bottom of the vehicle card) ── */
+  vehiclePlateChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.background,
+  },
+  vehiclePlateChipText: {
+    ...Typography.caption,
+    color: Colors.textPrimary,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    includeFontPadding: false,
+  },
+
+  /* ── Need Help support card — green variant ── */
+  helpCardGreen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.primaryTint,
+  },
+  helpIconTileGreen: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactSupportBtnGreen: {
+    height: 38,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  contactSupportBtnGreenText: {
+    ...Typography.caption,
+    color: Colors.primary,
+    fontWeight: '800',
     includeFontPadding: false,
   },
 });
