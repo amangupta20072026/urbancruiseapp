@@ -48,6 +48,7 @@ import { Search, SlidersHorizontal } from 'lucide-react-native';
 
 import { SafeScreen } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
+import { toast } from '@services/toast';
 import type { CustomerStackParamList } from '@navigation/types';
 
 import type { BookingFilter, CustomerBookingListItem } from '../types';
@@ -116,10 +117,14 @@ const BookingsScreen: React.FC = () => {
   );
 
   const onTrackVehicle = useCallback((_item: CustomerBookingListItem) => {
-    // TripId is derived from booking id in the tripIdFrom() helper
-    // when the real navigation lands. For now, the destination is
-    // a ghost — safe to leave as a no-op.
+    // Live tracking screen is a ghost destination today. Same
+    // "coming soon" toast the detail screen fires from its sticky
+    // Track Vehicle button — keeps the two entry points behaving
+    // identically until the real TripLive route lands.
     // TODO(nav): navigation.navigate('TripLive', { tripId: tripIdFrom(item.id, '01') });
+    toast.info('Live tracking coming soon', {
+      description: "We're rolling this out shortly.",
+    });
   }, []);
 
   const onBookAgain = useCallback(

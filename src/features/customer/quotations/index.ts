@@ -19,7 +19,7 @@ export type {
   QuotationFilter,
   QuotationStatus,
   QuotationStop,
-  QuotationTerm,
+  QuotationChargeBreakdown,
   QuotationVehicle,
   TravelExecutive,
 } from './types';

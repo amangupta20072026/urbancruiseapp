@@ -27,7 +27,7 @@ import type { QuotationId } from '@app-types/ids';
 import type {
   CustomerQuotationDetail,
   CustomerQuotationListItem,
-  QuotationTerm,
+  QuotationChargeBreakdown,
   TravelExecutive,
 } from './types';
 
@@ -140,38 +140,59 @@ export const MOCK_CUSTOMER_QUOTATIONS: readonly CustomerQuotationListItem[] = [
  * ================================================================ */
 
 /**
- * Shared T&C block used by every mock detail. Ops has one
- * standard set of terms today; keeping it as a shared constant
+ * Shared charges + T&C block used by every mock detail. Ops has
+ * one standard set of terms today; keeping it as a shared constant
  * (rather than duplicating per record) makes the intent obvious.
  * A future quotation with bespoke terms just inlines its own
- * `terms` array on the record.
+ * `chargesBreakdown` on the record. Copy mirrors the fleet-wide
+ * boilerplate ops sends today.
  */
-const STANDARD_TERMS: readonly QuotationTerm[] = [
-  {
-    variant: 'toll',
-    title: 'Toll Charges',
-    lines: ['Included in the cost'],
+const STANDARD_CHARGES: QuotationChargeBreakdown = {
+  included: [
+    'Vehicle Cost',
+    'Fuel Charges',
+    'Driver Charges',
+    'Toll Charges',
+    'State Tax / Permit',
+  ],
+  paidByCustomer: [
+    { label: 'Parking Charges', note: 'To be paid to driver as actuals' },
+    {
+      label: 'Police Entry Fee (If any)',
+      note: 'To be paid to driver as actuals',
+    },
+    { label: 'Extra KM Charges (Per Km)', note: 'See below' },
+    { label: 'Driver Night Charges', note: 'See below' },
+    { label: 'Hill Area AC Charges', note: 'To be paid to driver as actuals' },
+    {
+      label: 'Anything not mentioned in inclusions',
+      note: 'To be paid to driver as actuals',
+    },
+  ],
+  extraKm: {
+    afterKmLabel: 'After 1800 KM',
+    tiers: [
+      { label: 'Option 1 - 3', rateLabel: '₹20 / km' },
+      { label: 'Option 4', rateLabel: '₹26 / km' },
+      { label: 'Option 5', rateLabel: '₹40 / km' },
+    ],
   },
-  {
-    variant: 'parking',
-    title: 'Parking & Police Entry',
-    lines: ['Not Included', 'Pay to Driver'],
-  },
-  {
-    variant: 'extra_km',
-    title: 'Extra KM Charge',
-    lines: ['After 800 km', '₹28/km (1-3)  |  ₹35/km (4)'],
-  },
-  {
-    variant: 'night',
-    title: 'Driver Night Charge',
-    lines: ['Before 6 AM & after 11 PM', '₹500  |  After 1 AM ₹500/hr'],
-  },
-];
-
-const STANDARD_PRICE_INCLUDES =
-  'Prices include Vehicle Cost, Fuel, Driver & Tax intermittently on Hills.';
-const STANDARD_PRICE_EXTRA = 'AC will be switched OFF';
+  nightCharges: [
+    {
+      label: 'Before 6 AM (1st Day) & After 11 PM (Last Day)',
+      rateLabel: '₹500',
+    },
+    { label: 'After 1 AM', rateLabel: '₹500 / Hr' },
+    { label: 'After 3 AM', rateLabel: 'Next Day Full Charge' },
+  ],
+  termsAndConditions: [
+    'KM will be counted from pickup point to pickup point.',
+    'Visit to local places in the city is not included in the cost.',
+    'AC will be switched OFF intermittently on hills.',
+    'There are some places in hills where vehicle may not go due to restrictions by local Govt.',
+    'Prices are subject to availability and may change before final confirmation.',
+  ],
+};
 
 /**
  * Placeholder vehicle image. Swap for `@assets/images/vehicle-tempo-
@@ -228,9 +249,7 @@ export const MOCK_CUSTOMER_QUOTATION_DETAILS: Readonly<
       ac: true,
       hasLuggageSpace: true,
     },
-    priceIncludes: STANDARD_PRICE_INCLUDES,
-    priceExtra: STANDARD_PRICE_EXTRA,
-    terms: STANDARD_TERMS,
+    chargesBreakdown: STANDARD_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     advanceAmount: advanceOf(35200),
     acceptedAt: '2026-08-10T10:45:00Z',
@@ -250,9 +269,7 @@ export const MOCK_CUSTOMER_QUOTATION_DETAILS: Readonly<
       ac: true,
       hasLuggageSpace: true,
     },
-    priceIncludes: STANDARD_PRICE_INCLUDES,
-    priceExtra: STANDARD_PRICE_EXTRA,
-    terms: STANDARD_TERMS,
+    chargesBreakdown: STANDARD_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     advanceAmount: advanceOf(58400),
     acceptedAt: '2026-08-08T14:20:00Z',
@@ -273,9 +290,7 @@ export const MOCK_CUSTOMER_QUOTATION_DETAILS: Readonly<
       ac: true,
       hasLuggageSpace: true,
     },
-    priceIncludes: STANDARD_PRICE_INCLUDES,
-    priceExtra: STANDARD_PRICE_EXTRA,
-    terms: STANDARD_TERMS,
+    chargesBreakdown: STANDARD_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     advanceAmount: advanceOf(28750),
     /* Pending: not yet accepted, so `expiresAt` is set instead. */
@@ -296,9 +311,7 @@ export const MOCK_CUSTOMER_QUOTATION_DETAILS: Readonly<
       ac: true,
       hasLuggageSpace: true,
     },
-    priceIncludes: STANDARD_PRICE_INCLUDES,
-    priceExtra: STANDARD_PRICE_EXTRA,
-    terms: STANDARD_TERMS,
+    chargesBreakdown: STANDARD_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     advanceAmount: advanceOf(19600),
     /* Expired: window has closed. */
@@ -319,9 +332,7 @@ export const MOCK_CUSTOMER_QUOTATION_DETAILS: Readonly<
       ac: true,
       hasLuggageSpace: true,
     },
-    priceIncludes: STANDARD_PRICE_INCLUDES,
-    priceExtra: STANDARD_PRICE_EXTRA,
-    terms: STANDARD_TERMS,
+    chargesBreakdown: STANDARD_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     advanceAmount: advanceOf(24900),
     acceptedAt: '2026-07-28T17:15:00Z',
@@ -342,9 +353,7 @@ export const MOCK_CUSTOMER_QUOTATION_DETAILS: Readonly<
       ac: true,
       hasLuggageSpace: true,
     },
-    priceIncludes: STANDARD_PRICE_INCLUDES,
-    priceExtra: STANDARD_PRICE_EXTRA,
-    terms: STANDARD_TERMS,
+    chargesBreakdown: STANDARD_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     advanceAmount: advanceOf(46200),
     expiresAt: '2026-10-11T23:59:00Z',

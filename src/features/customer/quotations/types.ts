@@ -184,11 +184,55 @@ export type QuotationVehicle = {
  *   extra_km — per-km overage rate
  *   night    — driver-night-charge rules
  */
-export type QuotationTerm = {
-  variant: 'toll' | 'parking' | 'extra_km' | 'night';
-  title: string;
-  /** 1–2 short lines shown under the title. */
-  lines: readonly string[];
+/**
+ * ================================================================
+ * QuotationChargeBreakdown
+ * ================================================================
+ * Structured content for the "Important Charges + Terms" block on
+ * QuotationDetailScreen. Replaces the old `priceIncludes` /
+ * `priceExtra` / `terms` triplet (which was a mix of free text and
+ * a small variant-tagged tile grid) with a shape that mirrors the
+ * three cards ops actually asked for:
+ *
+ *   1. Important Charges — two lists that split the trip price:
+ *      what's already covered vs. what the customer settles
+ *      directly with the driver, each item with a short per-item
+ *      note (or a "See below" pointer to the callout sub-card).
+ *
+ *   2. Extra KM tiers + Driver Night Charges — two small tabular
+ *      callouts, rendered inside a warm amber band because they're
+ *      the two areas customers most often forget about.
+ *
+ *   3. Terms & Conditions — a plain checklist of bullets covering
+ *      everything else (KM measurement rules, hill-area caveats,
+ *      price-availability disclaimer, etc).
+ *
+ * Every string is display-ready — the screen only lays them out.
+ * That means ops can freely re-word without any component change,
+ * and TypeScript keeps the shape rigid so a stray missing field
+ * fails at build time rather than as an empty card at runtime.
+ */
+export type QuotationChargeBreakdown = {
+  /** Left-list items covered by the quoted price. Rendered with
+   *  a green check bullet. */
+  included: readonly string[];
+  /** Right-list items the customer pays the driver directly. The
+   *  `note` renders as a muted right-aligned line beside the label
+   *  ("To be paid to driver as actuals" / "See below" / …). */
+  paidByCustomer: readonly { label: string; note: string }[];
+  /** Small tabular callout: per-tier rate for kms beyond the
+   *  quoted allowance. `afterKmLabel` renders as the sub-header,
+   *  e.g. "After 1800 KM". */
+  extraKm: {
+    afterKmLabel: string;
+    tiers: readonly { label: string; rateLabel: string }[];
+  };
+  /** Small tabular callout: driver-night-charge rules. Each entry
+   *  is a time-window label + the amount the customer owes. */
+  nightCharges: readonly { label: string; rateLabel: string }[];
+  /** Bulleted terms & conditions. Rendered with green check
+   *  bullets. Ordered — first-to-last is display order. */
+  termsAndConditions: readonly string[];
 };
 
 /**
@@ -273,17 +317,12 @@ export type CustomerQuotationDetail = CustomerQuotationListItem & {
   vehicle: QuotationVehicle;
 
   /**
-   * Left half of the inclusions banner ("Prices include …").
-   * Free text so ops can tweak wording per quotation without a
-   * schema change.
+   * Structured content for the Important Charges + Terms &
+   * Conditions block on the detail screen. Replaces the previous
+   * `priceIncludes` / `priceExtra` / `terms` triplet. See
+   * `QuotationChargeBreakdown` above for the field-level meaning.
    */
-  priceIncludes: string;
-
-  /** Right half of the inclusions banner (e.g. "AC OFF on hills"). */
-  priceExtra: string;
-
-  /** Four-tile Terms & Conditions grid, in display order. */
-  terms: readonly QuotationTerm[];
+  chargesBreakdown: QuotationChargeBreakdown;
 
   /**
    * The travel executive on the customer's side. The "Request

@@ -51,6 +51,7 @@ type State = 'done' | 'current' | 'pending';
 function stateFor(
   step: BookingProgressStep,
   cursor: BookingProgressStep,
+  renderCurrentAs: 'current' | 'done',
 ): State {
   const cursorIndex = STEPS.findIndex(s => s.key === cursor);
   const stepIndex = STEPS.findIndex(s => s.key === step);
@@ -61,7 +62,14 @@ function stateFor(
   // left to be "in progress" toward.
   if (cursorIndex === lastIndex && stepIndex === lastIndex) return 'done';
   if (stepIndex < cursorIndex) return 'done';
-  if (stepIndex === cursorIndex) return 'current';
+  if (stepIndex === cursorIndex) {
+    // `renderCurrentAs='done'` flips the cursor step from the ring
+    // "in progress" dot to a filled check. Used by the ongoing
+    // booking screen where "Trip Starts" is really a past milestone
+    // by the time the user reads the card — the trip has already
+    // started, only Completed is genuinely still pending.
+    return renderCurrentAs === 'done' ? 'done' : 'current';
+  }
   return 'pending';
 }
 
@@ -82,17 +90,28 @@ type Props = {
    * caller passes an override. Absent keys fall back to STEPS.label.
    */
   labelOverrides?: Partial<Record<BookingProgressStep, string>>;
+  /**
+   * How to render the cursor step visually. Default 'current'
+   * shows the concentric-dot ring ("in progress"). 'done' shows a
+   * filled circle with a check — use this when the cursor step is
+   * really a past milestone from the reader's point of view (e.g.
+   * the ongoing-booking detail screen: the trip has already
+   * started, so "Trip Starts" is done, and only later steps are
+   * pending). Later steps are still rendered as pending regardless.
+   */
+  renderCurrentAs?: 'current' | 'done';
 };
 
 export const BookingProgressTracker: React.FC<Props> = ({
   currentStep,
   subLabels,
   labelOverrides,
+  renderCurrentAs = 'current',
 }) => {
   return (
     <View style={styles.row}>
       {STEPS.map((step, i) => {
-        const state = stateFor(step.key, currentStep);
+        const state = stateFor(step.key, currentStep, renderCurrentAs);
         const isLast = i === STEPS.length - 1;
         // Segment to the right of this dot; green when THIS step is
         // done (i.e. we've moved past it).

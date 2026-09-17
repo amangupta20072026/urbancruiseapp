@@ -79,6 +79,7 @@ import {
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { makePhoneCall, openWhatsApp } from '@services/contact';
+import { toast } from '@services/toast';
 import type { CustomerStackParamList } from '@navigation/types';
 import {
   NeedHelpSheet,
@@ -288,11 +289,16 @@ const BookingDetailScreen: React.FC = () => {
   }, [navigation, detail]);
 
   const handleTrackVehicle = useCallback(() => {
-    // Live tracking screen is a ghost destination today — same TODO
-    // as onTrackVehicle in BookingsScreen.tsx. The button stays
-    // visible so the flow is discoverable; wire this to
-    // navigation.navigate('TripLive', { tripId: tripIdFrom(detail.id, '01') })
-    // once the TripLive route lands.
+    // Live tracking screen is a ghost destination today. Rather
+    // than leaving Track Vehicle as a silent no-op (which feels
+    // broken to the user), surface a "coming soon" toast so the
+    // tap has feedback. Replace this with
+    // `navigation.navigate('TripLive', { tripId: tripIdFrom(detail.id, '01') })`
+    // once the TripLive route lands — same TODO as onTrackVehicle
+    // in BookingsScreen.tsx.
+    toast.info('Live tracking coming soon', {
+      description: "We're rolling this out shortly.",
+    });
   }, []);
 
   /* -------- Not-found guard -------- */
@@ -1535,6 +1541,8 @@ const OngoingDetail: React.FC<OngoingProps> = ({
           <BookingProgressTracker
             currentStep={detail.progressStep}
             subLabels={detail.timeline}
+            renderCurrentAs="done"
+            labelOverrides={{ started: 'Trip Started' }}
           />
         </View>
 
