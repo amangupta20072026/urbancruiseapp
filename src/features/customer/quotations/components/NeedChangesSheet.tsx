@@ -147,16 +147,16 @@ type Props = {
   onSubmit?: (req: QuotationChangeRequest) => Promise<void>;
   /**
    * Called from the success modal's primary button ("Go to
-   * Bookings"). Optional — when omitted alongside `onBackToHome`,
+   * Quotations"). Optional — when omitted alongside `onBackToHome`,
    * the success modal isn't shown at all and the sheet falls back
    * to its legacy toast-then-dismiss flow. Kept optional (rather
    * than required) so demos and one-off consumers work without
    * wiring both callbacks.
    */
-  onGoToBookings?: () => void;
+  onGoToQuotations?: () => void;
   /**
    * Called from the success modal's secondary link ("Back to
-   * Home"). Same optionality contract as `onGoToBookings`.
+   * Home"). Same optionality contract as `onGoToQuotations`.
    */
   onBackToHome?: () => void;
 };
@@ -207,7 +207,7 @@ const CATEGORIES: readonly {
  * ================================================================ */
 
 export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
-  ({ executive, onSubmit, onGoToBookings, onBackToHome }, ref) => {
+  ({ executive, onSubmit, onGoToQuotations, onBackToHome }, ref) => {
     /* Two refs: `internalRef` drives the sheet itself; the outer
        ref exposed to the parent is bridged via useImperativeHandle
        so callers can call `.present()` / `.dismiss()` idiomatically.
@@ -223,7 +223,7 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
     const [submitting, setSubmitting] = useState(false);
     /* Success-modal visibility. The modal renders OVER the sheet
        (native RN <Modal> so it wins over @gorhom's portal) until
-       the user picks Go to Bookings / Back to Home or dismisses
+       the user picks Go to Quotations / Back to Home or dismisses
        it, at which point we also close the sheet underneath. Kept
        local state (not a prop) so a stale visible=true can't leak
        into a fresh open of the sheet. */
@@ -233,7 +233,7 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
        provide both nav callbacks fall back to the legacy toast-and-
        dismiss path — safer default for demos and any future consumer
        that hasn't been updated. */
-    const useSuccessModal = Boolean(onGoToBookings) && Boolean(onBackToHome);
+    const useSuccessModal = Boolean(onGoToQuotations) && Boolean(onBackToHome);
 
     const notesTrimmed = notes.trim();
     const hasSelection = selected.size > 0;
@@ -302,7 +302,7 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
           /* Modal path: keep the sheet mounted underneath so the
              success surface animates in on top of the completed
              form. resetDraft/dismiss happen when the modal closes
-             (below), so a fast tap on "Go to Bookings" still tears
+             (below), so a fast tap on "Go to Quotations" still tears
              down the sheet in the right order. */
           setSuccessVisible(true);
         } else {
@@ -352,9 +352,9 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
       [resetDraft],
     );
 
-    const handleSuccessGoToBookings = useCallback(() => {
-      closeSuccessAnd(onGoToBookings);
-    }, [closeSuccessAnd, onGoToBookings]);
+    const handleSuccessGoToQuotations = useCallback(() => {
+      closeSuccessAnd(onGoToQuotations);
+    }, [closeSuccessAnd, onGoToQuotations]);
 
     const handleSuccessBackToHome = useCallback(() => {
       closeSuccessAnd(onBackToHome);
@@ -531,8 +531,9 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
 
         <RequestSuccessModal
           visible={successVisible}
+          primaryLabel="Go to Quotations"
           onClose={handleSuccessClose}
-          onPrimary={handleSuccessGoToBookings}
+          onPrimary={handleSuccessGoToQuotations}
           onSecondary={handleSuccessBackToHome}
         />
       </>
