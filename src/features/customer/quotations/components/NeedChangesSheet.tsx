@@ -124,6 +124,7 @@ import {
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { toast } from '@services/toast';
 
+import { RequestSuccessModal } from './RequestSuccessModal';
 import type {
   QuotationChangeCategory,
   QuotationChangeRequest,
@@ -144,6 +145,20 @@ type Props = {
    * sheet runs a 600ms mock so demos work end-to-end.
    */
   onSubmit?: (req: QuotationChangeRequest) => Promise<void>;
+  /**
+   * Called from the success modal's primary button ("Go to
+   * Bookings"). Optional — when omitted alongside `onBackToHome`,
+   * the success modal isn't shown at all and the sheet falls back
+   * to its legacy toast-then-dismiss flow. Kept optional (rather
+   * than required) so demos and one-off consumers work without
+   * wiring both callbacks.
+   */
+  onGoToBookings?: () => void;
+  /**
+   * Called from the success modal's secondary link ("Back to
+   * Home"). Same optionality contract as `onGoToBookings`.
+   */
+  onBackToHome?: () => void;
 };
 
 /* ================================================================
@@ -192,7 +207,7 @@ const CATEGORIES: readonly {
  * ================================================================ */
 
 export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
-  ({ executive, onSubmit }, ref) => {
+  ({ executive, onSubmit, onGoToBookings, onBackToHome }, ref) => {
     /* Two refs: `internalRef` drives the sheet itself; the outer
        ref exposed to the parent is bridged via useImperativeHandle
        so callers can call `.present()` / `.dismiss()` idiomatically.
@@ -206,6 +221,19 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
     );
     const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    /* Success-modal visibility. The modal renders OVER the sheet
+       (native RN <Modal> so it wins over @gorhom's portal) until
+       the user picks Go to Bookings / Back to Home or dismisses
+       it, at which point we also close the sheet underneath. Kept
+       local state (not a prop) so a stale visible=true can't leak
+       into a fresh open of the sheet. */
+    const [successVisible, setSuccessVisible] = useState(false);
+
+    /* Whether the success modal is even wired up. Callers who don't
+       provide both nav callbacks fall back to the legacy toast-and-
+       dismiss path — safer default for demos and any future consumer
+       that hasn't been updated. */
+    const useSuccessModal = Boolean(onGoToBookings) && Boolean(onBackToHome);
 
     const notesTrimmed = notes.trim();
     const hasSelection = selected.size > 0;
@@ -270,11 +298,22 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
              demo. Real backend swap-in happens at the call site. */
           await new Promise(resolve => setTimeout(resolve, 600));
         }
-        toast.success('Request sent', {
-          description: `${executive.name} will get back to you shortly.`,
-        });
-        resetDraft();
-        dismiss();
+        if (useSuccessModal) {
+          /* Modal path: keep the sheet mounted underneath so the
+             success surface animates in on top of the completed
+             form. resetDraft/dismiss happen when the modal closes
+             (below), so a fast tap on "Go to Bookings" still tears
+             down the sheet in the right order. */
+          setSuccessVisible(true);
+        } else {
+          /* Legacy path — no callbacks wired; fall back to the
+             toast + immediate dismiss. */
+          toast.success('Request sent', {
+            description: `${executive.name} will get back to you shortly.`,
+          });
+          resetDraft();
+          dismiss();
+        }
       } catch {
         toast.error('Could not send request', {
           description: 'Please try again in a moment.',
@@ -287,10 +326,43 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
       selected,
       notesTrimmed,
       onSubmit,
+      useSuccessModal,
       executive.name,
       resetDraft,
       dismiss,
     ]);
+
+    /**
+     * Success-modal exit handlers. All three (primary / secondary /
+     * close) share the same sheet-teardown sequence: close the
+     * modal, reset the draft, dismiss the sheet, then run whatever
+     * navigation the caller passed. Doing the teardown first
+     * matches the pattern in ContinueToBookingSheet — destination
+     * screens don't want a lingering sheet under them, and running
+     * navigate synchronously after dismiss() keeps the frame
+     * timing tight.
+     */
+    const closeSuccessAnd = useCallback(
+      (after?: () => void) => {
+        setSuccessVisible(false);
+        resetDraft();
+        internalRef.current?.dismiss();
+        after?.();
+      },
+      [resetDraft],
+    );
+
+    const handleSuccessGoToBookings = useCallback(() => {
+      closeSuccessAnd(onGoToBookings);
+    }, [closeSuccessAnd, onGoToBookings]);
+
+    const handleSuccessBackToHome = useCallback(() => {
+      closeSuccessAnd(onBackToHome);
+    }, [closeSuccessAnd, onBackToHome]);
+
+    const handleSuccessClose = useCallback(() => {
+      closeSuccessAnd();
+    }, [closeSuccessAnd]);
 
     /* -------- Sub-renders -------- */
 
@@ -310,151 +382,160 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
     /* -------- Render -------- */
 
     return (
-      <BottomSheetModal
-        ref={internalRef}
-        snapPoints={SNAP_POINTS}
-        index={0}
-        backdropComponent={renderBackdrop}
-        handleIndicatorStyle={styles.handle}
-        backgroundStyle={styles.sheetBg}
-        enablePanDownToClose
-        enableDynamicSizing={false}
-        enableOverDrag={false}
-        keyboardBehavior={Platform.OS === 'ios' ? 'extend' : 'interactive'}
-        keyboardBlurBehavior="restore"
-        onChange={handleSheetChange}
-      >
-        {/* Pinned header (X button lives here so it doesn't scroll away) */}
-        <View style={styles.pinnedHeader}>
-          <View style={styles.titleRow}>
-            <View style={styles.titleTextCol}>
-              <Text style={styles.title}>Request Changes</Text>
-            </View>
-            <Pressable
-              onPress={dismiss}
-              style={({ pressed }) => [
-                styles.closeBtn,
-                pressed && styles.pressed,
-              ]}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-            >
-              <X size={22} color={Colors.textPrimary} strokeWidth={2.25} />
-            </Pressable>
-          </View>
-          <Text style={styles.subtitle}>
-            Let us know what you would like to change.
-            {'\n'}Your request will be sent to your travel executive.
-          </Text>
-        </View>
-
-        <BottomSheetScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
+      <>
+        <BottomSheetModal
+          ref={internalRef}
+          snapPoints={SNAP_POINTS}
+          index={0}
+          backdropComponent={renderBackdrop}
+          handleIndicatorStyle={styles.handle}
+          backgroundStyle={styles.sheetBg}
+          enablePanDownToClose
+          enableDynamicSizing={false}
+          enableOverDrag={false}
+          keyboardBehavior={Platform.OS === 'ios' ? 'extend' : 'interactive'}
+          keyboardBlurBehavior="restore"
+          onChange={handleSheetChange}
         >
-          {/* ── Category picker ── */}
-          <Text style={styles.sectionLabel}>
-            What would you like to change?
-          </Text>
-          <View style={styles.categoryList}>
-            {CATEGORIES.map(cat => (
-              <CategoryRow
-                key={cat.key}
-                label={cat.label}
-                Icon={cat.Icon}
-                selected={selected.has(cat.key)}
-                onPress={() => toggleCategory(cat.key)}
-              />
-            ))}
-          </View>
-
-          {/* ── Notes ── */}
-          <View style={styles.notesLabelRow}>
-            <Text style={styles.sectionLabel}>Additional Notes</Text>
-            <Text style={styles.notesOptional}>(Optional)</Text>
-          </View>
-          <View style={styles.notesWrap}>
-            <BottomSheetTextInput
-              style={styles.notesInput}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Please describe the changes you are looking for..."
-              placeholderTextColor={Colors.textTertiary}
-              multiline
-              maxLength={NOTES_MAX_LENGTH}
-              textAlignVertical="top"
-              scrollEnabled
-            />
-            <Text
-              style={[
-                styles.notesCounter,
-                notes.length >= NOTES_MAX_LENGTH && styles.notesCounterMax,
-              ]}
-            >
-              {notes.length}/{NOTES_MAX_LENGTH}
+          {/* Pinned header (X button lives here so it doesn't scroll away) */}
+          <View style={styles.pinnedHeader}>
+            <View style={styles.titleRow}>
+              <View style={styles.titleTextCol}>
+                <Text style={styles.title}>Request Changes</Text>
+              </View>
+              <Pressable
+                onPress={dismiss}
+                style={({ pressed }) => [
+                  styles.closeBtn,
+                  pressed && styles.pressed,
+                ]}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <X size={22} color={Colors.textPrimary} strokeWidth={2.25} />
+              </Pressable>
+            </View>
+            <Text style={styles.subtitle}>
+              Let us know what you would like to change.
+              {'\n'}Your request will be sent to your travel executive.
             </Text>
           </View>
 
-          {/* Only surface the "Other needs notes" hint when the
+          <BottomSheetScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* ── Category picker ── */}
+            <Text style={styles.sectionLabel}>
+              What would you like to change?
+            </Text>
+            <View style={styles.categoryList}>
+              {CATEGORIES.map(cat => (
+                <CategoryRow
+                  key={cat.key}
+                  label={cat.label}
+                  Icon={cat.Icon}
+                  selected={selected.has(cat.key)}
+                  onPress={() => toggleCategory(cat.key)}
+                />
+              ))}
+            </View>
+
+            {/* ── Notes ── */}
+            <View style={styles.notesLabelRow}>
+              <Text style={styles.sectionLabel}>Additional Notes</Text>
+              <Text style={styles.notesOptional}>(Optional)</Text>
+            </View>
+            <View style={styles.notesWrap}>
+              <BottomSheetTextInput
+                style={styles.notesInput}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Please describe the changes you are looking for..."
+                placeholderTextColor={Colors.textTertiary}
+                multiline
+                maxLength={NOTES_MAX_LENGTH}
+                textAlignVertical="top"
+                scrollEnabled
+              />
+              <Text
+                style={[
+                  styles.notesCounter,
+                  notes.length >= NOTES_MAX_LENGTH && styles.notesCounterMax,
+                ]}
+              >
+                {notes.length}/{NOTES_MAX_LENGTH}
+              </Text>
+            </View>
+
+            {/* Only surface the "Other needs notes" hint when the
               customer has tripped that rule — showing it eagerly
               feels nagging. */}
-          {otherSelectedAlone ? (
-            <Text style={styles.hintText}>
-              Please describe your request in the notes so we can help.
-            </Text>
-          ) : null}
+            {otherSelectedAlone ? (
+              <Text style={styles.hintText}>
+                Please describe your request in the notes so we can help.
+              </Text>
+            ) : null}
 
-          {/* ── Info banner ── */}
-          <View style={styles.infoBanner}>
-            <Info size={14} color={Colors.primary} strokeWidth={2.25} />
-            <Text style={styles.infoText}>
-              Our executive will review your request and share an updated
-              quotation.
-            </Text>
-          </View>
+            {/* ── Info banner ── */}
+            <View style={styles.infoBanner}>
+              <Info size={14} color={Colors.primary} strokeWidth={2.25} />
+              <Text style={styles.infoText}>
+                Our executive will review your request and share an updated
+                quotation.
+              </Text>
+            </View>
 
-          {/* ── Actions ── */}
-          <Pressable
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            style={({ pressed }) => [
-              styles.submitBtn,
-              !canSubmit && styles.submitBtnDisabled,
-              pressed && canSubmit && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Submit change request"
-            accessibilityState={{ disabled: !canSubmit }}
-          >
-            {submitting ? (
-              <ActivityIndicator color={Colors.textOnPrimary} />
-            ) : (
-              <>
-                <Send
-                  size={18}
-                  color={Colors.textOnPrimary}
-                  strokeWidth={2.25}
-                />
-                <Text style={styles.submitText}>Submit Request</Text>
-              </>
-            )}
-          </Pressable>
+            {/* ── Actions ── */}
+            <Pressable
+              onPress={handleSubmit}
+              disabled={!canSubmit}
+              style={({ pressed }) => [
+                styles.submitBtn,
+                !canSubmit && styles.submitBtnDisabled,
+                pressed && canSubmit && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Submit change request"
+              accessibilityState={{ disabled: !canSubmit }}
+            >
+              {submitting ? (
+                <ActivityIndicator color={Colors.textOnPrimary} />
+              ) : (
+                <>
+                  <Send
+                    size={18}
+                    color={Colors.textOnPrimary}
+                    strokeWidth={2.25}
+                  />
+                  <Text style={styles.submitText}>Submit Request</Text>
+                </>
+              )}
+            </Pressable>
 
-          <Pressable
-            onPress={dismiss}
-            disabled={submitting}
-            style={({ pressed }) => [
-              styles.cancelBtn,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel and close"
-          >
-            <Text style={styles.cancelText}>Cancel</Text>
-          </Pressable>
-        </BottomSheetScrollView>
-      </BottomSheetModal>
+            <Pressable
+              onPress={dismiss}
+              disabled={submitting}
+              style={({ pressed }) => [
+                styles.cancelBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel and close"
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
+          </BottomSheetScrollView>
+        </BottomSheetModal>
+
+        <RequestSuccessModal
+          visible={successVisible}
+          onClose={handleSuccessClose}
+          onPrimary={handleSuccessGoToBookings}
+          onSecondary={handleSuccessBackToHome}
+        />
+      </>
     );
   },
 );

@@ -405,6 +405,12 @@ const QuotationDetailScreen: React.FC = () => {
       <NeedChangesSheet
         ref={needChangesRef}
         executive={detail.travelExecutive}
+        onGoToBookings={() =>
+          navigation.navigate('CustomerTabs', { screen: 'Bookings' })
+        }
+        onBackToHome={() =>
+          navigation.navigate('CustomerTabs', { screen: 'Home' })
+        }
       />
       <ContinueToBookingSheet
         ref={confirmationRef}
