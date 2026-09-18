@@ -438,6 +438,14 @@ const CompletedDetail: React.FC<CompletedProps> = ({
             Book Again outline button. A divider separates the head
             from the route + meta block. */}
         <View style={styles.card}>
+          {/* Card top-right marker — labels the whole card as the
+              trip's at-a-glance details (id + route + timeline).
+              Merged with the tracker below so the two related
+              blocks read as one section. */}
+          <View style={styles.tripDetailsHeaderRow}>
+            <Text style={styles.tripDetailsHeaderText}>Trip Details</Text>
+          </View>
+
           <View style={styles.bookingHeadRow}>
             <View style={styles.idTile}>
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
@@ -500,10 +508,11 @@ const CompletedDetail: React.FC<CompletedProps> = ({
               }
             />
           </View>
-        </View>
 
-        {/* ── Tracker card — dedicated card in this view ── */}
-        <View style={styles.card}>
+          {/* Tracker lives INSIDE the same card, separated by a
+              hairline divider — id/route/meta above, timeline below,
+              read together as one "trip details" surface. */}
+          <View style={styles.trackerDivider} />
           <BookingProgressTracker
             currentStep={detail.progressStep}
             subLabels={detail.timeline}
@@ -811,8 +820,12 @@ const CancelledDetail: React.FC<CancelledProps> = ({
           </View>
         </View>
 
-        {/* ── Booking info card ── */}
+        {/* ── Trip Details card (booking info + cancelled tracker) ── */}
         <View style={styles.card}>
+          <View style={styles.tripDetailsHeaderRow}>
+            <Text style={styles.tripDetailsHeaderText}>Trip Details</Text>
+          </View>
+
           <View style={styles.idRow}>
             <View style={styles.idTile}>
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
@@ -859,10 +872,10 @@ const CancelledDetail: React.FC<CancelledProps> = ({
               }
             />
           </View>
-        </View>
 
-        {/* ── Tracker card — cancelled-flavoured ── */}
-        <View style={styles.card}>
+          {/* Cancelled-flavoured tracker, folded into the same card
+              so booking info + timeline read as one section. */}
+          <View style={styles.trackerDivider} />
           <CancelledProgressTracker
             bookedDate={detail.timeline.booked}
             cancelledDate={
@@ -1109,8 +1122,12 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({
           </View>
         </View>
 
-        {/* ── Booking info card ── */}
+        {/* ── Trip Details card (booking info + progress tracker) ── */}
         <View style={styles.card}>
+          <View style={styles.tripDetailsHeaderRow}>
+            <Text style={styles.tripDetailsHeaderText}>Trip Details</Text>
+          </View>
+
           <View style={styles.idRow}>
             <View style={styles.idTile}>
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
@@ -1157,10 +1174,9 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({
               }
             />
           </View>
-        </View>
 
-        {/* ── Tracker card ── */}
-        <View style={styles.card}>
+          {/* Tracker folded into the same card. */}
+          <View style={styles.trackerDivider} />
           <BookingProgressTracker
             currentStep={detail.progressStep}
             subLabels={detail.timeline}
@@ -1486,8 +1502,12 @@ const OngoingDetail: React.FC<OngoingProps> = ({
           </View>
         </View>
 
-        {/* ── Booking info card (reused shell) ── */}
+        {/* ── Trip Details card (booking info + progress tracker) ── */}
         <View style={styles.card}>
+          <View style={styles.tripDetailsHeaderRow}>
+            <Text style={styles.tripDetailsHeaderText}>Trip Details</Text>
+          </View>
+
           <View style={styles.idRow}>
             <View style={styles.idTile}>
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
@@ -1534,10 +1554,12 @@ const OngoingDetail: React.FC<OngoingProps> = ({
               }
             />
           </View>
-        </View>
 
-        {/* ── Tracker card ── */}
-        <View style={styles.card}>
+          {/* Tracker folded into the same card — the ongoing view
+              still renders the "started" step as done (see
+              renderCurrentAs) because the live-location card below
+              is the true current-state UI. */}
+          <View style={styles.trackerDivider} />
           <BookingProgressTracker
             currentStep={detail.progressStep}
             subLabels={detail.timeline}
@@ -1847,6 +1869,9 @@ const GenericDetail: React.FC<GenericProps> = ({ detail, onBack }) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.card}>
+          <View style={styles.tripDetailsHeaderRow}>
+            <Text style={styles.tripDetailsHeaderText}>Trip Details</Text>
+          </View>
           <View style={styles.idRow}>
             <View style={styles.idTile}>
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
@@ -2257,6 +2282,24 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.borderLight,
     marginTop: 2,
+  },
+
+  /* ── Card top-right "Trip Details" caption ──
+     Placed as the FIRST child of the merged summary+tracker card so
+     the label appears above the calendar tile / Booking ID row, right-
+     aligned. Muted caption tone — meant as a section marker, not a
+     heading. */
+  tripDetailsHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  tripDetailsHeaderText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    includeFontPadding: false,
   },
 
   /* ── Vehicle & Driver section heading ── */

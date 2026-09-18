@@ -47,14 +47,35 @@
  * ------------------------------------------------------------------
  * SUBMISSION FLOW
  * ------------------------------------------------------------------
- *   Tap "Confirm & Continue" → primary button switches to a
- *   loading spinner → `onConfirm()` is awaited → on success:
- *     - toast.success('Booking confirmed', …) + dismiss and the
- *       parent may route into BookingDetail / Payment.
- *   → on failure:
+ *   The primary CTA behaves differently by `mode`:
+ *
+ *   mode === 'accept'  (pending quotation)
+ *     Tap "Accept & Continue" → spinner → `onConfirm()` (or mock
+ *     delay) → on success:
+ *       - toast.success('Quotation accepted', …)
+ *       - `onAccepted()` fires so the parent can flip the
+ *         quotation's status pending → accepted.
+ *       - The sheet DOES NOT dismiss. The parent re-renders with
+ *         `mode="booking"` and the same sheet morphs in place —
+ *         hero copy, CTA label and trust line all swap to the
+ *         payment step. This is the "accept → pay" two-step flow
+ *         inside one sheet (no dismiss/re-present flicker).
+ *
+ *   mode === 'booking' (already-accepted quotation)
+ *     Tap "Pay ₹…" → spinner → `onConfirm()` (or mock delay) →
+ *     on success:
+ *       - toast.success('Booking confirmed', …)
+ *       - Sheet dismisses. Downstream: parent should navigate to
+ *         the payment page (TODO(nav) — see call site).
+ *
+ *   On failure (either mode):
  *     - toast.error(...) + keep the sheet open so the customer
  *       can retry.
- *   Tap "Cancel" → dismiss with no side-effects.
+ *
+ *   Tap "Cancel" → dismiss with no side-effects. If the customer
+ *   cancels in `booking` mode AFTER having accepted a moment ago,
+ *   the status change is already committed on the parent — the
+ *   quotation stays 'accepted', the sheet just closes.
  *
  *   `onConfirm` is optional; without it a 700ms mock delay runs
  *   so demo taps feel real.
@@ -137,6 +158,15 @@ type Props = {
    * 700ms mock runs so demo taps feel real.
    */
   onConfirm?: () => Promise<void>;
+  /**
+   * Fired ONLY in `accept` mode, after a successful confirm and
+   * before the accept-toast is shown. The parent uses this to flip
+   * the quotation's local status pending → accepted; that state
+   * change re-renders this sheet with `mode="booking"` so the same
+   * sheet transitions in place from "Accept this quotation?" to
+   * "Confirm & Continue" (payment). No-op in `booking` mode.
+   */
+  onAccepted?: () => void;
 };
 
 /* ================================================================
@@ -178,7 +208,7 @@ function formatPassengers(adults: number, children: number): string {
  * ================================================================ */
 
 export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
-  ({ summary, mode = 'booking', onConfirm }, ref) => {
+  ({ summary, mode = 'booking', onConfirm, onAccepted }, ref) => {
     const internalRef = useRef<BottomSheetModal>(null);
     useImperativeHandle(ref, () => internalRef.current as BottomSheetModal, []);
 
@@ -204,16 +234,30 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
         } else {
           await new Promise(resolve => setTimeout(resolve, 700));
         }
+
         if (mode === 'accept') {
+          /* Accept step. Tell the parent to flip the quotation
+             pending → accepted, fire the accept toast, and LEAVE
+             THE SHEET OPEN. The parent's state change will cause
+             this component to re-render with mode='booking', so
+             the hero, CTA and trust line swap in place into the
+             payment step — no dismiss + re-present flicker. */
+          onAccepted?.();
           toast.success('Quotation accepted', {
             description: 'Redirecting you to booking…',
           });
+          // Intentionally NOT dismissing here.
         } else {
+          /* Payment step. Fire the confirmation toast and dismiss.
+             TODO(nav): once the payment checkout screen exists,
+             navigate to it here (parent-side, likely via an
+             `onPay` callback so this sheet stays route-agnostic).
+             For now the toast is the only user-visible outcome. */
           toast.success('Booking confirmed', {
             description: 'Redirecting you to payment…',
           });
+          dismiss();
         }
-        dismiss();
       } catch {
         toast.error('Could not confirm booking', {
           description: 'Please try again in a moment.',
@@ -221,7 +265,7 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
       } finally {
         setConfirming(false);
       }
-    }, [confirming, mode, onConfirm, dismiss]);
+    }, [confirming, mode, onConfirm, onAccepted, dismiss]);
 
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (

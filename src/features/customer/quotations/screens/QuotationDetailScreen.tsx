@@ -97,11 +97,31 @@
  * out at that point — YAGNI until then.
  *
  * ------------------------------------------------------------------
+ * ACCEPT → PAY FLOW (pending path)
+ * ------------------------------------------------------------------
+ * Tapping "Accept & Continue" on the sticky bar presents the shared
+ * `ContinueToBookingSheet` in `mode="accept"`. When the customer
+ * confirms inside the sheet, the sheet fires `onAccepted`, which
+ * flips this screen's local `status` pending → accepted. That state
+ * change re-renders the sheet with `mode="booking"`, so the SAME
+ * sheet morphs in place from "Accept this quotation?" into the
+ * payment step ("Confirm & Continue" / "Pay ₹…") — no dismiss +
+ * re-present. From there:
+ *   - Tap "Pay" → success toast; TODO(nav) navigate to payment page.
+ *   - Tap "Cancel" → sheet dismisses. The status change is already
+ *                    committed, so the underlying screen now renders
+ *                    the accepted layout (StatusPill + accepted CTAs).
+ *
+ * ------------------------------------------------------------------
  * TODO(nav):
  *   - "Need Changes"        → ModificationRequest (ghost route)
- *   - "Confirm & Continue"  → opens the existing confirmation sheet;
- *                              the sheet currently shows a success toast
- *                              because the accept API is not connected yet.
+ *   - "Confirm & Continue"  → opens the confirmation sheet; the
+ *                              accept step is still client-side until
+ *                              the accept API is wired (see the
+ *                              status useState below).
+ *   - Payment page          → the sheet's `Pay` CTA currently only
+ *                              fires the success toast; wire the
+ *                              payment-page route when it lands.
  *   - "Continue to Booking" → BookingDetail (ghost) for the booking
  *                              that came from this quotation.
  *   - "Request New"         → RequestQuotation, pre-filling route
@@ -296,8 +316,27 @@ const QuotationDetailScreen: React.FC = () => {
     null,
   );
 
-  const acceptDisabled =
-    detail?.status === 'pending' && selectedTierKey === null;
+  /* -------- Local status (SSoT while accept API is not wired) --------
+   *
+   * The mock `detail.status` is the initial value; every UI branch
+   * on this screen (StatusPill, BottomBar CTAs, ChooseVehicleSection
+   * vs VehicleCard, and the confirmation sheet's `mode`) reads from
+   * `status` instead so we can flip pending → accepted client-side
+   * when the customer completes the accept step inside the sheet.
+   *
+   * When the /customer/quotations/:id/accept mutation lands, replace
+   * this with a TanStack Query invalidation: the mutation's onSuccess
+   * refetches the detail and the server-returned status drives the UI
+   * — this useState goes away with no other consumer changes needed.
+   *
+   * `useState` is initialised with `detail?.status ?? 'pending'` so
+   * the not-found branch below can still short-circuit (the fallback
+   * value is never actually read in that case). */
+  const [status, setStatus] = useState<QuotationStatus>(
+    detail?.status ?? 'pending',
+  );
+
+  const acceptDisabled = status === 'pending' && selectedTierKey === null;
 
   /* -------- Handlers -------- */
 
@@ -358,7 +397,7 @@ const QuotationDetailScreen: React.FC = () => {
           title="Quotation Details"
           subtitle="Review your quotation and proceed"
           onBack={() => navigation.goBack()}
-          rightSlot={<StatusPill status={detail.status} />}
+          rightSlot={<StatusPill status={status} />}
         />
       </View>
 
@@ -369,7 +408,7 @@ const QuotationDetailScreen: React.FC = () => {
       >
         <MetaCard detail={detail} />
         <TripCard detail={detail} />
-        {detail.status === 'pending' ? (
+        {status === 'pending' ? (
           <ChooseVehicleSection
             selectedKey={selectedTierKey}
             onSelect={setSelectedTierKey}
@@ -385,7 +424,7 @@ const QuotationDetailScreen: React.FC = () => {
       </ScrollView>
 
       <BottomBar
-        status={detail.status}
+        status={status}
         acceptDisabled={acceptDisabled}
         onNeedChanges={onNeedChanges}
         onConfirmAccept={onConfirmAccept}
@@ -414,7 +453,8 @@ const QuotationDetailScreen: React.FC = () => {
       />
       <ContinueToBookingSheet
         ref={confirmationRef}
-        mode={detail.status === 'pending' ? 'accept' : 'booking'}
+        mode={status === 'pending' ? 'accept' : 'booking'}
+        onAccepted={() => setStatus('accepted')}
         summary={{
           quotationNumber: detail.quotationNumber,
           travelDateStart: detail.travelDateStart,
