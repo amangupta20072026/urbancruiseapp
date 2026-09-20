@@ -110,6 +110,7 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
  * ================================================================ */
 
 type DetailOverride = {
+  tripType: CustomerBookingDetail['tripType'];
   vehiclePlate: string | null;
   vehicleFuel: string | null;
   passengerBreakdown: CustomerBookingDetail['passengerBreakdown'];
@@ -125,6 +126,7 @@ type DetailOverride = {
 
 const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
   bk_00123: {
+    tripType: 'one_way',
     vehiclePlate: null,
     vehicleFuel: 'Diesel',
     passengerBreakdown: { adults: 18, children: 2 },
@@ -149,6 +151,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     liveTracking: null,
   },
   bk_00122: {
+    tripType: 'round_trip',
     vehiclePlate: 'DL 3C AB 7788',
     vehicleFuel: 'Petrol',
     passengerBreakdown: { adults: 4, children: 0 },
@@ -172,6 +175,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
   },
   bk_00110: {
+    tripType: 'round_trip',
     vehiclePlate: 'MH 12 AB 4321',
     vehicleFuel: 'Diesel',
     passengerBreakdown: { adults: 10, children: 2 },
@@ -196,6 +200,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     liveTracking: null,
   },
   bk_00098: {
+    tripType: 'pickup_drop',
     vehiclePlate: null,
     vehicleFuel: null,
     passengerBreakdown: { adults: 4, children: 2 },
@@ -229,6 +234,7 @@ export function getCustomerBookingDetail(
   const base = MOCK_CUSTOMER_BOOKINGS.find(b => b.id === id);
   if (!base) return null;
   const extra: DetailOverride = DETAIL_OVERRIDES[id as unknown as string] ?? {
+    tripType: 'one_way',
     vehiclePlate: null,
     vehicleFuel: null,
     passengerBreakdown: null,

@@ -8,6 +8,7 @@ export { NeedChangesSheet } from './components/NeedChangesSheet';
 export { NeedHelpSheet } from './components/NeedHelpSheet';
 export { RequestSuccessModal } from './components/RequestSuccessModal';
 export { STANDARD_EXECUTIVE } from './mocks';
+export { getTripTypeOption } from './tripTypeOptions';
 export {
   ContinueToBookingSheet,
   type ConfirmSummary,
@@ -23,4 +24,5 @@ export type {
   QuotationChargeBreakdown,
   QuotationVehicle,
   TravelExecutive,
+  TripType,
 } from './types';

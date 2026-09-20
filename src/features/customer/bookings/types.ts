@@ -13,6 +13,7 @@
  */
 
 import type { BookingId } from '@app-types/ids';
+import type { TripType } from '@features/customer/quotations';
 
 /**
  * The user-facing booking status. Drives:
@@ -224,6 +225,13 @@ export type BookingLiveTracking = {
 };
 
 export type CustomerBookingDetail = CustomerBookingListItem & {
+  /** Service category — One Way / Round Trip / Pickup & Drop. Shares
+   *  the `TripType` vocabulary (and icon/label metadata) with
+   *  Quotations so the badge on the Trip Details card header reads
+   *  identically wherever it appears. Always populated: every
+   *  booking originates from an accepted quotation, which always
+   *  carries a trip type. */
+  tripType: TripType;
   /** Populated only for cancelled bookings; null otherwise. */
   cancellation: BookingCancellation | null;
   /** Pickup / drop addresses for the Trip Information card. Null

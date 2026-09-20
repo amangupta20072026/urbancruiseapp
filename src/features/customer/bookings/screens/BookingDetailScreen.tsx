@@ -84,7 +84,9 @@ import type { CustomerStackParamList } from '@navigation/types';
 import {
   NeedHelpSheet,
   STANDARD_EXECUTIVE,
+  getTripTypeOption,
 } from '@features/customer/quotations';
+import type { TripType } from '@features/customer/quotations';
 
 import type {
   BookingPaymentStatus,
@@ -442,9 +444,7 @@ const CompletedDetail: React.FC<CompletedProps> = ({
               trip's at-a-glance details (id + route + timeline).
               Merged with the tracker below so the two related
               blocks read as one section. */}
-          <View style={styles.tripDetailsHeaderRow}>
-            <Text style={styles.tripDetailsHeaderText}>Trip Details</Text>
-          </View>
+          <TripDetailsHeader tripType={detail.tripType} />
 
           <View style={styles.bookingHeadRow}>
             <View style={styles.idTile}>
@@ -822,9 +822,7 @@ const CancelledDetail: React.FC<CancelledProps> = ({
 
         {/* ── Trip Details card (booking info + cancelled tracker) ── */}
         <View style={styles.card}>
-          <View style={styles.tripDetailsHeaderRow}>
-            <Text style={styles.tripDetailsHeaderText}>Trip Details</Text>
-          </View>
+          <TripDetailsHeader tripType={detail.tripType} />
 
           <View style={styles.idRow}>
             <View style={styles.idTile}>
@@ -1124,9 +1122,7 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({
 
         {/* ── Trip Details card (booking info + progress tracker) ── */}
         <View style={styles.card}>
-          <View style={styles.tripDetailsHeaderRow}>
-            <Text style={styles.tripDetailsHeaderText}>Trip Details</Text>
-          </View>
+          <TripDetailsHeader tripType={detail.tripType} />
 
           <View style={styles.idRow}>
             <View style={styles.idTile}>
@@ -1504,9 +1500,7 @@ const OngoingDetail: React.FC<OngoingProps> = ({
 
         {/* ── Trip Details card (booking info + progress tracker) ── */}
         <View style={styles.card}>
-          <View style={styles.tripDetailsHeaderRow}>
-            <Text style={styles.tripDetailsHeaderText}>Trip Details</Text>
-          </View>
+          <TripDetailsHeader tripType={detail.tripType} />
 
           <View style={styles.idRow}>
             <View style={styles.idTile}>
@@ -1869,9 +1863,7 @@ const GenericDetail: React.FC<GenericProps> = ({ detail, onBack }) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.card}>
-          <View style={styles.tripDetailsHeaderRow}>
-            <Text style={styles.tripDetailsHeaderText}>Trip Details</Text>
-          </View>
+          <TripDetailsHeader tripType={detail.tripType} />
           <View style={styles.idRow}>
             <View style={styles.idTile}>
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
@@ -1994,6 +1986,35 @@ const GenericDetail: React.FC<GenericProps> = ({ detail, onBack }) => {
 /* ================================================================
  * Local reusable sub-components
  * ================================================================ */
+
+/**
+ * TripDetailsHeader — icon + "Trip Details" title on the left, a
+ * read-only trip-type badge (One Way / Round Trip / Pickup & Drop)
+ * on the right. Mirrors the header used on the QuotationDetailScreen
+ * Trip Details card so the same section reads identically across
+ * both screens. First child of every merged summary+tracker card
+ * across the five status-specific detail layouts below — nothing
+ * else in the card changes.
+ */
+const TripDetailsHeader: React.FC<{ tripType: TripType }> = ({ tripType }) => {
+  const { Icon, label } = getTripTypeOption(tripType);
+  return (
+    <View style={styles.tripDetailsHeaderRow}>
+      <View style={styles.sectionIconTile}>
+        <MapPin size={18} color={Colors.primary} strokeWidth={2.25} />
+      </View>
+      <Text style={[styles.sectionHeadingText, styles.tripDetailsTitleGrow]}>
+        Trip Details
+      </Text>
+      <View style={styles.tripTypeBadge}>
+        <Icon size={13} color={Colors.primaryDark} strokeWidth={2.5} />
+        <Text style={styles.tripTypeBadgeText} numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
+    </View>
+  );
+};
 
 const MetaCell: React.FC<{
   Icon: IconComp;
@@ -2284,22 +2305,35 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* ── Card top-right "Trip Details" caption ──
-     Placed as the FIRST child of the merged summary+tracker card so
-     the label appears above the calendar tile / Booking ID row, right-
-     aligned. Muted caption tone — meant as a section marker, not a
-     heading. */
+  /* ── Trip Details card header (icon + title + trip-type badge) ──
+     Placed as the FIRST child of the merged summary+tracker card.
+     Icon + "Trip Details" sit at the top-left (reusing the same
+     icon-tile + heading pair as the other card headings below); the
+     trip-type badge sits at the top-right. Mirrors the header on the
+     QuotationDetailScreen Trip Details card. */
   tripDetailsHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  tripDetailsHeaderText: {
+  tripDetailsTitleGrow: {
+    flex: 1,
+  },
+  tripTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: 130,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primaryTint,
+  },
+  tripTypeBadgeText: {
     ...Typography.caption,
-    color: Colors.textSecondary,
     fontWeight: '700',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-    includeFontPadding: false,
+    color: Colors.primaryDark,
   },
 
   /* ── Vehicle & Driver section heading ── */
