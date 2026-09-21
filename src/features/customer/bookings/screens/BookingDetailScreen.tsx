@@ -1812,30 +1812,27 @@ const OngoingDetail: React.FC<OngoingProps> = ({
           </View>
         </View>
 
-        {/* ── Need Help support card (green variant) ── */}
-        <View style={styles.helpCardGreen}>
-          <View style={styles.helpIconTileGreen}>
-            <Headphones size={20} color={Colors.primary} strokeWidth={2.25} />
+        {/* ── Need Help support card ── */}
+        <View style={styles.helpCard}>
+          <View style={styles.helpIconTile}>
+            <Headphones size={20} color={BLUE_FG} strokeWidth={2.25} />
           </View>
           <View style={styles.helpTextCol}>
             <Text style={styles.helpTitle}>Need Help?</Text>
             <Text style={styles.helpBody}>
-              Contact our support team for any assistance during your trip.
+              Contact our support team for any queries.
             </Text>
           </View>
           <Pressable
             onPress={openNeedHelp}
             style={({ pressed }) => [
-              styles.contactSupportBtnGreen,
+              styles.contactSupportBtn,
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
             accessibilityLabel="Contact support"
           >
-            <MessageSquare size={14} color={Colors.primary} strokeWidth={2.5} />
-            <Text style={styles.contactSupportBtnGreenText}>
-              Contact Support
-            </Text>
+            <Text style={styles.contactSupportBtnText}>Contact Support</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -3252,42 +3249,6 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontWeight: '700',
     letterSpacing: 0.5,
-    includeFontPadding: false,
-  },
-
-  /* ── Need Help support card — green variant ── */
-  helpCardGreen: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.primaryTint,
-  },
-  helpIconTileGreen: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.circle,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contactSupportBtnGreen: {
-    height: 38,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  contactSupportBtnGreenText: {
-    ...Typography.caption,
-    color: Colors.primary,
-    fontWeight: '800',
     includeFontPadding: false,
   },
 });
