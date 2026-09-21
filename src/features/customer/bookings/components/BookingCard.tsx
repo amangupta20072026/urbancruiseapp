@@ -38,7 +38,6 @@ import {
   Calendar,
   Check,
   Clock,
-  ExternalLink,
   Navigation,
   RotateCw,
   Users,
@@ -308,7 +307,7 @@ function renderActions(a: {
           <ActionButton
             label="Book Again"
             variant="successSoft"
-            LeadingIcon={ExternalLink}
+            LeadingIcon={RotateCw}
             onPress={a.onBookAgain}
           />
         </>

@@ -13,11 +13,22 @@
  *   (product, design) without pulling in behavior concerns.
  *
  * GROUPING:
- *   Each item belongs to one of three sections rendered as visually
- *   separated blocks in the sheet:
- *     - 'account'   → identity / preferences (Profile, Notifications, Settings)
- *     - 'business'  → role-specific work items (Fleet, Customers, Finance…)
- *     - 'support'   → Support, Logout — always last, Logout in red.
+ *   Each item belongs to one of the sections declared in
+ *   MORE_GROUP_ORDER, rendered as visually separated blocks in the
+ *   sheet:
+ *     - 'account'     → identity / preferences (Profile, Notifications, Settings)
+ *     - 'business'    → role-specific work items (Fleet, Customers, Finance…)
+ *     - 'engagement'  → customer growth touchpoints (Referrals, Feedback)
+ *     - 'support'     → operational escalation for UC (Feedback, Issues)
+ *
+ * NOT IN THE MORE SHEET (single source of truth is SettingsScreen):
+ *   - Logout          → SettingsScreen's red-tinted CTA with confirm
+ *                       dialog + six-step teardown. Duplicating it as
+ *                       a tile here fired logout without confirmation.
+ *   - Help & Support  → SettingsScreen's "Support & Legal" section
+ *                       navigates to the same HelpSupport screen.
+ *                       Two entry points caused divergent analytics
+ *                       and inconsistent back-stack behaviour.
  *
  * To add a new item:
  *   1. Add its id to the MoreActionId union below.
@@ -29,7 +40,6 @@
 import type { ComponentType } from 'react';
 import {
   Bell,
-  LifeBuoy,
   Settings,
   User,
   Gift,
@@ -47,7 +57,6 @@ import {
   AlertTriangle,
   TrendingUp,
   MessageSquare,
-  LogOut,
   type LucideProps,
 } from 'lucide-react-native';
 
@@ -195,23 +204,6 @@ const customerMore: MoreItem[] = [
     actionId: 'customer.feedback',
     group: 'engagement',
   },
-
-  {
-    key: 'support',
-    label: 'Help & Support',
-    Icon: LifeBuoy,
-    color: Palette.orange,
-    actionId: 'support',
-    group: 'support',
-  },
-  {
-    key: 'logout',
-    label: 'Logout',
-    Icon: LogOut,
-    color: Palette.red,
-    actionId: 'logout',
-    group: 'support',
-  },
 ];
 
 const vendorMore: MoreItem[] = [
@@ -280,23 +272,6 @@ const vendorMore: MoreItem[] = [
     actionId: 'vendor.reports',
     group: 'business',
   },
-
-  {
-    key: 'support',
-    label: 'Help & Support',
-    Icon: LifeBuoy,
-    color: Palette.orange,
-    actionId: 'support',
-    group: 'support',
-  },
-  {
-    key: 'logout',
-    label: 'Logout',
-    Icon: LogOut,
-    color: Palette.red,
-    actionId: 'logout',
-    group: 'support',
-  },
 ];
 
 const driverMore: MoreItem[] = [
@@ -356,23 +331,6 @@ const driverMore: MoreItem[] = [
     color: Palette.green,
     actionId: 'driver.rewards',
     group: 'business',
-  },
-
-  {
-    key: 'support',
-    label: 'Help & Support',
-    Icon: LifeBuoy,
-    color: Palette.purple,
-    actionId: 'support',
-    group: 'support',
-  },
-  {
-    key: 'logout',
-    label: 'Logout',
-    Icon: LogOut,
-    color: Palette.red,
-    actionId: 'logout',
-    group: 'support',
   },
 ];
 
@@ -448,14 +406,6 @@ const ucMore: MoreItem[] = [
     Icon: AlertTriangle,
     color: Palette.red,
     actionId: 'uc.issues',
-    group: 'support',
-  },
-  {
-    key: 'logout',
-    label: 'Logout',
-    Icon: LogOut,
-    color: Palette.red,
-    actionId: 'logout',
     group: 'support',
   },
 ];
