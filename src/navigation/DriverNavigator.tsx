@@ -12,6 +12,7 @@ import DriverTabs from './tabs/DriverTabs';
 import type { DriverStackParamList } from './types';
 import { NotImplementedScreen } from '@features/shared/screens';
 import SupportScreen from '@features/shared/support/screens/SupportScreen';
+import HelpSupportScreen from '@features/shared/support/screens/HelpSupportScreen';
 
 const Stack = createNativeStackNavigator<DriverStackParamList>();
 
@@ -27,6 +28,7 @@ const DriverNavigator: React.FC = () => {
       {/* Real screens */}
       <Stack.Screen name="DriverTabs" component={DriverTabs} />
       <Stack.Screen name="Support" component={SupportScreen} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
 
       {/* Registered ghost routes — real screens land later. */}
       <Stack.Screen name="TripDetail" component={NotImplementedScreen} />

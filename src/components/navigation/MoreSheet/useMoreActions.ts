@@ -108,10 +108,12 @@ export function useMoreActions() {
           return 'navigated';
 
         case 'support':
-          // Support is registered in AuthParamList and in every role
-          // stack. `navigate` (widened) resolves it against the
-          // currently mounted tree.
-          navigate('Support');
+          // From the More sheet, "Help & Support" goes to the rich hub
+          // (HelpSupport route), NOT the pre-auth SupportScreen route.
+          // The `Support` route is still registered in every stack so
+          // LoginScreen's "Contact Support" link keeps working — the
+          // two entry points are deliberately separate surfaces.
+          navigate('HelpSupport');
           return 'navigated';
 
         case 'feedback':

@@ -12,6 +12,7 @@ import VendorTabs from './tabs/VendorTabs';
 import type { VendorStackParamList } from './types';
 import { NotImplementedScreen } from '@features/shared/screens';
 import SupportScreen from '@features/shared/support/screens/SupportScreen';
+import HelpSupportScreen from '@features/shared/support/screens/HelpSupportScreen';
 
 const Stack = createNativeStackNavigator<VendorStackParamList>();
 
@@ -27,6 +28,7 @@ const VendorNavigator: React.FC = () => {
       {/* Real screens */}
       <Stack.Screen name="VendorTabs" component={VendorTabs} />
       <Stack.Screen name="Support" component={SupportScreen} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
 
       {/* Registered ghost routes — real screens land later. */}
       <Stack.Screen name="AssignmentDetail" component={NotImplementedScreen} />

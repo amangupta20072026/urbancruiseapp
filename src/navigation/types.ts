@@ -82,6 +82,15 @@ export type CustomerStackParamList = {
   Feedback: { bookingId: BookingId };
   NotificationCentre: undefined;
   Support: undefined;
+  /**
+   * Rich "Help & Support" hub reached from the More sheet. Kept
+   * distinct from the pre-auth `Support` route (used by the login
+   * screen's "Contact Support" link) so each entry point retains
+   * its own tailored surface — the pre-auth SupportScreen is a
+   * three-channel contact card, while HelpSupport is a full hub
+   * with contact channels + topic browsing.
+   */
+  HelpSupport: undefined;
   // General customer feedback (from More sheet — no booking scope).
   // Distinct from booking-scoped `Feedback` above.
   CustomerFeedback: undefined;
@@ -122,6 +131,8 @@ export type VendorStackParamList = {
   PaymentDetail: { entryId: string };
   NotificationCentre: undefined;
   Support: undefined;
+  /** Rich "Help & Support" hub from the More sheet. See CustomerStackParamList for rationale. */
+  HelpSupport: undefined;
 };
 
 export type VendorTabParamList = {
@@ -145,6 +156,8 @@ export type DriverStackParamList = {
   DriverRegistration: undefined;
   NotificationCentre: undefined;
   Support: undefined;
+  /** Rich "Help & Support" hub from the More sheet. See CustomerStackParamList for rationale. */
+  HelpSupport: undefined;
 };
 
 export type DriverTabParamList = {

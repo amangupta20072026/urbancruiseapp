@@ -29,6 +29,7 @@ import CustomerTabs from './tabs/CustomerTabs';
 import type { CustomerStackParamList } from './types';
 import { NotImplementedScreen } from '@features/shared/screens';
 import SupportScreen from '@features/shared/support/screens/SupportScreen';
+import HelpSupportScreen from '@features/shared/support/screens/HelpSupportScreen';
 import { ProfileScreen } from '@features/shared/profile';
 import { SettingsScreen } from '@features/shared/settings';
 import { NotificationCentreScreen } from '@features/shared/notifications';
@@ -55,6 +56,7 @@ const CustomerNavigator: React.FC = () => {
       {/* Real screens */}
       <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
       <Stack.Screen name="Support" component={SupportScreen} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
 
       {/* More-sheet destinations — shared across roles */}
       <Stack.Screen name="Profile" component={ProfileScreen} />

@@ -198,7 +198,7 @@ const customerMore: MoreItem[] = [
 
   {
     key: 'support',
-    label: 'Support',
+    label: 'Help & Support',
     Icon: LifeBuoy,
     color: Palette.orange,
     actionId: 'support',
@@ -283,7 +283,7 @@ const vendorMore: MoreItem[] = [
 
   {
     key: 'support',
-    label: 'Support',
+    label: 'Help & Support',
     Icon: LifeBuoy,
     color: Palette.orange,
     actionId: 'support',
@@ -360,7 +360,7 @@ const driverMore: MoreItem[] = [
 
   {
     key: 'support',
-    label: 'Support',
+    label: 'Help & Support',
     Icon: LifeBuoy,
     color: Palette.purple,
     actionId: 'support',

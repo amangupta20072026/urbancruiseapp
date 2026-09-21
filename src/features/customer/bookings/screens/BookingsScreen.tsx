@@ -33,9 +33,16 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -77,6 +84,36 @@ const BookingsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const [filter, setFilter] = useState<BookingFilter>('all');
   const [search, setSearch] = useState('');
+
+  /* -------- Pull-to-refresh --------
+   *
+   * `refreshing` drives the RefreshControl spinner; the timeout below
+   * simulates the network round-trip so the gesture feels real against
+   * the local mock fixture. When /customer/bookings ships, replace the
+   * setTimeout with `await refetch()` from the TanStack Query hook —
+   * the state plumbing here (and the RefreshControl wire-up on the list
+   * ScrollView) stays exactly the same.
+   *
+   * The `mountedRef` guard prevents a "setState on unmounted component"
+   * warning if the user pulls-to-refresh then navigates away before the
+   * simulated round-trip resolves. */
+  const [refreshing, setRefreshing] = useState(false);
+  const mountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    // TODO(api): replace with `refetch()` from useBookings() once the
+    // endpoint lands.
+    setTimeout(() => {
+      if (mountedRef.current) setRefreshing(false);
+    }, 700);
+  }, []);
 
   /* -------- Filter + search (memoised) -------- *
    *
@@ -211,6 +248,14 @@ const BookingsScreen: React.FC = () => {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
       >
         {visibleItems.length === 0 ? (
           <View style={styles.emptyState}>
