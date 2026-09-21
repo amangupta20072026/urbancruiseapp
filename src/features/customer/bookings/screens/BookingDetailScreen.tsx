@@ -343,13 +343,7 @@ const BookingDetailScreen: React.FC = () => {
   }
 
   if (detail.status === 'upcoming') {
-    return (
-      <UpcomingDetail
-        detail={detail}
-        onBack={handleBack}
-        onBookAgain={handleBookAgain}
-      />
-    );
+    return <UpcomingDetail detail={detail} onBack={handleBack} />;
   }
 
   if (detail.status === 'ongoing') {
@@ -387,6 +381,15 @@ const CompletedDetail: React.FC<CompletedProps> = ({
   onViewInvoice,
 }) => {
   const status = STATUS_VISUAL.completed;
+
+  /* Bottom-sheet ref for the "Need Help?" contact sheet. Same pattern
+     as OngoingDetail / CancelledDetail — mounted once inside SafeScreen,
+     presented imperatively when the user taps Contact Support. */
+  const needHelpRef = useRef<BottomSheetModal>(null);
+
+  const openNeedHelp = useCallback(() => {
+    needHelpRef.current?.present();
+  }, []);
 
   return (
     <SafeScreen edges={['top', 'bottom']} backgroundColor={Colors.background}>
@@ -713,6 +716,30 @@ const CompletedDetail: React.FC<CompletedProps> = ({
             </Pressable>
           </View>
         </View>
+
+        {/* ── Need Help support card ── */}
+        <View style={styles.helpCard}>
+          <View style={styles.helpIconTile}>
+            <Headphones size={20} color={BLUE_FG} strokeWidth={2.25} />
+          </View>
+          <View style={styles.helpTextCol}>
+            <Text style={styles.helpTitle}>Need Help?</Text>
+            <Text style={styles.helpBody}>
+              Contact our support team for any queries.
+            </Text>
+          </View>
+          <Pressable
+            onPress={openNeedHelp}
+            style={({ pressed }) => [
+              styles.contactSupportBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Contact support"
+          >
+            <Text style={styles.contactSupportBtnText}>Contact Support</Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       {/* ── Sticky bottom CTA ── */}
@@ -730,6 +757,17 @@ const CompletedDetail: React.FC<CompletedProps> = ({
           <Text style={styles.primaryCtaText}>Book Again</Text>
         </Pressable>
       </View>
+
+      {/* Need Help bottom sheet — mounted once, presented imperatively
+          via `needHelpRef` from the Need Help card's Contact Support
+          button. Portaled to the app-root BottomSheetModalProvider
+          (App.tsx), so it sits above the sticky bar without extra
+          z-index plumbing. */}
+      <NeedHelpSheet
+        ref={needHelpRef}
+        executive={STANDARD_EXECUTIVE}
+        contextRef={detail.bookingNumber}
+      />
     </SafeScreen>
   );
 };
@@ -1065,15 +1103,19 @@ const CancelDetailRow: React.FC<{
 type UpcomingProps = {
   detail: CustomerBookingDetail;
   onBack: () => void;
-  onBookAgain: () => void;
 };
 
-const UpcomingDetail: React.FC<UpcomingProps> = ({
-  detail,
-  onBack,
-  onBookAgain,
-}) => {
+const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
   const status = STATUS_VISUAL.upcoming;
+
+  /* Bottom-sheet ref for the "Need Help?" contact sheet. Same pattern
+     as OngoingDetail / CancelledDetail — mounted once inside SafeScreen,
+     presented imperatively when the user taps Contact Support. */
+  const needHelpRef = useRef<BottomSheetModal>(null);
+
+  const openNeedHelp = useCallback(() => {
+    needHelpRef.current?.present();
+  }, []);
 
   return (
     <SafeScreen edges={['top', 'bottom']} backgroundColor={Colors.background}>
@@ -1369,34 +1411,41 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({
             ) : null}
           </View>
         </View>
-      </ScrollView>
 
-      {/* ── Sticky bottom CTA bar: Book Again (primary, full-width) ── */}
-      <View style={styles.stickyBar}>
-        <View style={styles.stickyRow}>
+        {/* ── Need Help support card ── */}
+        <View style={styles.helpCard}>
+          <View style={styles.helpIconTile}>
+            <Headphones size={20} color={BLUE_FG} strokeWidth={2.25} />
+          </View>
+          <View style={styles.helpTextCol}>
+            <Text style={styles.helpTitle}>Need Help?</Text>
+            <Text style={styles.helpBody}>
+              Contact our support team for any queries.
+            </Text>
+          </View>
           <Pressable
-            onPress={onBookAgain}
+            onPress={openNeedHelp}
             style={({ pressed }) => [
-              styles.bookAgainWide,
+              styles.contactSupportBtn,
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Book again"
+            accessibilityLabel="Contact support"
           >
-            <View style={styles.ctaHeadRow}>
-              <RotateCw
-                size={18}
-                color={Colors.textOnPrimary}
-                strokeWidth={2.25}
-              />
-              <Text style={styles.bookAgainWideTitle}>Book Again</Text>
-            </View>
-            <Text style={styles.bookAgainWideSubtitle} numberOfLines={1}>
-              Use this trip for a new booking
-            </Text>
+            <Text style={styles.contactSupportBtnText}>Contact Support</Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
+
+      {/* Need Help bottom sheet — mounted once, presented imperatively
+          via `needHelpRef` from the Need Help card's Contact Support
+          button. Portaled to the app-root BottomSheetModalProvider
+          (App.tsx). */}
+      <NeedHelpSheet
+        ref={needHelpRef}
+        executive={STANDARD_EXECUTIVE}
+        contextRef={detail.bookingNumber}
+      />
     </SafeScreen>
   );
 };
