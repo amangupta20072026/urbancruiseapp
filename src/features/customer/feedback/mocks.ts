@@ -55,7 +55,8 @@ export const MOCK_SUBMITTED_FEEDBACK: readonly SubmittedFeedback[] = [
     bookingTo: 'Manali',
     bookingDate: '2026-08-02',
     rating: 5,
-    tags: ['professional_driver', 'clean_vehicle', 'value_for_money'],
+    ratings: { overall: 5, executive: 5, driver: 5 },
+    tags: ['driver_behaviour', 'vehicle_cleanliness', 'value_for_money'],
     comment:
       'Great trip overall. Driver was courteous and the vehicle was spotless.',
     submittedAt: '2026-08-04T10:00:00Z',

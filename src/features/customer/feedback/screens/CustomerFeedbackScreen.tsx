@@ -11,8 +11,16 @@
  *   Give Feedback (default)
  *     [info banner]
  *     [Select a Booking — list of completed trips]
- *     [Rate Your Experience — selected booking + stars + tags
- *       + textarea + submit] (only visible once a booking is picked)
+ *     [Rate Your Experience — three numbered sub-sections, only
+ *       visible once a booking is picked:
+ *         1. How would you rate your experience?
+ *            Three category rows (overall / executive / driver),
+ *            each an interactive 5-star row with a live word label
+ *            (Poor … Excellent).
+ *         2. What did we do well? (Select all that apply)
+ *            2-column icon-chip grid, multi-select.
+ *         3. Tell us more (Optional)
+ *            Textarea, 500-char cap, live counter.]
  *
  *   My Feedback
  *     [list of already-submitted feedback cards]
@@ -21,13 +29,15 @@
  *   - Tapping "Give Feedback" on a booking-list card sets
  *     `selectedBookingId`; the card gets a green outline and the
  *     Rate section appears below.
- *   - Overall rating uses integer stars 0..5 (tap same star again
- *     to clear).
+ *   - Each category rating uses integer stars 0..5 (tap same star
+ *     again to clear).
  *   - Tags are multi-select; selection is unordered.
  *   - Comment has a 500-char cap with a live counter.
- *   - Submit is disabled until a rating > 0 is set. On success, we
- *     reset local state and show a toast; the fixture is not
- *     updated (real submission will hit /customer/feedback).
+ *   - Submit is disabled until ALL THREE category ratings are > 0
+ *     — a missing dimension would leave analytics with a zero-star
+ *     signal for that axis. On success, we reset local state and
+ *     show a toast; the fixture is not updated (real submission will
+ *     hit /customer/feedback).
  *
  * DATA:
  *   Local mocks in `../mocks.ts`. Swap for TanStack Query hooks
@@ -36,46 +46,122 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useNavigation } from '@react-navigation/native';
 import {
+  Armchair,
   ArrowRight,
   Calendar,
+  Car,
   Check,
+  Clock,
+  Headphones,
+  IndianRupee,
   MessageSquare,
+  ShieldCheck,
+  Smile,
+  User,
+  type LucideIcon,
 } from 'lucide-react-native';
 
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { toast } from '@services/toast';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 
-import type { FeedbackTab, LikeTag, SubmittedFeedback } from '../types';
+import type {
+  FeedbackTab,
+  LikeTag,
+  RatingCategories,
+  SubmittedFeedback,
+} from '../types';
 import { MOCK_COMPLETED_BOOKINGS, MOCK_SUBMITTED_FEEDBACK } from '../mocks';
 import { BookingSelectCard } from '../components/BookingSelectCard';
 import { StarRating } from '../components/StarRating';
 
 const COMMENT_MAX = 500;
 
-const TAG_OPTIONS: readonly { key: LikeTag; label: string }[] = [
-  { key: 'clean_vehicle', label: 'Clean Vehicle' },
-  { key: 'ontime_service', label: 'On-time Service' },
-  { key: 'professional_driver', label: 'Professional Driver' },
-  { key: 'comfortable_ride', label: 'Comfortable Ride' },
-  { key: 'good_support', label: 'Good Support' },
-  { key: 'value_for_money', label: 'Value for Money' },
+/**
+ * The eight "what did we do well" chips, in the exact left-to-right,
+ * top-to-bottom order the design mock uses. The grid is 2 columns so
+ * pairs on the same row are (index 0,1), (2,3), (4,5), (6,7). Icons
+ * are paired 1:1 with the label because the chip is only ever a fixed
+ * option — feature code never composes chips dynamically here.
+ */
+const TAG_OPTIONS: readonly {
+  key: LikeTag;
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { key: 'driver_behaviour', label: 'Driver Behaviour', icon: User },
+  { key: 'vehicle_cleanliness', label: 'Vehicle Cleanliness', icon: Car },
+  { key: 'comfortable_ride', label: 'Comfortable Ride', icon: Armchair },
+  { key: 'ontime_pickup', label: 'On-Time Pickup', icon: Clock },
+  { key: 'value_for_money', label: 'Value for Money', icon: IndianRupee },
+  { key: 'safe_driving', label: 'Safe Driving', icon: ShieldCheck },
+  { key: 'executive_support', label: 'Executive Support', icon: Headphones },
+  { key: 'booking_experience', label: 'Booking Experience', icon: Calendar },
 ];
 
 /** Map of key → label for reverse lookup on the My Feedback tab. */
 const TAG_LABELS: Record<LikeTag, string> = Object.fromEntries(
   TAG_OPTIONS.map(t => [t.key, t.label]),
 ) as Record<LikeTag, string>;
+
+/**
+ * The three category-rating rows shown inside the Rate Your Experience
+ * card. Kept alongside TAG_OPTIONS as static UI metadata — the domain
+ * shape (integer 1..5 per key) lives in `types.ts` as RatingCategories.
+ */
+type RatingCategoryKey = 'overall' | 'executive' | 'driver';
+
+const RATING_ROWS: readonly {
+  key: RatingCategoryKey;
+  title: string;
+  subtitle: string;
+  icon: LucideIcon;
+}[] = [
+  {
+    key: 'overall',
+    title: 'Overall Experience',
+    subtitle: 'Your overall trip experience',
+    icon: Smile,
+  },
+  {
+    key: 'executive',
+    title: 'Travel Executive',
+    subtitle: 'Support & assistance from our executive',
+    icon: Headphones,
+  },
+  {
+    key: 'driver',
+    title: 'Driver',
+    subtitle: 'Driving, behaviour & professionalism',
+    icon: Car,
+  },
+];
+
+/**
+ * Convert an integer star rating to the word shown under the stars in
+ * the Rate Your Experience card. Returns null for 0 so the label slot
+ * collapses when the row hasn't been touched yet.
+ */
+function ratingLabel(n: number): string | null {
+  switch (n) {
+    case 1:
+      return 'Poor';
+    case 2:
+      return 'Fair';
+    case 3:
+      return 'Good';
+    case 4:
+      return 'Very Good';
+    case 5:
+      return 'Excellent';
+    default:
+      return null;
+  }
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -99,7 +185,17 @@ const CustomerFeedbackScreen: React.FC = () => {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null,
   );
-  const [rating, setRating] = useState(0);
+  /**
+   * The redesigned Rate Your Experience surface asks for THREE
+   * independent star ratings (overall / executive / driver). Stored
+   * as a single object so `onChangeRating` can update any key without
+   * spawning three sibling `useState` calls.
+   */
+  const [ratings, setRatings] = useState<RatingCategories>({
+    overall: 0,
+    executive: 0,
+    driver: 0,
+  });
   const [tags, setTags] = useState<Set<LikeTag>>(new Set());
   const [comment, setComment] = useState('');
 
@@ -110,14 +206,28 @@ const CustomerFeedbackScreen: React.FC = () => {
 
   /* -------- Handlers -------- */
 
-  const onSelectBooking = useCallback((id: string) => {
-    setSelectedBookingId(id);
-    // Reset form when switching bookings so ratings don't bleed
-    // across trips.
-    setRating(0);
+  const resetForm = useCallback(() => {
+    setRatings({ overall: 0, executive: 0, driver: 0 });
     setTags(new Set());
     setComment('');
   }, []);
+
+  const onSelectBooking = useCallback(
+    (id: string) => {
+      setSelectedBookingId(id);
+      // Reset form when switching bookings so ratings don't bleed
+      // across trips.
+      resetForm();
+    },
+    [resetForm],
+  );
+
+  const onChangeRating = useCallback(
+    (key: keyof RatingCategories, next: number) => {
+      setRatings(prev => ({ ...prev, [key]: next }));
+    },
+    [],
+  );
 
   const onToggleTag = useCallback((tag: LikeTag) => {
     setTags(prev => {
@@ -128,18 +238,25 @@ const CustomerFeedbackScreen: React.FC = () => {
     });
   }, []);
 
-  const canSubmit = selectedBooking !== null && rating > 0;
+  /**
+   * All three category ratings must be set before the user can submit.
+   * Matches the redesigned form where a missing dimension would leave
+   * analytics with a zero-star signal for that axis.
+   */
+  const canSubmit =
+    selectedBooking !== null &&
+    ratings.overall > 0 &&
+    ratings.executive > 0 &&
+    ratings.driver > 0;
 
   const onSubmit = useCallback(() => {
     if (!canSubmit) return;
     // UI-only pass: no backend call. Reset the form + confirm.
     setSelectedBookingId(null);
-    setRating(0);
-    setTags(new Set());
-    setComment('');
+    resetForm();
     toast.success('Thanks — your feedback was recorded.');
     setTab('my');
-  }, [canSubmit]);
+  }, [canSubmit, resetForm]);
 
   /* -------- Render -------- */
 
@@ -168,19 +285,33 @@ const CustomerFeedbackScreen: React.FC = () => {
         />
       </View>
 
-      <ScrollView
+      {/*
+        KeyboardAwareScrollView (react-native-keyboard-controller)
+        auto-scrolls the focused input into view when the software
+        keyboard opens. Without it, the "Tell us more" textarea —
+        the last field before the Submit CTA — sits behind the
+        keyboard on both platforms and the user types blind.
+
+        `bottomOffset` reserves clearance so the focused input's
+        caret is not flush against the keyboard top; matches the
+        value used by RequestQuotationScreen, which has the same
+        textarea-above-CTA layout. Requires <KeyboardProvider>
+        higher in the tree — App.tsx mounts it.
+      */}
+      <KeyboardAwareScrollView
         style={styles.scrollBg}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        bottomOffset={120}
       >
         {tab === 'give' ? (
           <GiveFeedbackTab
             selectedBookingId={selectedBookingId}
             onSelectBooking={onSelectBooking}
             selectedBooking={selectedBooking}
-            rating={rating}
-            setRating={setRating}
+            ratings={ratings}
+            onChangeRating={onChangeRating}
             tags={tags}
             onToggleTag={onToggleTag}
             comment={comment}
@@ -191,7 +322,7 @@ const CustomerFeedbackScreen: React.FC = () => {
         ) : (
           <MyFeedbackTab />
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeScreen>
   );
 };
@@ -210,8 +341,8 @@ const GiveFeedbackTab: React.FC<{
   > extends infer T
     ? T | null
     : never;
-  rating: number;
-  setRating: (n: number) => void;
+  ratings: RatingCategories;
+  onChangeRating: (key: keyof RatingCategories, next: number) => void;
   tags: Set<LikeTag>;
   onToggleTag: (t: LikeTag) => void;
   comment: string;
@@ -222,8 +353,8 @@ const GiveFeedbackTab: React.FC<{
   selectedBookingId,
   onSelectBooking,
   selectedBooking,
-  rating,
-  setRating,
+  ratings,
+  onChangeRating,
   tags,
   onToggleTag,
   comment,
@@ -265,18 +396,34 @@ const GiveFeedbackTab: React.FC<{
       ))}
     </View>
 
-    {/* Section 2 — Rate Your Experience (only after selection). */}
+    {/*
+      Section 2 — Rate Your Experience (only after selection).
+
+      Redesigned surface. The old body was a single "Overall Rating"
+      star row + a flat tag-chip strip + textarea. It's now three
+      numbered sub-sections (1 / 2 / 3), each with its own card:
+
+        1. How would you rate your experience?
+           Three category rows (overall / executive / driver), each
+           with an icon puck on the left, title + subtitle, and a
+           right-aligned 5-star row with a live word label
+           ("Poor" .. "Excellent") beneath.
+
+        2. What did we do well? (Select all that apply)
+           2-column chip grid with per-chip icon on the left and a
+           checkmark badge on the right when active.
+
+        3. Tell us more (Optional)
+           Textarea, 500-char cap, live counter.
+
+      The booking-summary card (route / date / vehicle / Completed
+      pill) is retained above the numbered sections so the rater
+      never loses context of which trip they're rating.
+    */}
     {selectedBooking ? (
       <>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Rate Your Experience</Text>
-          <Text style={styles.sectionBody}>
-            How was your overall experience with this trip?
-          </Text>
-        </View>
-
-        <View style={styles.rateCard}>
-          {/* Summary of the selected trip */}
+        {/* Booking context card */}
+        <View style={styles.rateSummaryCard}>
           <View style={styles.rateSummary}>
             <View style={styles.rateSummaryBody}>
               <View style={styles.routeRow}>
@@ -308,75 +455,140 @@ const GiveFeedbackTab: React.FC<{
               <Text style={styles.completedPillOnRateText}>Completed</Text>
             </View>
           </View>
-
-          {/* Stars */}
-          <Text style={styles.fieldLabel}>Overall Rating</Text>
-          <StarRating value={rating} onChange={setRating} />
-
-          {/* Tags */}
-          <Text style={styles.fieldLabel}>What did you like?</Text>
-          <View style={styles.tagWrap}>
-            {TAG_OPTIONS.map(opt => {
-              const active = tags.has(opt.key);
-              return (
-                <Pressable
-                  key={opt.key}
-                  onPress={() => onToggleTag(opt.key)}
-                  style={({ pressed }) => [
-                    styles.tag,
-                    active && styles.tagActive,
-                    pressed && styles.pressed,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                >
-                  {active ? (
-                    <Check size={14} color={Colors.primary} strokeWidth={2.5} />
-                  ) : null}
-                  <Text
-                    style={[styles.tagLabel, active && styles.tagLabelActive]}
-                  >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Comment */}
-          <Text style={styles.fieldLabel}>Your Feedback (Optional)</Text>
-          <View style={styles.textareaWrap}>
-            <TextInput
-              value={comment}
-              onChangeText={t => setComment(t.slice(0, COMMENT_MAX))}
-              placeholder="Tell us more about your experience..."
-              placeholderTextColor={Colors.textTertiary}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              style={styles.textarea}
-              maxLength={COMMENT_MAX}
-            />
-            <Text style={styles.charCount}>
-              {comment.length}/{COMMENT_MAX}
-            </Text>
-          </View>
-
-          {/* Submit */}
-          <Pressable
-            onPress={onSubmit}
-            disabled={!canSubmit}
-            style={({ pressed }) => [
-              styles.submitBtn,
-              !canSubmit && styles.submitBtnDisabled,
-              pressed && canSubmit && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Submit feedback"
-          >
-            <Text style={styles.submitBtnText}>Submit Feedback</Text>
-          </Pressable>
         </View>
+
+        {/* 1. Category ratings */}
+        <Text style={styles.numberedSectionTitle}>
+          1. How would you rate your experience?
+        </Text>
+        <View style={styles.categoryCard}>
+          {RATING_ROWS.map((row, idx) => {
+            const value = ratings[row.key];
+            const label = ratingLabel(value);
+            const RowIcon = row.icon;
+            return (
+              <View
+                key={row.key}
+                style={[
+                  styles.categoryRow,
+                  idx < RATING_ROWS.length - 1 && styles.categoryRowDivider,
+                ]}
+              >
+                <View style={styles.categoryIconPuck}>
+                  <RowIcon size={20} color={Colors.primary} strokeWidth={2} />
+                </View>
+                <View style={styles.categoryText}>
+                  <Text style={styles.categoryTitle}>{row.title}</Text>
+                  <Text style={styles.categorySubtitle}>{row.subtitle}</Text>
+                </View>
+                <View style={styles.categoryStars}>
+                  <StarRating
+                    value={value}
+                    onChange={n => onChangeRating(row.key, n)}
+                    size={20}
+                    showLabel={false}
+                    color={Colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.categoryStarsLabel,
+                      label ? styles.categoryStarsLabelActive : null,
+                    ]}
+                  >
+                    {label ?? 'Tap to rate'}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* 2. Tag chips */}
+        <Text style={styles.numberedSectionTitle}>
+          2. What did we do well?{' '}
+          <Text style={styles.numberedSectionHint}>
+            (Select all that apply)
+          </Text>
+        </Text>
+        <View style={styles.tagGrid}>
+          {TAG_OPTIONS.map(opt => {
+            const active = tags.has(opt.key);
+            const TagIcon = opt.icon;
+            return (
+              <Pressable
+                key={opt.key}
+                onPress={() => onToggleTag(opt.key)}
+                style={({ pressed }) => [
+                  styles.tagGridItem,
+                  active && styles.tagGridItemActive,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <TagIcon
+                  size={16}
+                  color={active ? Colors.primary : Colors.textSecondary}
+                  strokeWidth={2}
+                />
+                <Text
+                  style={[
+                    styles.tagGridLabel,
+                    active && styles.tagGridLabelActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {opt.label}
+                </Text>
+                {active ? (
+                  <View style={styles.tagGridCheck}>
+                    <Check
+                      size={10}
+                      color={Colors.textOnPrimary}
+                      strokeWidth={3}
+                    />
+                  </View>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* 3. Comment */}
+        <Text style={styles.numberedSectionTitle}>
+          3. Tell us more (Optional)
+        </Text>
+        <View style={styles.textareaWrap}>
+          <TextInput
+            value={comment}
+            onChangeText={t => setComment(t.slice(0, COMMENT_MAX))}
+            placeholder="Share your experience, suggestions or anything we can improve..."
+            placeholderTextColor={Colors.textTertiary}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            style={styles.textarea}
+            maxLength={COMMENT_MAX}
+          />
+          <Text style={styles.charCount}>
+            {comment.length}/{COMMENT_MAX}
+          </Text>
+        </View>
+
+        {/* Submit */}
+        <Pressable
+          onPress={onSubmit}
+          disabled={!canSubmit}
+          style={({ pressed }) => [
+            styles.submitBtn,
+            !canSubmit && styles.submitBtnDisabled,
+            pressed && canSubmit && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Submit feedback"
+        >
+          <Text style={styles.submitBtnText}>Submit Feedback</Text>
+        </Pressable>
       </>
     ) : null}
   </>
@@ -566,20 +778,129 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
 
-  /* Rate card */
-  rateCard: {
+  /* Booking-context card above the numbered rate sections */
+  rateSummaryCard: {
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    gap: Spacing.md,
     ...Shadows.xs,
   },
   rateSummary: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.md,
+  },
+
+  /* Numbered section headers (1. / 2. / 3.) */
+  numberedSectionTitle: {
+    ...Typography.subtitle,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+  },
+  numberedSectionHint: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+
+  /* Category rating card (3 rows: overall / executive / driver) */
+  categoryCard: {
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    paddingHorizontal: Spacing.md,
+    ...Shadows.xs,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  categoryRowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  categoryIconPuck: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryText: {
+    flex: 1,
+    gap: 2,
+  },
+  categoryTitle: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+  },
+  categorySubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+  },
+  categoryStars: {
+    alignItems: 'flex-end',
+    gap: Spacing.xxs,
+  },
+  categoryStarsLabel: {
+    ...Typography.caption,
+    color: Colors.textTertiary,
+    fontWeight: '600',
+    includeFontPadding: false,
+  },
+  categoryStarsLabelActive: {
+    color: Colors.primary,
+  },
+
+  /* Tag chip grid — 2 columns, icon left, check badge on active */
+  tagGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: Spacing.sm,
+  },
+  tagGridItem: {
+    width: '48.5%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  tagGridItemActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryTint,
+  },
+  tagGridLabel: {
+    flex: 1,
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    includeFontPadding: false,
+  },
+  tagGridLabelActive: {
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  tagGridCheck: {
+    width: 16,
+    height: 16,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rateSummaryBody: {
     flex: 1,
@@ -619,15 +940,8 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  /* Field labels + fields */
-  fieldLabel: {
-    ...Typography.label,
-    color: Colors.textPrimary,
-    fontWeight: '700',
-    marginTop: Spacing.sm,
-  },
-
-  /* Tag chips */
+  /* Tag chips (My Feedback read-only strip only — the Give Feedback
+     tab uses tagGrid below.) */
   tagWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -28,6 +28,14 @@ type Props = {
   size?: number;
   /** Show the "N.N out of 5" side-label next to the stars. */
   showLabel?: boolean;
+  /**
+   * Colour of the "active" star fill/outline. Defaults to Colors.secondary
+   * (the amber used by the standalone Overall Rating on the general
+   * Feedback screen). The three-row category rating block on that same
+   * screen overrides this with Colors.primary so the stars match the
+   * green "Excellent" label directly below them.
+   */
+  color?: string;
 };
 
 export const StarRating: React.FC<Props> = ({
@@ -36,6 +44,7 @@ export const StarRating: React.FC<Props> = ({
   readOnly = false,
   size = 32,
   showLabel = true,
+  color = Colors.secondary,
 }) => {
   const onTap = useCallback(
     (n: number) => {
@@ -60,8 +69,8 @@ export const StarRating: React.FC<Props> = ({
           >
             <Star
               size={size}
-              color={active ? Colors.secondary : Colors.border}
-              fill={active ? Colors.secondary : 'transparent'}
+              color={active ? color : Colors.border}
+              fill={active ? color : 'transparent'}
               strokeWidth={1.5}
             />
           </Pressable>
