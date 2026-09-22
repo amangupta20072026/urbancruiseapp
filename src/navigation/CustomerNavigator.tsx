@@ -33,7 +33,10 @@ import HelpSupportScreen from '@features/shared/support/screens/HelpSupportScree
 import { ProfileScreen } from '@features/shared/profile';
 import { SettingsScreen } from '@features/shared/settings';
 import { NotificationCentreScreen } from '@features/shared/notifications';
-import { CustomerFeedbackScreen } from '@features/customer/feedback';
+import {
+  CustomerFeedbackScreen,
+  GiveFeedbackScreen,
+} from '@features/customer/feedback';
 import { ReferralsScreen } from '@features/customer/referrals';
 import { BookingDetailScreen } from '@features/customer/bookings';
 import {
@@ -95,7 +98,7 @@ const CustomerNavigator: React.FC = () => {
       <Stack.Screen name="AddRemark" component={NotImplementedScreen} />
       <Stack.Screen name="PayBalance" component={NotImplementedScreen} />
       <Stack.Screen name="GstInvoice" component={NotImplementedScreen} />
-      <Stack.Screen name="Feedback" component={NotImplementedScreen} />
+      <Stack.Screen name="Feedback" component={GiveFeedbackScreen} />
     </Stack.Navigator>
   );
 };

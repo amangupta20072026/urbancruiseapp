@@ -78,6 +78,14 @@ export type EventName =
   | 'home.cta_tapped'
   | 'home.service_mode_changed'
 
+  // ── Customer feedback ─────────────────────────────────
+  // Booking-scoped post-trip feedback flow. `_started` fires when
+  // the user opens the form (useful funnel signal — many users open
+  // and abandon), `_submitted` on 2xx, `_failed` on 4xx/5xx/network.
+  | 'customer.feedback_started'
+  | 'customer.feedback_submitted'
+  | 'customer.feedback_failed'
+
   // ── Push (FCM) ────────────────────────────────────────
   | 'fcm.notification_received'
   | 'fcm.notification_tapped'

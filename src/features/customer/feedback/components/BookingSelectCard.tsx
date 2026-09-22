@@ -2,23 +2,23 @@
  * ------------------------------------------------------------------
  * BookingSelectCard
  * ------------------------------------------------------------------
- * One row in the "Select a Booking" list on the Feedback screen.
+ * One row in the "Select a Booking" list on CustomerFeedbackScreen.
  * Layout:
  *
  *   ┌──────────────────────────────────────────────────────┐
- *   │ ┌────┐  Delhi  →  Jaipur         [Completed pill]   │
- *   │ │ 🚌 │  📅 15 Sep · 👥 20 Passengers                │
- *   │ │    │  Tempo Traveller | AC     [Give Feedback]    │
- *   │ └────┘                                               │
+ *   │ Delhi  →  Jaipur              [Completed pill]       │
+ *   │ 📅 15 Sep · 👥 20 Passengers  [Give Feedback  →]     │
+ *   │ Tempo Traveller | AC                                 │
  *   └──────────────────────────────────────────────────────┘
  *
- * The "Give Feedback" CTA is per-row (not global) so the user can
- * see each option and pick the trip they want to rate. Selecting a
- * card sets `selectedBookingId` in the screen state; the "Rate Your
- * Experience" section below reflects that selection.
+ * The whole card AND the per-row "Give Feedback" CTA both fire the
+ * same `onGiveFeedback` — larger tap target, no confusion about
+ * which spot to press. Both routes push GiveFeedbackScreen with
+ * the bookingId; there's no local selection state any more, so the
+ * card is a stateless pressable rather than a two-mode component.
  *
- * Vehicle imagery falls back to a lucide glyph inside a tinted tile
- * until real photos are wired (same treatment as BookingCard).
+ * Vehicle imagery is a text summary until real photos are wired
+ * (same treatment as BookingCard elsewhere in the app).
  * ------------------------------------------------------------------
  */
 
@@ -40,17 +40,22 @@ function formatDate(iso: string): string {
 
 type Props = {
   item: CompletedBookingSummary;
-  selected: boolean;
-  onSelect: () => void;
+  onGiveFeedback: () => void;
 };
 
 export const BookingSelectCard: React.FC<Props> = ({
   item,
-  selected,
-  onSelect,
+  onGiveFeedback,
 }) => {
   return (
-    <View style={[styles.card, selected && styles.cardSelected]}>
+    <Pressable
+      onPress={onGiveFeedback}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`Give feedback for ${item.from} to ${
+        item.to
+      } on ${formatDate(item.travelDate)}`}
+    >
       <View style={styles.body}>
         <View style={styles.routeRow}>
           <Text style={styles.routeText} numberOfLines={1}>
@@ -86,21 +91,24 @@ export const BookingSelectCard: React.FC<Props> = ({
         <View style={styles.completedPill}>
           <Text style={styles.completedPillText}>Completed</Text>
         </View>
-        <Pressable
-          onPress={onSelect}
-          style={({ pressed }) => [styles.ctaBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityState={{ selected }}
-          accessibilityLabel={
-            selected
-              ? `Selected trip ${item.from} to ${item.to}`
-              : `Give feedback for ${item.from} to ${item.to}`
-          }
+        {/*
+          The card itself is pressable, so this CTA is a visual
+          affordance — nothing more. Using a nested Pressable with
+          `pointerEvents='none'` keeps the tap on the parent so we
+          never fire the handler twice; on iOS a nested Pressable
+          also fires (bubbling), which we don't want here.
+        */}
+        <View
+          style={styles.ctaBtn}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
         >
           <Text style={styles.ctaBtnText}>Give Feedback</Text>
-        </Pressable>
+          <ArrowRight size={14} color={Colors.primary} strokeWidth={2.5} />
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 };
 
@@ -114,11 +122,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
     backgroundColor: Colors.surface,
     ...Shadows.xs,
-  },
-  cardSelected: {
-    borderColor: Colors.primary,
-    borderWidth: 1.5,
-    backgroundColor: Colors.primaryTint,
   },
   body: {
     flex: 1,
@@ -156,6 +159,7 @@ const styles = StyleSheet.create({
   },
   right: {
     alignItems: 'flex-end',
+    justifyContent: 'space-between',
     gap: Spacing.sm,
   },
   completedPill: {
@@ -171,14 +175,15 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   ctaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     height: 36,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.md,
     borderWidth: 1.5,
     borderColor: Colors.primary,
     backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   ctaBtnText: {
     ...Typography.bodySmall,

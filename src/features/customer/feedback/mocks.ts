@@ -47,6 +47,29 @@ export const MOCK_COMPLETED_BOOKINGS: readonly CompletedBookingSummary[] = [
   },
 ];
 
+/**
+ * Lookup helper used by GiveFeedbackScreen when the route lands with
+ * a bookingId. When the /customer/feedback/eligible endpoint ships,
+ * this becomes a `getEligibleFeedbackBooking(id)` TanStack query
+ * with the same return shape. Callers must handle `null` — the
+ * bookingId might be stale (feedback already submitted, or a
+ * deeplink from a very old push).
+ */
+export function getMockCompletedBookingById(
+  id: string,
+): CompletedBookingSummary | null {
+  return MOCK_COMPLETED_BOOKINGS.find(b => b.id === id) ?? null;
+}
+
+/**
+ * In-memory set of booking IDs that already have a submitted
+ * feedback record. Simulates the backend's dedupe key so the mock
+ * `useSubmitFeedback` can return a `conflict` error on a repeat
+ * submit — otherwise the client couldn't be tested against that
+ * branch. DELETE with the mocks.
+ */
+export const MOCK_SUBMITTED_BOOKING_IDS = new Set<string>(['bk_00087']);
+
 export const MOCK_SUBMITTED_FEEDBACK: readonly SubmittedFeedback[] = [
   {
     id: 'fb_001',

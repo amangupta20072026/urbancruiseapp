@@ -70,6 +70,19 @@ export const queryKeys = {
       summary: (id: BookingId) =>
         ['customer', 'payments', 'summary', id] as const,
     },
+    feedback: {
+      all: () => ['customer', 'feedback'] as const,
+      /** List of already-submitted feedback for the My Feedback tab. */
+      list: () => ['customer', 'feedback', 'list'] as const,
+      /** Completed-trip projection for the "Select a Booking" list. */
+      eligible: () => ['customer', 'feedback', 'eligible'] as const,
+      /**
+       * Mutation key. `useIsMutating({ mutationKey: ... })` reads this
+       * when we need a top-level "submitting feedback" indicator
+       * (e.g. to prevent a background sync from clobbering the form).
+       */
+      submit: () => ['customer', 'feedback', 'submit'] as const,
+    },
   },
 
   vendor: {

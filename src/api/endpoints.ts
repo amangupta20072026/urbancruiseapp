@@ -54,6 +54,21 @@ export const endpoints = {
       gstInvoice: (id: BookingId) =>
         `/customer/bookings/${id}/payments/invoice`,
     },
+
+    /**
+     * Post-trip feedback. `submit` is idempotent — the backend keys
+     * on (bookingId, userId) so a retry of a failed submit does not
+     * create a duplicate record. `list` powers the "My Feedback" tab.
+     * `eligible` returns just the completed-trip projection used by
+     * the "Select a Booking" list; the same data lives in bookings
+     * but the ops team wants to be able to change eligibility rules
+     * (grace window, no-show handling) without touching bookings.
+     */
+    feedback: {
+      submit: (id: BookingId) => `/customer/bookings/${id}/feedback`,
+      list: () => '/customer/feedback',
+      eligible: () => '/customer/feedback/eligible',
+    },
   },
 
   vendor: {
