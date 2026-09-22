@@ -12,11 +12,12 @@
  *   [ PaymentCard × N ]
  *
  * NAVIGATION INTENTS:
- *   - Card tap        → BookingDetail (payments live per booking;
- *                       the detail screen shows the ledger)
+ *   - Card tap        → PaymentDetail (a booking can have multiple
+ *                       payment rows — advance / balance / refund —
+ *                       so we route to THIS entry, not the booking).
  *   - Download button → TODO(fs): fetch the invoice PDF from
- *                       /customer/bookings/:id/payments/invoice and
- *                       hand off to react-native-file-viewer.
+ *                       /customer/payments/:id/invoice and hand off
+ *                       to react-native-file-viewer.
  *   - Filter icon in search → TODO(nav): open a filter sheet
  *
  * WHY the search+filter row matches Bookings/QuotationsScreen:
@@ -136,9 +137,13 @@ const PaymentsScreen: React.FC = () => {
 
   /* -------- Handlers -------- */
 
-  const goToBookingDetail = useCallback(
+  const goToPaymentDetail = useCallback(
     (item: CustomerPaymentListItem) => {
-      navigation.navigate('BookingDetail', { bookingId: item.bookingId });
+      // Card tap opens the ledger-entry detail (not BookingDetail).
+      // A booking can have multiple payment rows (advance / balance /
+      // refund) and each is its own record — the user tapped THIS
+      // row, so we route to THIS entry.
+      navigation.navigate('PaymentDetail', { paymentId: item.id });
     },
     [navigation],
   );
@@ -236,7 +241,7 @@ const PaymentsScreen: React.FC = () => {
             <PaymentCard
               key={item.id}
               item={item}
-              onPress={() => goToBookingDetail(item)}
+              onPress={() => goToPaymentDetail(item)}
               onDownloadInvoice={() => onDownloadInvoice(item)}
             />
           ))

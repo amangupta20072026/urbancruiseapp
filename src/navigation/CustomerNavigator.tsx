@@ -33,6 +33,7 @@ import HelpSupportScreen from '@features/shared/support/screens/HelpSupportScree
 import { ProfileScreen } from '@features/shared/profile';
 import { SettingsScreen } from '@features/shared/settings';
 import { NotificationCentreScreen } from '@features/shared/notifications';
+import { PaymentDetailScreen } from '@features/customer/payments';
 import {
   CustomerFeedbackScreen,
   GiveFeedbackScreen,
@@ -89,6 +90,7 @@ const CustomerNavigator: React.FC = () => {
 
       {/* Registered ghost routes — real screens land later. */}
       <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
+      <Stack.Screen name="PaymentDetail" component={PaymentDetailScreen} />
       <Stack.Screen name="PassengerList" component={NotImplementedScreen} />
       <Stack.Screen name="TripLive" component={NotImplementedScreen} />
       <Stack.Screen

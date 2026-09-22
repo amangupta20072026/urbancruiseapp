@@ -10,6 +10,7 @@
 import type {
   BookingId,
   EnquiryId,
+  PaymentId,
   QuotationId,
   TripId,
   VendorId,
@@ -53,6 +54,14 @@ export const endpoints = {
       pay: (id: BookingId) => `/customer/bookings/${id}/payments/pay`,
       gstInvoice: (id: BookingId) =>
         `/customer/bookings/${id}/payments/invoice`,
+      /** Financial-ledger list for the Payments tab. */
+      list: () => '/customer/payments',
+      /** One payment entry — powers PaymentDetailScreen. */
+      detail: (id: PaymentId) => `/customer/payments/${id}`,
+      /** PDF invoice for a paid entry. */
+      invoiceFile: (id: PaymentId) => `/customer/payments/${id}/invoice`,
+      /** PDF proof-of-attempt for a failed entry. */
+      failureReceipt: (id: PaymentId) => `/customer/payments/${id}/receipt`,
     },
 
     /**

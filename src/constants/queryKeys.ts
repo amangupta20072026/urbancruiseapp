@@ -13,6 +13,7 @@
 import type {
   BookingId,
   EnquiryId,
+  PaymentId,
   QuotationId,
   TripId,
   VendorId,
@@ -67,6 +68,17 @@ export const queryKeys = {
       live: (id: TripId) => ['customer', 'trip', 'live', id] as const,
     },
     payments: {
+      all: () => ['customer', 'payments'] as const,
+      /** Financial-ledger list keyed by filter+search so distinct
+       *  filter states cache independently. */
+      list: (filters: Record<string, unknown>) =>
+        ['customer', 'payments', 'list', filters] as const,
+      /** One payment entry — powers PaymentDetailScreen. */
+      detail: (id: PaymentId) =>
+        ['customer', 'payments', 'detail', id] as const,
+      /** Legacy per-booking ledger summary — kept for the existing
+       *  BookingDetail balance panel. Do not remove without pruning
+       *  that call site. */
       summary: (id: BookingId) =>
         ['customer', 'payments', 'summary', id] as const,
     },

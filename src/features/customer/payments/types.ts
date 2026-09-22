@@ -51,3 +51,62 @@ export type CustomerPaymentListItem = {
    *  rupeesToMoney when the backend lands. */
   amount: number;
 };
+
+/**
+ * ------------------------------------------------------------------
+ * PaymentDetailScreen DTO
+ * ------------------------------------------------------------------
+ * Detail view for one payment entry. Extends the list item with
+ * the timeline timestamps and the payment-instrument fields the
+ * detail screen renders.
+ *
+ * INVARIANTS the screen relies on:
+ *   - `status: 'paid'`    → `paymentMethod`, `transactionId`,
+ *                           `paymentEventAt` MUST be non-null; they
+ *                           are what appear in the Payment Summary.
+ *   - `status: 'pending'` → `paymentMethod` and `transactionId` are
+ *                           null (nothing has been charged); the
+ *                           screen shows "Not Paid Yet" / "—".
+ *                           `paymentEventAt` is the DUE-SINCE stamp.
+ *   - `status: 'failed'`  → `paymentMethod` + `transactionId` may
+ *                           be present (the attempted instrument);
+ *                           `paymentEventAt` is the ATTEMPTED-AT
+ *                           stamp; `failureReason` is the copy
+ *                           printed in the inline banner.
+ *
+ * `tripCompletedAt` may be null for a not-yet-completed booking
+ * whose payment already went through — the timeline collapses that
+ * step in that (rare) case.
+ * ------------------------------------------------------------------
+ */
+export type CustomerPaymentDetail = {
+  id: PaymentId;
+  bookingId: BookingId;
+  bookingNumber: string;
+
+  status: PaymentStatus;
+
+  from: string;
+  to: string;
+  travelDate: string;
+  pickupTime: string;
+  vehicleType: string;
+  passengers: number;
+
+  amount: number;
+
+  /* Timeline stamps (ISO). See INVARIANTS above. */
+  bookingConfirmedAt: string;
+  tripCompletedAt: string | null;
+  paymentEventAt: string;
+
+  /** e.g. "UPI (Google Pay)". Null when unpaid. */
+  paymentMethod: string | null;
+  /** Gateway reference. Null when unpaid or when the attempt failed
+   *  before a reference was issued. */
+  transactionId: string | null;
+
+  /** Failed-only. One-line reason shown inside the timeline card and
+   *  echoed at the bottom banner. */
+  failureReason?: string;
+};
