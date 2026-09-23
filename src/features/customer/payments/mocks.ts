@@ -10,14 +10,14 @@
  * ------------------------------------------------------------------
  */
 
-import { asBookingId, asPaymentId } from '@app-types/ids';
+import { asPaymentId, asQuotationId } from '@app-types/ids';
 import type { CustomerPaymentDetail, CustomerPaymentListItem } from './types';
 
 export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   {
     id: asPaymentId('pay_00123_1'),
-    bookingId: asBookingId('bk_00123'),
-    bookingNumber: 'BK-2026-00123',
+    quotationId: asQuotationId('q_10257'),
+    quotationNumber: 'QU10257',
     status: 'paid',
     from: 'Delhi',
     to: 'Jaipur',
@@ -29,8 +29,8 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   },
   {
     id: asPaymentId('pay_00122_1'),
-    bookingId: asBookingId('bk_00122'),
-    bookingNumber: 'BK-2026-00122',
+    quotationId: asQuotationId('q_10245'),
+    quotationNumber: 'QU10245',
     status: 'pending',
     from: 'Gurugram',
     to: 'Agra',
@@ -42,8 +42,8 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   },
   {
     id: asPaymentId('pay_00110_1'),
-    bookingId: asBookingId('bk_00110'),
-    bookingNumber: 'BK-2026-00110',
+    quotationId: asQuotationId('q_10230'),
+    quotationNumber: 'QU10230',
     status: 'paid',
     from: 'Mumbai',
     to: 'Pune',
@@ -55,8 +55,8 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   },
   {
     id: asPaymentId('pay_00098_1'),
-    bookingId: asBookingId('bk_00098'),
-    bookingNumber: 'BK-2026-00098',
+    quotationId: asQuotationId('q_10218'),
+    quotationNumber: 'QU10218',
     status: 'failed',
     from: 'Noida',
     to: 'Rishikesh',
@@ -68,8 +68,8 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   },
   {
     id: asPaymentId('pay_00087_1'),
-    bookingId: asBookingId('bk_00087'),
-    bookingNumber: 'BK-2026-00087',
+    quotationId: asQuotationId('q_10205'),
+    quotationNumber: 'QU10205',
     status: 'paid',
     from: 'Delhi',
     to: 'Manali',
@@ -81,8 +81,8 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   },
   {
     id: asPaymentId('pay_00076_1'),
-    bookingId: asBookingId('bk_00076'),
-    bookingNumber: 'BK-2026-00076',
+    quotationId: asQuotationId('q_10198'),
+    quotationNumber: 'QU10198',
     status: 'paid',
     from: 'Bengaluru',
     to: 'Chennai',
@@ -114,8 +114,8 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
 const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   {
     id: asPaymentId('pay_00123_1'),
-    bookingId: asBookingId('bk_00123'),
-    bookingNumber: 'BK-2026-00123',
+    quotationId: asQuotationId('q_10257'),
+    quotationNumber: 'QU10257',
     status: 'paid',
     from: 'Delhi',
     to: 'Jaipur',
@@ -132,8 +132,8 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   },
   {
     id: asPaymentId('pay_00122_1'),
-    bookingId: asBookingId('bk_00122'),
-    bookingNumber: 'BK-2026-00122',
+    quotationId: asQuotationId('q_10245'),
+    quotationNumber: 'QU10245',
     status: 'pending',
     from: 'Gurugram',
     to: 'Agra',
@@ -150,8 +150,8 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   },
   {
     id: asPaymentId('pay_00110_1'),
-    bookingId: asBookingId('bk_00110'),
-    bookingNumber: 'BK-2026-00110',
+    quotationId: asQuotationId('q_10230'),
+    quotationNumber: 'QU10230',
     status: 'paid',
     from: 'Mumbai',
     to: 'Pune',
@@ -168,8 +168,8 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   },
   {
     id: asPaymentId('pay_00098_1'),
-    bookingId: asBookingId('bk_00098'),
-    bookingNumber: 'BK-2026-00098',
+    quotationId: asQuotationId('q_10218'),
+    quotationNumber: 'QU10218',
     status: 'failed',
     from: 'Noida',
     to: 'Rishikesh',
@@ -188,8 +188,8 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   },
   {
     id: asPaymentId('pay_00087_1'),
-    bookingId: asBookingId('bk_00087'),
-    bookingNumber: 'BK-2026-00087',
+    quotationId: asQuotationId('q_10205'),
+    quotationNumber: 'QU10205',
     status: 'paid',
     from: 'Delhi',
     to: 'Manali',
@@ -206,8 +206,8 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   },
   {
     id: asPaymentId('pay_00076_1'),
-    bookingId: asBookingId('bk_00076'),
-    bookingNumber: 'BK-2026-00076',
+    quotationId: asQuotationId('q_10198'),
+    quotationNumber: 'QU10198',
     status: 'paid',
     from: 'Bengaluru',
     to: 'Chennai',

@@ -62,7 +62,11 @@ import { SafeScreen } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
 import type { CustomerStackParamList } from '@navigation/types';
 
-import type { CustomerPaymentListItem, PaymentFilter } from '../types';
+import type {
+  CustomerPaymentDetail,
+  CustomerPaymentListItem,
+  PaymentFilter,
+} from '../types';
 import { MOCK_CUSTOMER_PAYMENTS } from '../mocks';
 import { PaymentCard } from '../components/PaymentCard';
 import { PaymentDetailSheet } from '../components/PaymentDetailSheet';
@@ -113,6 +117,29 @@ const PaymentsScreen: React.FC = () => {
     navigation.navigate('HelpSupport');
   }, [navigation]);
 
+  /* -------- Sheet CTA — Pay Now (pending state) -------- *
+   *
+   * The pending-state sheet raises Pay Now with the current payment.
+   * We route to the parent quotation's QuotationDetail screen with
+   * `openContinueSheet: true` — that param tells QuotationDetail to
+   * auto-present its ContinueToBookingSheet on landing, so the
+   * customer lands one tap away from completing the payment instead
+   * of having to hunt for the "Continue to Booking" CTA on the
+   * quotation body.
+   *
+   * The sheet dismisses BEFORE this callback fires (see the sheet's
+   * `handlePayNow` — dismiss-then-delegate), so the navigation push
+   * never races the sheet's exit animation. */
+  const onPayNow = useCallback(
+    (payment: CustomerPaymentDetail) => {
+      navigation.navigate('QuotationDetail', {
+        quotationId: payment.quotationId,
+        openContinueSheet: true,
+      });
+    },
+    [navigation],
+  );
+
   /* -------- Pull-to-refresh --------
    *
    * `refreshing` drives the RefreshControl spinner; the timeout below
@@ -145,10 +172,11 @@ const PaymentsScreen: React.FC = () => {
 
   /* -------- Filter + search (memoised) -------- *
    *
-   * Search matches booking number (case-insensitive), origin, and
-   * destination — mirrors Bookings/QuotationsScreen's matching
-   * rule. When the endpoint takes over, drop this and let the
-   * server do the matching for us.
+   * Search matches quotation number (case-insensitive), origin, and
+   * destination — mirrors Bookings/QuotationsScreen's matching rule
+   * but scoped to the payments feature's quotation identifier. When
+   * the endpoint takes over, drop this and let the server do the
+   * matching for us.
    */
   const visibleItems = useMemo<CustomerPaymentListItem[]>(() => {
     const byFilter =
@@ -159,7 +187,7 @@ const PaymentsScreen: React.FC = () => {
     if (!q) return [...byFilter];
     return byFilter.filter(
       p =>
-        p.bookingNumber.toLowerCase().includes(q) ||
+        p.quotationNumber.toLowerCase().includes(q) ||
         p.from.toLowerCase().includes(q) ||
         p.to.toLowerCase().includes(q),
     );
@@ -223,7 +251,7 @@ const PaymentsScreen: React.FC = () => {
             style={styles.searchInput}
             value={search}
             onChangeText={setSearch}
-            placeholder="Search by Booking ID or destination..."
+            placeholder="Search by Quotation ID or destination..."
             placeholderTextColor={Colors.textTertiary}
             returnKeyType="search"
           />
@@ -261,7 +289,7 @@ const PaymentsScreen: React.FC = () => {
             <Text style={styles.emptyTitle}>No payments</Text>
             <Text style={styles.emptySubtitle}>
               {search
-                ? 'Try a different Booking ID or destination.'
+                ? 'Try a different Quotation ID or destination.'
                 : 'Payment activity will show up here.'}
             </Text>
           </View>
@@ -284,6 +312,7 @@ const PaymentsScreen: React.FC = () => {
       <PaymentDetailSheet
         ref={detailSheetRef}
         paymentId={selectedPaymentId}
+        onPayNow={onPayNow}
         onContactSupport={onContactSupport}
       />
     </SafeScreen>

@@ -2,16 +2,18 @@
  * ------------------------------------------------------------------
  * Customer Payments — types
  * ------------------------------------------------------------------
- * SSoT for the Payments tab list. Kept independent of the bookings
- * feature's DTO — a single booking can have multiple payment
- * entries (advance / balance / refund) and the payment list is the
- * financial ledger view, not the booking view.
+ * SSoT for the Payments tab list. Every payment record hangs off a
+ * quotation (the ledger view groups payments by the quotation that
+ * originated the booking); this file is the DTO contract used by the
+ * list card, the detail sheet, and the pending-state "Pay Now" flow
+ * that routes back to the parent quotation's confirm-and-continue
+ * sheet.
  *
  * When /customer/payments ships, this file is the DTO contract.
  * ------------------------------------------------------------------
  */
 
-import type { BookingId, PaymentId } from '@app-types/ids';
+import type { PaymentId, QuotationId } from '@app-types/ids';
 
 /**
  * The user-facing payment status. Drives the leading icon glyph,
@@ -28,10 +30,15 @@ export type PaymentFilter = 'all' | PaymentStatus;
 
 export type CustomerPaymentListItem = {
   id: PaymentId;
-  /** Parent booking — used for both navigation to detail and the
-   *  "Booking ID" chip shown in the right column of the card. */
-  bookingId: BookingId;
-  bookingNumber: string;
+  /**
+   * Parent quotation — the payment always belongs to one. Displayed
+   * as the "Quotation ID" chip on the right column of the card, and
+   * used by the pending-state "Pay Now" flow to navigate the user
+   * back to that quotation's confirm-and-continue sheet so they can
+   * complete the payment against a live quotation record.
+   */
+  quotationId: QuotationId;
+  quotationNumber: string;
 
   status: PaymentStatus;
 
@@ -81,8 +88,8 @@ export type CustomerPaymentListItem = {
  */
 export type CustomerPaymentDetail = {
   id: PaymentId;
-  bookingId: BookingId;
-  bookingNumber: string;
+  quotationId: QuotationId;
+  quotationNumber: string;
 
   status: PaymentStatus;
 

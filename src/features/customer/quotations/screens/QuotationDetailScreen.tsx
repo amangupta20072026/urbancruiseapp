@@ -129,7 +129,13 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Image,
   Pressable,
@@ -300,6 +306,37 @@ const QuotationDetailScreen: React.FC = () => {
    * declarative visible-prop approach. */
   const needChangesRef = useRef<BottomSheetModal>(null);
   const confirmationRef = useRef<BottomSheetModal>(null);
+
+  /* -------- Auto-open ContinueToBookingSheet on landing -------- *
+   *
+   * The Payments tab's pending-state "Pay Now" CTA navigates here
+   * with `openContinueSheet: true` so the customer lands on the
+   * quotation screen with the confirm-and-continue sheet already
+   * open — one tap to complete payment instead of two.
+   *
+   * Gated on `detail` so the present() runs only after the mock
+   * lookup resolves (a stale quotation id would land on the
+   * not-found body below, and presenting a sheet over that body
+   * would be a nonsense state). The `openContinueSheet` param is
+   * one-shot — the intent is to open the sheet ONCE on this landing,
+   * and if the user dismisses the sheet and returns to the screen
+   * via back navigation, we don't want it to spring open again.
+   * We rely on React Navigation's default behaviour of passing the
+   * same params on remount from state — if that ever changes, add
+   * `navigation.setParams({ openContinueSheet: undefined })` after
+   * the present() to make the one-shot explicit.
+   *
+   * The rAF wait lets the sheet's own layout register before the
+   * present() call — presenting inside the same microtask as mount
+   * makes the sheet skip its enter animation on some devices. */
+  const openContinueSheet = route.params.openContinueSheet;
+  useEffect(() => {
+    if (!openContinueSheet || !detail) return;
+    const handle = requestAnimationFrame(() => {
+      confirmationRef.current?.present();
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [openContinueSheet, detail]);
 
   /* -------- Selection state --------
    *

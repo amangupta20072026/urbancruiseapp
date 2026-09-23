@@ -5,7 +5,7 @@
  * One row in the Customer Payments list. Composition:
  *
  *   ┌────────────────────────────────────────────────────────────┐
- *   │ [icon]  Delhi → Jaipur                Booking ID       ›   │
+ *   │ [icon]  Delhi → Jaipur                Quotation ID     ›   │
  *   │         📅 15 Sep 2026 · 09:12 AM     BK-2026-00123        │
  *   │         Tempo Traveller | 20 Passengers                    │
  *   │         ₹18,500  [Paid]              [⬇ Download Invoice] │
@@ -115,7 +115,7 @@ export const PaymentCard: React.FC<Props> = ({
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={`Payment ${item.bookingNumber}, ${style.label}`}
+      accessibilityLabel={`Payment ${item.quotationNumber}, ${style.label}`}
     >
       {/* Top region: main details + right-column meta */}
       <View style={styles.top}>
@@ -149,8 +149,8 @@ export const PaymentCard: React.FC<Props> = ({
         <View style={styles.right}>
           <View style={styles.rightTop}>
             <View style={styles.idBlock}>
-              <Text style={styles.idLabel}>Booking ID</Text>
-              <Text style={styles.idValue}>{item.bookingNumber}</Text>
+              <Text style={styles.idLabel}>Quotation ID</Text>
+              <Text style={styles.idValue}>{item.quotationNumber}</Text>
             </View>
             <ChevronRight
               size={16}
@@ -166,7 +166,7 @@ export const PaymentCard: React.FC<Props> = ({
        * Rendered as a single flex row (not inside `mid`) so the CTA
        * stretches full width of the card's right half regardless of
        * how narrow the middle grew — the mockup keeps the button in
-       * line with the Booking ID above it. */}
+       * line with the Quotation ID above it. */}
       <View style={styles.bottom}>
         <View style={styles.amountRow}>
           <Text style={[styles.amount, { color: style.fg }]}>

@@ -71,7 +71,18 @@ export type CustomerStackParamList = {
   // will carry the server's enquiry id — no route-shape change.
   RequestQuotation: undefined;
   QuotationSuccess: { requestId: string };
-  QuotationDetail: { quotationId: QuotationId };
+  QuotationDetail: {
+    quotationId: QuotationId;
+    /**
+     * When true, the QuotationDetail screen auto-presents its
+     * ContinueToBookingSheet on landing. Used by the Payments tab's
+     * pending-payment "Pay Now" CTA — tapping it should route the
+     * customer straight to the confirm-and-continue sheet for the
+     * parent quotation, not just to the quotation screen. Default
+     * (undefined / false) = normal open, no sheet.
+     */
+    openContinueSheet?: boolean;
+  };
   BookingDetail: { bookingId: BookingId };
   PassengerList: { bookingId: BookingId };
   TripLive: { tripId: TripId };
