@@ -63,6 +63,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Clipboard from '@react-native-clipboard/clipboard';
 import {
   AlertCircle,
   ArrowRight,
@@ -280,13 +281,13 @@ const PaymentDetailScreen: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   const onCopyTxn = useCallback(() => {
-    // TODO(fs): Clipboard.setString(payment.transactionId) once
-    // @react-native-clipboard/clipboard is added.
+    if (!payment?.transactionId) return;
+    Clipboard.setString(payment.transactionId);
     setCopied(true);
     toast.info('Transaction ID copied');
     const t = setTimeout(() => setCopied(false), 1500);
     return () => clearTimeout(t);
-  }, []);
+  }, [payment?.transactionId]);
 
   /* -------- Status-specific CTA handlers -------- */
 

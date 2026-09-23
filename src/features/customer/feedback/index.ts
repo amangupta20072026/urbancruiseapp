@@ -1,4 +1,3 @@
-/* eslint-disable import-x/no-unresolved */
 export { default as CustomerFeedbackScreen } from './screens/CustomerFeedbackScreen';
 export { default as GiveFeedbackScreen } from './screens/GiveFeedbackScreen';
 
