@@ -12,9 +12,13 @@
  *   [ PaymentCard × N ]
  *
  * NAVIGATION INTENTS:
- *   - Card tap        → PaymentDetail (a booking can have multiple
- *                       payment rows — advance / balance / refund —
- *                       so we route to THIS entry, not the booking).
+ *   - Card tap        → PaymentDetailSheet (bottom sheet, this screen).
+ *                       Was a stack push to PaymentDetailScreen before;
+ *                       product decided the detail is a lightweight
+ *                       lookup and doesn't warrant a nav push with its
+ *                       own history entry. A booking can have multiple
+ *                       payment rows (advance / balance / refund), and
+ *                       the sheet renders the one that was tapped.
  *   - Download button → TODO(fs): fetch the invoice PDF from
  *                       /customer/payments/:id/invoice and hand off
  *                       to react-native-file-viewer.
@@ -49,19 +53,16 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Search, SlidersHorizontal } from 'lucide-react-native';
 
 import { SafeScreen } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
-import type { CustomerStackParamList } from '@navigation/types';
 
 import type { CustomerPaymentListItem, PaymentFilter } from '../types';
 import { MOCK_CUSTOMER_PAYMENTS } from '../mocks';
 import { PaymentCard } from '../components/PaymentCard';
-
-type Nav = NativeStackNavigationProp<CustomerStackParamList>;
+import { PaymentDetailSheet } from '../components/PaymentDetailSheet';
 
 /* ================================================================
  * Filter chips
@@ -79,9 +80,19 @@ const FILTERS: readonly { key: PaymentFilter; label: string }[] = [
  * ================================================================ */
 
 const PaymentsScreen: React.FC = () => {
-  const navigation = useNavigation<Nav>();
   const [filter, setFilter] = useState<PaymentFilter>('all');
   const [search, setSearch] = useState('');
+
+  /* -------- Detail sheet -------- *
+   *
+   * The tapped payment's id lives in state so the sheet renders the
+   * right record, and the sheet itself is controlled by an imperative
+   * ref (present/dismiss). Storing the id (not the whole record)
+   * keeps the state small; the sheet does its own DTO lookup. */
+  const detailSheetRef = useRef<BottomSheetModal>(null);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
+    null,
+  );
 
   /* -------- Pull-to-refresh --------
    *
@@ -137,16 +148,15 @@ const PaymentsScreen: React.FC = () => {
 
   /* -------- Handlers -------- */
 
-  const goToPaymentDetail = useCallback(
-    (item: CustomerPaymentListItem) => {
-      // Card tap opens the ledger-entry detail (not BookingDetail).
-      // A booking can have multiple payment rows (advance / balance /
-      // refund) and each is its own record — the user tapped THIS
-      // row, so we route to THIS entry.
-      navigation.navigate('PaymentDetail', { paymentId: item.id });
-    },
-    [navigation],
-  );
+  const openPaymentDetail = useCallback((item: CustomerPaymentListItem) => {
+    // Card tap opens the ledger-entry detail sheet (was a stack push
+    // to PaymentDetailScreen — replaced by an inline bottom sheet).
+    // A booking can have multiple payment rows (advance / balance /
+    // refund) and each is its own record — the user tapped THIS row,
+    // so we hand THIS id to the sheet.
+    setSelectedPaymentId(item.id);
+    detailSheetRef.current?.present();
+  }, []);
 
   const onDownloadInvoice = useCallback((_item: CustomerPaymentListItem) => {
     // TODO(fs): call the invoice endpoint + hand off to
@@ -241,12 +251,18 @@ const PaymentsScreen: React.FC = () => {
             <PaymentCard
               key={item.id}
               item={item}
-              onPress={() => goToPaymentDetail(item)}
+              onPress={() => openPaymentDetail(item)}
               onDownloadInvoice={() => onDownloadInvoice(item)}
             />
           ))
         )}
       </ScrollView>
+
+      {/* Detail sheet — presented on card tap. Held at the screen root
+          (rather than inside the ScrollView) so its own overlay lives
+          above the list chrome and its dismissal doesn't disturb the
+          list's scroll position. */}
+      <PaymentDetailSheet ref={detailSheetRef} paymentId={selectedPaymentId} />
     </SafeScreen>
   );
 };

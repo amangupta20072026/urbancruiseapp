@@ -54,7 +54,7 @@ export type CustomerPaymentListItem = {
 
 /**
  * ------------------------------------------------------------------
- * PaymentDetailScreen DTO
+ * PaymentDetailSheet DTO
  * ------------------------------------------------------------------
  * Detail view for one payment entry. Extends the list item with
  * the timeline timestamps and the payment-instrument fields the

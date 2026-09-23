@@ -225,7 +225,7 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
 ];
 
 /**
- * Lookup helper used by PaymentDetailScreen when the route lands
+ * Lookup helper used by PaymentDetailSheet when the route lands
  * with a `paymentId`. Returns `null` for an unknown id so the
  * screen can render an inline "not found" state (stale deeplink,
  * cleared history) instead of crashing.

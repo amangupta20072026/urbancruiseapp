@@ -1,7 +1,7 @@
 export { default as PaymentsScreen } from './screens/PaymentsScreen';
-export { default as PaymentDetailScreen } from './screens/PaymentDetailScreen';
 
 export { PaymentCard } from './components/PaymentCard';
+export { PaymentDetailSheet } from './components/PaymentDetailSheet';
 export type {
   PaymentStatus,
   PaymentFilter,

@@ -8,7 +8,6 @@ import type {
   DriverId,
   VendorId,
   EnquiryId,
-  PaymentId,
 } from '@app-types/ids';
 import type { UserRole } from '@rbac/roles';
 // Value import (not `import type`) — the tab param list types below use
@@ -80,14 +79,6 @@ export type CustomerStackParamList = {
   AddRemark: { quotationId: QuotationId };
   PayBalance: { bookingId: BookingId };
   GstInvoice: { bookingId: BookingId };
-  /**
-   * Financial-ledger detail for one payment entry (advance/balance/
-   * refund). Reached from the Payments tab card tap. Distinct from
-   * `BookingDetail` — a booking can have multiple payments, and this
-   * screen is the per-entry view (payment method, txn id, status
-   * timeline, invoice CTA). Uses PaymentId, not BookingId.
-   */
-  PaymentDetail: { paymentId: PaymentId };
   Feedback: { bookingId: BookingId };
   NotificationCentre: undefined;
   Support: undefined;

@@ -73,7 +73,7 @@ export const queryKeys = {
        *  filter states cache independently. */
       list: (filters: Record<string, unknown>) =>
         ['customer', 'payments', 'list', filters] as const,
-      /** One payment entry — powers PaymentDetailScreen. */
+      /** One payment entry — powers PaymentDetailSheet. */
       detail: (id: PaymentId) =>
         ['customer', 'payments', 'detail', id] as const,
       /** Legacy per-booking ledger summary — kept for the existing

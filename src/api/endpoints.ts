@@ -56,7 +56,7 @@ export const endpoints = {
         `/customer/bookings/${id}/payments/invoice`,
       /** Financial-ledger list for the Payments tab. */
       list: () => '/customer/payments',
-      /** One payment entry — powers PaymentDetailScreen. */
+      /** One payment entry — powers PaymentDetailSheet. */
       detail: (id: PaymentId) => `/customer/payments/${id}`,
       /** PDF invoice for a paid entry. */
       invoiceFile: (id: PaymentId) => `/customer/payments/${id}/invoice`,

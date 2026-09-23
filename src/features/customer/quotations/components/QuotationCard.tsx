@@ -194,7 +194,7 @@ export const QuotationCard: React.FC<Props> = ({ item, onPress, onView }) => {
        * floating below the pill on the right. */}
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>
-          Quotation {item.quotationNumber}
+          {item.quotationNumber}
         </Text>
 
         {/* Route — cities separated by arrow glyphs. Modelled as
