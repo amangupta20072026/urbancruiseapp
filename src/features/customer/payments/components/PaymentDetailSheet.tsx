@@ -112,7 +112,6 @@ import {
 } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
-import { toast } from '@services/toast';
 
 import { getCustomerPaymentDetail } from '../mocks';
 import type { CustomerPaymentDetail, PaymentStatus } from '../types';
@@ -420,7 +419,6 @@ export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
       if (!payment) return;
       Clipboard.setString(payment.id);
       setCopiedPaymentId(true);
-      toast.success('Payment ID copied');
       if (paymentIdTimerRef.current) clearTimeout(paymentIdTimerRef.current);
       paymentIdTimerRef.current = setTimeout(
         () => setCopiedPaymentId(false),
@@ -432,7 +430,6 @@ export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
       if (!payment?.transactionId) return;
       Clipboard.setString(payment.transactionId);
       setCopiedTxnId(true);
-      toast.success('Transaction ID copied');
       if (txnIdTimerRef.current) clearTimeout(txnIdTimerRef.current);
       txnIdTimerRef.current = setTimeout(() => setCopiedTxnId(false), 1500);
     }, [payment]);

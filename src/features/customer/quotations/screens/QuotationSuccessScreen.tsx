@@ -48,6 +48,7 @@ import {
   FileText,
   ChevronRight,
 } from 'lucide-react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 import { SafeScreen } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
@@ -82,18 +83,16 @@ const QuotationSuccessScreen: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   /**
-   * Copy-to-clipboard is intentionally not wired: the app does not
-   * currently depend on @react-native-clipboard/clipboard, and adding
-   * a native module for a single toast would be disproportionate.
-   * The icon flips to a check for ~1.5s to give visual feedback and
-   * we log the intent so we can prioritise wiring it if this button
-   * sees real traction.
+   * Copies the Request ID to the clipboard and flips the icon to a
+   * checkmark for ~1.5s as visual feedback (same treatment used in
+   * PaymentDetailSheet).
    */
   const onCopy = useCallback(() => {
+    Clipboard.setString(requestId);
     setCopied(true);
     const t = setTimeout(() => setCopied(false), 1500);
     return () => clearTimeout(t);
-  }, []);
+  }, [requestId]);
 
   const goToQuotationsTab = useCallback(() => {
     // Reset the CustomerFlow stack to CustomerTabs > Quotations so

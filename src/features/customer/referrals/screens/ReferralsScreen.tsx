@@ -43,6 +43,7 @@ import {
   Share2,
   UserPlus,
 } from 'lucide-react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
@@ -72,7 +73,9 @@ const ReferralsScreen: React.FC = () => {
    * disproportionate. The icon flips to a check for ~1.5s to give
    * the user visual feedback. Same treatment as QuotationSuccess.
    */
+
   const onCopyCode = useCallback(() => {
+    Clipboard.setString(MOCK_REFERRAL_SUMMARY.code);
     setCopied(true);
     const t = setTimeout(() => setCopied(false), 1500);
     return () => clearTimeout(t);
