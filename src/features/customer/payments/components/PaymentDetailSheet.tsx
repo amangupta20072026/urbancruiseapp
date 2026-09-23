@@ -30,8 +30,7 @@
  *   │                                              │
  *   │  🔒  This payment was processed securely …   │  ← security banner
  *   │                                              │
- *   │  [        📄  View Receipt              ]    │  ← primary CTA
- *   │  [        ⬇   Download Receipt          ]    │  ← outline CTA
+ *   │  [ ⬇ Download Receipt ] [ ⤴ Share Receipt ]  │  ← paid CTAs
  *   │                Close                         │  ← text CTA
  *   └─────────────────────────────────────────────┘
  *
@@ -103,10 +102,10 @@ import {
   Clock,
   Copy,
   Download,
-  FileText,
   Headphones,
   Info,
   Lock,
+  Share2,
   X,
   XCircle,
   type LucideIcon,
@@ -131,11 +130,11 @@ type Props = {
    */
   paymentId: string | null;
 
-  /** Fired when the user taps "View Receipt" on a paid payment. */
-  onViewReceipt?: (payment: CustomerPaymentDetail) => void;
-
   /** Fired when the user taps "Download Receipt" on a paid payment. */
   onDownloadReceipt?: (payment: CustomerPaymentDetail) => void;
+
+  /** Fired when the user taps "Share Receipt" on a paid payment. */
+  onShareReceipt?: (payment: CustomerPaymentDetail) => void;
 
   /** Fired when the user taps "Pay Now" on a pending payment. */
   onPayNow?: (payment: CustomerPaymentDetail) => void;
@@ -368,7 +367,13 @@ const STATUS_CONFIG: Record<PaymentStatus, StatusConfig> = {
 
 export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
   (
-    { paymentId, onViewReceipt, onDownloadReceipt, onPayNow, onContactSupport },
+    {
+      paymentId,
+      onDownloadReceipt,
+      onShareReceipt,
+      onPayNow,
+      onContactSupport,
+    },
     ref,
   ) => {
     const internalRef = useRef<BottomSheetModal>(null);
@@ -440,17 +445,17 @@ export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
      * dismissal animation (which would otherwise cover the pushed
      * screen for a beat). */
 
-    const handleViewReceipt = useCallback(() => {
-      if (!payment) return;
-      dismiss();
-      onViewReceipt?.(payment);
-    }, [payment, dismiss, onViewReceipt]);
-
     const handleDownloadReceipt = useCallback(() => {
       if (!payment) return;
       dismiss();
       onDownloadReceipt?.(payment);
     }, [payment, dismiss, onDownloadReceipt]);
+
+    const handleShareReceipt = useCallback(() => {
+      if (!payment) return;
+      dismiss();
+      onShareReceipt?.(payment);
+    }, [payment, dismiss, onShareReceipt]);
 
     const handlePayNow = useCallback(() => {
       if (!payment) return;
@@ -669,37 +674,39 @@ export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
 
           {/* ── Bottom CTAs (state-dependent) ── */}
           {payment.status === 'paid' ? (
-            <>
-              <Pressable
-                onPress={handleViewReceipt}
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="View receipt"
-              >
-                <FileText
-                  size={18}
-                  color={Colors.textOnPrimary}
-                  strokeWidth={2.25}
-                />
-                <Text style={styles.primaryBtnText}>View Receipt</Text>
-              </Pressable>
-
+            <View style={styles.ctaRow}>
               <Pressable
                 onPress={handleDownloadReceipt}
                 style={({ pressed }) => [
-                  styles.outlineBtn,
+                  styles.primaryBtn,
+                  styles.ctaRowItem,
                   pressed && styles.pressed,
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Download receipt"
               >
-                <Download size={18} color={Colors.primary} strokeWidth={2.25} />
-                <Text style={styles.outlineBtnText}>Download Receipt</Text>
+                <Download
+                  size={18}
+                  color={Colors.textOnPrimary}
+                  strokeWidth={2.25}
+                />
+                <Text style={styles.primaryBtnText}>Download Receipt</Text>
               </Pressable>
-            </>
+
+              <Pressable
+                onPress={handleShareReceipt}
+                style={({ pressed }) => [
+                  styles.outlineBtn,
+                  styles.ctaRowItem,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Share receipt"
+              >
+                <Share2 size={18} color={Colors.primary} strokeWidth={2.25} />
+                <Text style={styles.outlineBtnText}>Share Receipt</Text>
+              </Pressable>
+            </View>
           ) : payment.status === 'pending' ? (
             <Pressable
               onPress={handlePayNow}
@@ -1003,6 +1010,20 @@ const styles = StyleSheet.create({
   },
 
   /* CTAs */
+  /* Wrapper for the paid-state two-button row (Download + Share).
+     `flexDirection: row` + `flex: 1` on each child splits the width
+     50/50; the `gap` prevents the buttons from touching. */
+  ctaRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  ctaRowItem: {
+    flex: 1,
+    /* Tighten internal gap so the icon + label pair still fits when
+       the button is only half the sheet width on a narrow device. */
+    gap: 6,
+    paddingHorizontal: 4,
+  },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
