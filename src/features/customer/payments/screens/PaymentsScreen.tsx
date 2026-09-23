@@ -54,15 +54,20 @@ import {
   View,
 } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Search, SlidersHorizontal } from 'lucide-react-native';
 
 import { SafeScreen } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
+import type { CustomerStackParamList } from '@navigation/types';
 
 import type { CustomerPaymentListItem, PaymentFilter } from '../types';
 import { MOCK_CUSTOMER_PAYMENTS } from '../mocks';
 import { PaymentCard } from '../components/PaymentCard';
 import { PaymentDetailSheet } from '../components/PaymentDetailSheet';
+
+type Nav = NativeStackNavigationProp<CustomerStackParamList>;
 
 /* ================================================================
  * Filter chips
@@ -80,6 +85,7 @@ const FILTERS: readonly { key: PaymentFilter; label: string }[] = [
  * ================================================================ */
 
 const PaymentsScreen: React.FC = () => {
+  const navigation = useNavigation<Nav>();
   const [filter, setFilter] = useState<PaymentFilter>('all');
   const [search, setSearch] = useState('');
 
@@ -93,6 +99,19 @@ const PaymentsScreen: React.FC = () => {
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
     null,
   );
+
+  /* -------- Sheet CTA — Contact Support -------- *
+   *
+   * The failed-state sheet raises Contact Support; we route to the
+   * customer stack's HelpSupport hub (the same screen the "More" menu
+   * → "Help & Support" links to), so the failure recovery lands in
+   * the app's canonical support surface rather than a payment-scoped
+   * dead-end. Dismissal of the sheet happens inside the sheet itself
+   * before this callback fires, so the navigation push doesn't race
+   * the sheet's exit animation. */
+  const onContactSupport = useCallback(() => {
+    navigation.navigate('HelpSupport');
+  }, [navigation]);
 
   /* -------- Pull-to-refresh --------
    *
@@ -262,7 +281,11 @@ const PaymentsScreen: React.FC = () => {
           (rather than inside the ScrollView) so its own overlay lives
           above the list chrome and its dismissal doesn't disturb the
           list's scroll position. */}
-      <PaymentDetailSheet ref={detailSheetRef} paymentId={selectedPaymentId} />
+      <PaymentDetailSheet
+        ref={detailSheetRef}
+        paymentId={selectedPaymentId}
+        onContactSupport={onContactSupport}
+      />
     </SafeScreen>
   );
 };

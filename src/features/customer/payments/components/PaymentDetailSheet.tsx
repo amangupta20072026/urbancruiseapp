@@ -27,8 +27,6 @@
  *   │  Payment ID              pay_8f7d2e91f3   ⧉  │  ← copy rows
  *   │  Transaction ID     UC20260915094512      ⧉  │
  *   │  Paid On            15 Sept 2026 · 09:15 AM  │
- *   │  Currency                                 INR│
- *   │  Refund Status                    Not Refunded│
  *   │                                              │
  *   │  🔒  This payment was processed securely …   │  ← security banner
  *   │                                              │
@@ -56,8 +54,10 @@
  *   failed  — status hero switches to "Payment Failed" copy, amount
  *             card renders in error tint with the ATTEMPTED amount,
  *             attempted-instrument / txn rows render when present,
- *             an error banner surfaces the failure reason, receipt
- *             CTAs are replaced with Retry Payment + Contact Support.
+ *             an error banner surfaces the failure reason, and the
+ *             sole CTA is a Contact Support primary button (product
+ *             removed the Retry Payment button — recovery goes
+ *             through the support channel, not an in-sheet retry).
  *
  * IMPERATIVE HANDLE:
  *   forwardRef<BottomSheetModal, Props> + useImperativeHandle so
@@ -139,9 +139,6 @@ type Props = {
 
   /** Fired when the user taps "Pay Now" on a pending payment. */
   onPayNow?: (payment: CustomerPaymentDetail) => void;
-
-  /** Fired when the user taps "Retry Payment" on a failed payment. */
-  onRetryPayment?: (payment: CustomerPaymentDetail) => void;
 
   /** Fired when the user taps "Contact Support" on a failed payment. */
   onContactSupport?: (payment: CustomerPaymentDetail) => void;
@@ -360,7 +357,7 @@ const STATUS_CONFIG: Record<PaymentStatus, StatusConfig> = {
       fg: Colors.error,
       bg: Colors.errorTint,
       title: 'The last payment attempt did not go through.',
-      body: 'No amount was debited. You can retry or contact support.',
+      body: 'No amount was debited. Contact support if you need help completing the payment.',
     },
   },
 };
@@ -371,14 +368,7 @@ const STATUS_CONFIG: Record<PaymentStatus, StatusConfig> = {
 
 export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
   (
-    {
-      paymentId,
-      onViewReceipt,
-      onDownloadReceipt,
-      onPayNow,
-      onRetryPayment,
-      onContactSupport,
-    },
+    { paymentId, onViewReceipt, onDownloadReceipt, onPayNow, onContactSupport },
     ref,
   ) => {
     const internalRef = useRef<BottomSheetModal>(null);
@@ -467,12 +457,6 @@ export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
       dismiss();
       onPayNow?.(payment);
     }, [payment, dismiss, onPayNow]);
-
-    const handleRetryPayment = useCallback(() => {
-      if (!payment) return;
-      dismiss();
-      onRetryPayment?.(payment);
-    }, [payment, dismiss, onRetryPayment]);
 
     const handleContactSupport = useCallback(() => {
       if (!payment) return;
@@ -657,11 +641,8 @@ export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
                   : 'Attempted On'
               }
               value={formatDateTime(payment.paymentEventAt)}
+              isLast
             />
-
-            <SummaryRow label="Currency" value="INR" />
-
-            <SummaryRow label="Refund Status" value="Not Refunded" isLast />
           </View>
 
           {/* ── Status banner (security / info / error) ── */}
@@ -732,36 +713,22 @@ export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
               <Text style={styles.primaryBtnText}>Pay Now</Text>
             </Pressable>
           ) : (
-            <>
-              <Pressable
-                onPress={handleRetryPayment}
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Retry payment"
-              >
-                <Text style={styles.primaryBtnText}>Retry Payment</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={handleContactSupport}
-                style={({ pressed }) => [
-                  styles.outlineBtn,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Contact support"
-              >
-                <Headphones
-                  size={18}
-                  color={Colors.primary}
-                  strokeWidth={2.25}
-                />
-                <Text style={styles.outlineBtnText}>Contact Support</Text>
-              </Pressable>
-            </>
+            <Pressable
+              onPress={handleContactSupport}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Contact support"
+            >
+              <Headphones
+                size={18}
+                color={Colors.textOnPrimary}
+                strokeWidth={2.25}
+              />
+              <Text style={styles.primaryBtnText}>Contact Support</Text>
+            </Pressable>
           )}
 
           <Pressable
