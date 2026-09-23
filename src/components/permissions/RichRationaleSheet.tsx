@@ -20,11 +20,19 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
 } from 'react';
-import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  BackHandler,
+  Dimensions,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BottomSheetBackdrop,
@@ -108,6 +116,35 @@ const RichRationaleSheet = forwardRef<PermissionSheetRef, Props>(
 
     const benefits = useMemo(() => copy?.benefits ?? [], [copy]);
 
+    /* Mirrors open/closed state for the hardware-back handler below —
+       a ref, not state, so it doesn't re-render on every animation
+       frame. */
+    const isOpenRef = useRef(false);
+
+    const handleSheetChange = useCallback((index: number) => {
+      isOpenRef.current = index >= 0;
+    }, []);
+
+    /* -------- Hardware back (Android) -------- *
+     *
+     * Same rationale as PermissionSheet: `PermissionSheetHost` is
+     * mounted at the app root inside `<BottomSheetModalProvider>`,
+     * which sits above `NavigationContainer`, so this sheet's portal
+     * is outside the navigator's screen tree. Swallow the back press
+     * entirely while open so the screen underneath can't pop while
+     * this sheet keeps floating on top — dismissal stays explicit
+     * (primary CTA / "Not now" / backdrop / swipe). */
+    useEffect(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (isOpenRef.current) return true;
+          return false;
+        },
+      );
+      return () => subscription.remove();
+    }, []);
+
     /* -----------------------------------------------------------------
      * BottomSheetModal is always mounted so its ref stays attached
      * when PermissionSheetHost synchronously calls .present() after
@@ -120,6 +157,7 @@ const RichRationaleSheet = forwardRef<PermissionSheetRef, Props>(
         enablePanDownToClose
         enableDynamicSizing
         maxDynamicContentSize={MAX_SHEET_HEIGHT}
+        onChange={handleSheetChange}
         backdropComponent={renderBackdrop}
         onDismiss={onFullyDismissed}
         handleIndicatorStyle={styles.handleIndicator}

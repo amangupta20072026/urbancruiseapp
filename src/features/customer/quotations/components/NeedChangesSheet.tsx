@@ -88,12 +88,14 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   Platform,
   Pressable,
   StyleSheet,
@@ -263,14 +265,41 @@ export const NeedChangesSheet = forwardRef<BottomSheetModal, Props>(
      * `handleSheetChange` fires whenever the sheet's index moves.
      * We reset the draft on close (index -1) so the next open is
      * fresh. Avoids the "why is my last request still in the form"
-     * confusion when a user opens the sheet twice.
+     * confusion when a user opens the sheet twice. Also mirrors the
+     * open/closed state into `isOpenRef` for the hardware-back
+     * handler below — a ref, not state, so it doesn't re-render on
+     * every animation frame.
      */
+    const isOpenRef = useRef(false);
+
     const handleSheetChange = useCallback(
       (index: number) => {
+        isOpenRef.current = index >= 0;
         if (index === -1) resetDraft();
       },
       [resetDraft],
     );
+
+    /* -------- Hardware back (Android) -------- *
+     *
+     * `BottomSheetModalProvider` is mounted above `NavigationContainer`
+     * in App.tsx, so this sheet renders into a portal outside the
+     * navigator's screen tree. Without this listener, Android's back
+     * press falls through to the navigator's default handling (pop the
+     * focused screen) while the sheet just keeps floating on top of
+     * whatever screen ends up focused. While the sheet is open, this
+     * swallows the back press entirely — no dismiss, no navigation —
+     * so closing stays explicit (× icon / Cancel / backdrop / swipe). */
+    useEffect(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (isOpenRef.current) return true;
+          return false;
+        },
+      );
+      return () => subscription.remove();
+    }, []);
 
     const toggleCategory = useCallback((key: QuotationChangeCategory) => {
       setSelected(prev => {

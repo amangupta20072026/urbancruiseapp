@@ -26,11 +26,12 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BottomSheetBackdrop,
@@ -131,6 +132,35 @@ const RoleSelectionSheet = forwardRef<RoleSelectionSheetRef, Props>(
       sheetRef.current?.dismiss();
     }, []);
 
+    /* Mirrors open/closed state for the hardware-back handler below —
+       a ref, not state, so it doesn't re-render on every animation
+       frame. */
+    const isOpenRef = useRef(false);
+
+    const handleSheetChange = useCallback((index: number) => {
+      isOpenRef.current = index >= 0;
+    }, []);
+
+    /* -------- Hardware back (Android) -------- *
+     *
+     * `BottomSheetModalProvider` lives above `NavigationContainer` in
+     * App.tsx, so this sheet renders into a portal outside the
+     * navigator's screen tree. Without this listener, Android's back
+     * press falls through to the navigator's default handling (pop the
+     * focused screen) while the sheet keeps floating on top. Swallow
+     * it entirely while open — dismissal stays explicit (× / backdrop
+     * / swipe / Done). */
+    useEffect(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (isOpenRef.current) return true;
+          return false;
+        },
+      );
+      return () => subscription.remove();
+    }, []);
+
     const canConfirm = tentative !== null;
 
     return (
@@ -138,6 +168,7 @@ const RoleSelectionSheet = forwardRef<RoleSelectionSheetRef, Props>(
         ref={sheetRef}
         enablePanDownToClose
         enableDynamicSizing
+        onChange={handleSheetChange}
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={styles.handleIndicator}
         backgroundStyle={styles.background}

@@ -92,6 +92,7 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -99,6 +100,7 @@ import React, {
 } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   Pressable,
   StyleSheet,
   Text,
@@ -220,9 +222,32 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
 
     /* Reset the confirming spinner if the sheet is dragged shut
        mid-flight. Otherwise the button stays locked on next open —
-       a subtle bug that only shows after several open/close cycles. */
+       a subtle bug that only shows after several open/close cycles.
+       Also mirrors open/closed state into `isOpenRef` for the
+       hardware-back handler below. */
+    const isOpenRef = useRef(false);
+
     const handleSheetChange = useCallback((index: number) => {
+      isOpenRef.current = index >= 0;
       if (index === -1) setConfirming(false);
+    }, []);
+
+    /* -------- Hardware back (Android) -------- *
+     *
+     * Same rationale as NeedChangesSheet / PaymentDetailSheet:
+     * `BottomSheetModalProvider` lives above `NavigationContainer`, so
+     * without this the back press pops the screen underneath while
+     * this sheet keeps floating on top. Swallow it entirely while
+     * open — dismissal stays explicit (Cancel / backdrop / swipe). */
+    useEffect(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (isOpenRef.current) return true;
+          return false;
+        },
+      );
+      return () => subscription.remove();
     }, []);
 
     const handleConfirm = useCallback(async () => {

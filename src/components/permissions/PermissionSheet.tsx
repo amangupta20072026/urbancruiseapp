@@ -28,10 +28,11 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useRef,
 } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BottomSheetBackdrop,
@@ -103,6 +104,36 @@ const PermissionSheet = forwardRef<PermissionSheetRef, Props>(
       [mode],
     );
 
+    /* Mirrors open/closed state for the hardware-back handler below —
+       a ref, not state, so it doesn't re-render on every animation
+       frame. */
+    const isOpenRef = useRef(false);
+
+    const handleSheetChange = useCallback((index: number) => {
+      isOpenRef.current = index >= 0;
+    }, []);
+
+    /* -------- Hardware back (Android) -------- *
+     *
+     * `PermissionSheetHost` is mounted at the app root inside
+     * `<BottomSheetModalProvider>`, which itself sits above
+     * `NavigationContainer` in App.tsx. So this sheet renders into a
+     * portal outside the navigator's screen tree — without this
+     * listener, Android's back press falls through to the navigator's
+     * default handling (pop the focused screen) while the sheet keeps
+     * floating on top. Swallow it entirely while open — dismissal
+     * stays explicit ("Not now" / primary CTA / backdrop / swipe). */
+    useEffect(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (isOpenRef.current) return true;
+          return false;
+        },
+      );
+      return () => subscription.remove();
+    }, []);
+
     const isBlocked = mode === 'blocked';
     const isProminent = mode === 'prominent';
 
@@ -122,6 +153,7 @@ const PermissionSheet = forwardRef<PermissionSheetRef, Props>(
         ref={sheetRef}
         enablePanDownToClose
         enableDynamicSizing
+        onChange={handleSheetChange}
         backdropComponent={renderBackdrop}
         onDismiss={onFullyDismissed}
         handleIndicatorStyle={styles.handleIndicator}

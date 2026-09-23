@@ -82,12 +82,13 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
@@ -413,6 +414,44 @@ export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
       internalRef.current?.dismiss();
     }, []);
 
+    /* -------- Hardware back (Android) -------- *
+     *
+     * `BottomSheetModalProvider` is mounted above `NavigationContainer`
+     * in App.tsx, so this sheet renders into a portal that sits outside
+     * the navigator's screen tree. That means the navigator's default
+     * hardware-back handling (pop the focused screen) runs untouched
+     * while the sheet is open — the screen behind the sheet pops while
+     * the sheet itself just keeps floating on top.
+     *
+     * `isOpenRef` mirrors the sheet's open/closed state (updated from
+     * `onChange`, which BottomSheetModal fires with the current snap
+     * index — a ref, not state, so this doesn't cause re-renders on
+     * every animation frame). While the sheet is open, the listener
+     * below swallows the back press entirely (`return true`, no other
+     * effect) so neither the background screen navigates nor the sheet
+     * moves — dismissal is only ever explicit, via the × icon or the
+     * "Close" text button. */
+    const isOpenRef = useRef(false);
+
+    const handleSheetChange = useCallback((index: number) => {
+      isOpenRef.current = index >= 0;
+    }, []);
+
+    useEffect(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (isOpenRef.current) {
+            // Consume the event — intentionally do NOT dismiss here.
+            // Closing is explicit-only (× icon / Close button).
+            return true;
+          }
+          return false;
+        },
+      );
+      return () => subscription.remove();
+    }, []);
+
     /* -------- Copy handlers -------- */
 
     const onCopyPaymentId = useCallback(() => {
@@ -498,6 +537,7 @@ export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
           ref={internalRef}
           snapPoints={SNAP_POINTS}
           index={0}
+          onChange={handleSheetChange}
           backdropComponent={renderBackdrop}
           handleIndicatorStyle={styles.handle}
           backgroundStyle={styles.sheetBg}
@@ -539,6 +579,7 @@ export const PaymentDetailSheet = forwardRef<BottomSheetModal, Props>(
         ref={internalRef}
         snapPoints={SNAP_POINTS}
         index={0}
+        onChange={handleSheetChange}
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={styles.handle}
         backgroundStyle={styles.sheetBg}
