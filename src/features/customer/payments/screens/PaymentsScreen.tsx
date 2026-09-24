@@ -11,29 +11,9 @@
  *   [🔍 Search…                                  ⚙︎]
  *   [ PaymentCard × N ]
  *
- * NAVIGATION INTENTS:
- *   - Card tap        → PaymentDetailSheet (bottom sheet, this screen).
- *                       Was a stack push to PaymentDetailScreen before;
- *                       product decided the detail is a lightweight
- *                       lookup and doesn't warrant a nav push with its
- *                       own history entry. A booking can have multiple
- *                       payment rows (advance / balance / refund), and
- *                       the sheet renders the one that was tapped.
- *   - Download button → TODO(fs): fetch the invoice PDF from
- *                       /customer/payments/:id/invoice and hand off
- *                       to react-native-file-viewer.
- *   - Filter icon in search → TODO(nav): open a filter sheet
- *
- * WHY the search+filter row matches Bookings/QuotationsScreen:
- *   Same rounded search field + square filter trigger pattern used
- *   on the other two list tabs, so all three read as one consistent
- *   list-screen language.
- *
  * DATA:
  *   Local mock fixture in `../mocks.ts`. Swap for a TanStack Query
- *   hook when /customer/payments ships; the filter/search reducer
- *   below can be dropped since the server would return pre-filtered
- *   data.
+ *   hook when /customer/payments ships.
  * ------------------------------------------------------------------
  */
 
@@ -70,6 +50,7 @@ import type {
 import { MOCK_CUSTOMER_PAYMENTS } from '../mocks';
 import { PaymentCard } from '../components/PaymentCard';
 import { PaymentDetailSheet } from '../components/PaymentDetailSheet';
+import { useReceiptActions } from '../hooks/useReceiptActions';
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList>;
 
@@ -93,43 +74,17 @@ const PaymentsScreen: React.FC = () => {
   const [filter, setFilter] = useState<PaymentFilter>('all');
   const [search, setSearch] = useState('');
 
-  /* -------- Detail sheet -------- *
-   *
-   * The tapped payment's id lives in state so the sheet renders the
-   * right record, and the sheet itself is controlled by an imperative
-   * ref (present/dismiss). Storing the id (not the whole record)
-   * keeps the state small; the sheet does its own DTO lookup. */
+  /* ---- Detail sheet ---- */
   const detailSheetRef = useRef<BottomSheetModal>(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
     null,
   );
 
-  /* -------- Sheet CTA — Contact Support -------- *
-   *
-   * The failed-state sheet raises Contact Support; we route to the
-   * customer stack's HelpSupport hub (the same screen the "More" menu
-   * → "Help & Support" links to), so the failure recovery lands in
-   * the app's canonical support surface rather than a payment-scoped
-   * dead-end. Dismissal of the sheet happens inside the sheet itself
-   * before this callback fires, so the navigation push doesn't race
-   * the sheet's exit animation. */
+  /* ---- Sheet CTAs ---- */
   const onContactSupport = useCallback(() => {
     navigation.navigate('HelpSupport');
   }, [navigation]);
 
-  /* -------- Sheet CTA — Pay Now (pending state) -------- *
-   *
-   * The pending-state sheet raises Pay Now with the current payment.
-   * We route to the parent quotation's QuotationDetail screen with
-   * `openContinueSheet: true` — that param tells QuotationDetail to
-   * auto-present its ContinueToBookingSheet on landing, so the
-   * customer lands one tap away from completing the payment instead
-   * of having to hunt for the "Continue to Booking" CTA on the
-   * quotation body.
-   *
-   * The sheet dismisses BEFORE this callback fires (see the sheet's
-   * `handlePayNow` — dismiss-then-delegate), so the navigation push
-   * never races the sheet's exit animation. */
   const onPayNow = useCallback(
     (payment: CustomerPaymentDetail) => {
       navigation.navigate('QuotationDetail', {
@@ -140,18 +95,7 @@ const PaymentsScreen: React.FC = () => {
     [navigation],
   );
 
-  /* -------- Pull-to-refresh --------
-   *
-   * `refreshing` drives the RefreshControl spinner; the timeout below
-   * simulates the network round-trip so the gesture feels real against
-   * the local mock fixture. When /customer/payments ships, replace the
-   * setTimeout with `await refetch()` from the TanStack Query hook —
-   * the state plumbing here (and the RefreshControl wire-up on the list
-   * ScrollView) stays exactly the same.
-   *
-   * The `mountedRef` guard prevents a "setState on unmounted component"
-   * warning if the user pulls-to-refresh then navigates away before the
-   * simulated round-trip resolves. */
+  /* ---- Pull-to-refresh ---- */
   const [refreshing, setRefreshing] = useState(false);
   const mountedRef = useRef(true);
   useEffect(
@@ -160,24 +104,14 @@ const PaymentsScreen: React.FC = () => {
     },
     [],
   );
-
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // TODO(api): replace with `refetch()` from usePayments() once the
-    // endpoint lands.
     setTimeout(() => {
       if (mountedRef.current) setRefreshing(false);
     }, 700);
   }, []);
 
-  /* -------- Filter + search (memoised) -------- *
-   *
-   * Search matches quotation number (case-insensitive), origin, and
-   * destination — mirrors Bookings/QuotationsScreen's matching rule
-   * but scoped to the payments feature's quotation identifier. When
-   * the endpoint takes over, drop this and let the server do the
-   * matching for us.
-   */
+  /* ---- Filter + search ---- */
   const visibleItems = useMemo<CustomerPaymentListItem[]>(() => {
     const byFilter =
       filter === 'all'
@@ -193,31 +127,20 @@ const PaymentsScreen: React.FC = () => {
     );
   }, [filter, search]);
 
-  /* -------- Handlers -------- */
-
+  /* ---- Card tap → open detail sheet ---- */
   const openPaymentDetail = useCallback((item: CustomerPaymentListItem) => {
-    // Card tap opens the ledger-entry detail sheet (was a stack push
-    // to PaymentDetailScreen — replaced by an inline bottom sheet).
-    // A booking can have multiple payment rows (advance / balance /
-    // refund) and each is its own record — the user tapped THIS row,
-    // so we hand THIS id to the sheet.
     setSelectedPaymentId(item.id);
     detailSheetRef.current?.present();
   }, []);
 
-  const onDownloadInvoice = useCallback((_item: CustomerPaymentListItem) => {
-    // TODO(fs): call the invoice endpoint + hand off to
-    // react-native-file-viewer once the PDF flow is wired.
-  }, []);
+  /* ---- Receipt actions (Download + Share) ---- */
+  const { downloadReceipt, shareReceipt } = useReceiptActions();
 
   const onFilterOpen = useCallback(() => {
-    // TODO(nav): open a filter-refinement bottom sheet (date range,
-    // amount, status). Kept as an affordance now so users see the
-    // entry point next to search — real UI later.
+    // TODO(nav): open a filter-refinement bottom sheet
   }, []);
 
-  /* -------- Render -------- */
-
+  /* ---- Render ---- */
   return (
     <SafeScreen edges={['top']} backgroundColor={Colors.background}>
       <View style={styles.header}>
@@ -225,11 +148,6 @@ const PaymentsScreen: React.FC = () => {
         <Text style={styles.headerSubtitle}>View your payment history</Text>
       </View>
 
-      {/* Filter chip row — evenly-spaced, full-width segmented style.
-          Unlike the notification centre's scrollable strip (5 longer
-          labels), Payments only has 4 short labels, so instead of
-          letting them pack to the left we stretch them to share the
-          row equally with space between. */}
       <View style={styles.chipRow}>
         {FILTERS.map(chip => (
           <FilterChip
@@ -241,9 +159,6 @@ const PaymentsScreen: React.FC = () => {
         ))}
       </View>
 
-      {/* Search + filter-sheet trigger — same pattern as
-          Bookings/QuotationsScreen so all three list tabs read
-          consistently. */}
       <View style={styles.searchRow}>
         <View style={styles.searchWrap}>
           <Search size={18} color={Colors.textTertiary} strokeWidth={2} />
@@ -299,19 +214,24 @@ const PaymentsScreen: React.FC = () => {
               key={item.id}
               item={item}
               onPress={() => openPaymentDetail(item)}
-              onDownloadInvoice={() => onDownloadInvoice(item)}
+              onDownloadInvoice={() =>
+                downloadReceipt(item as unknown as CustomerPaymentDetail)
+              }
             />
           ))
         )}
       </ScrollView>
 
-      {/* Detail sheet — presented on card tap. Held at the screen root
-          (rather than inside the ScrollView) so its own overlay lives
-          above the list chrome and its dismissal doesn't disturb the
-          list's scroll position. */}
+      {/*
+       * PaymentDetailSheet — shown when user taps a card.
+       * onDownloadReceipt and onShareReceipt wire the two CTA buttons
+       * inside the sheet to the real download / share logic.
+       */}
       <PaymentDetailSheet
         ref={detailSheetRef}
         paymentId={selectedPaymentId}
+        onDownloadReceipt={downloadReceipt}
+        onShareReceipt={shareReceipt}
         onPayNow={onPayNow}
         onContactSupport={onContactSupport}
       />
@@ -322,7 +242,7 @@ const PaymentsScreen: React.FC = () => {
 export default PaymentsScreen;
 
 /* ================================================================
- * Local FilterChip — solid-fill variant matching the mockup
+ * Local FilterChip
  * ================================================================ */
 
 const FilterChip: React.FC<{
@@ -351,7 +271,6 @@ const FilterChip: React.FC<{
  * ================================================================ */
 
 const styles = StyleSheet.create({
-  /* Header */
   header: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
@@ -368,9 +287,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
-  /* Filter chips — full-width row, chips share the space equally
-     (flex: 1 each) with a fixed gap between them, so the row always
-     reaches both edges regardless of how many chips there are. */
   chipRow: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.lg,
@@ -386,9 +302,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipActive: {
-    backgroundColor: Colors.primary,
-  },
+  chipActive: { backgroundColor: Colors.primary },
   chipLabel: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
@@ -401,7 +315,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* Search */
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -435,18 +348,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* List */
-  listBg: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+  listBg: { flex: 1, backgroundColor: Colors.background },
   list: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xxxxl,
     gap: Spacing.md,
   },
 
-  /* Empty */
   emptyState: {
     marginTop: Spacing.xxxxl,
     alignItems: 'center',
@@ -464,7 +372,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  pressed: {
-    opacity: 0.85,
-  },
+  pressed: { opacity: 0.85 },
 });
