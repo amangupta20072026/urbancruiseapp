@@ -240,17 +240,22 @@ const NotificationCentreScreen: React.FC = () => {
   return (
     <SafeScreen edges={['top']} backgroundColor={Colors.background}>
       <View style={styles.headerWrap}>
-        <ScreenHeader title="Notifications" onBack={onBack} />
-        {unreadCount > 0 && (
-          <Pressable
-            onPress={() => markAllRead()}
-            style={styles.markAllBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Mark all notifications as read"
-          >
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </Pressable>
-        )}
+        <ScreenHeader
+          title="Notifications"
+          onBack={onBack}
+          rightSlot={
+            unreadCount > 0 ? (
+              <Pressable
+                onPress={() => markAllRead()}
+                style={styles.markAllBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Mark all notifications as read"
+              >
+                <Text style={styles.markAllText}>Mark all read</Text>
+              </Pressable>
+            ) : undefined
+          }
+        />
       </View>
 
       {/* Filter chips */}
@@ -337,7 +342,7 @@ const FilterChip: React.FC<{
     style={({ pressed }) => [
       styles.chip,
       active && styles.chipActive,
-      pressed && styles.pressed,
+      pressed && styles.chipPressed,
     ]}
     accessibilityRole="button"
     accessibilityState={{ selected: active }}
@@ -398,9 +403,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
   markAllBtn: { paddingVertical: 4, paddingHorizontal: 8 },
   markAllText: {
@@ -415,22 +417,32 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   chip: {
-    height: 36,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceMuted,
+    height: 38,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.backgroundTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipActive: { backgroundColor: Colors.primary },
+  chipActive: {
+    backgroundColor: Colors.primary,
+  },
+  chipPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.96 }],
+  },
   chipLabel: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
     fontWeight: '600',
     includeFontPadding: false,
     textAlignVertical: 'center',
+    letterSpacing: 0.1,
   },
-  chipLabelActive: { color: Colors.textOnPrimary, fontWeight: '700' },
+  chipLabelActive: {
+    color: Colors.textOnPrimary,
+    fontWeight: '700',
+  },
   listContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xxxxl },
   sectionHeaderWrap: { marginTop: Spacing.md, marginBottom: Spacing.xs },
   sectionHeader: {
@@ -500,8 +512,9 @@ const styles = StyleSheet.create({
   },
   retryText: { ...Typography.body, color: Colors.white, fontWeight: '700' },
   emptyState: {
-    marginTop: Spacing.xxxxl,
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.sm,
     paddingHorizontal: Spacing.xl,
   },

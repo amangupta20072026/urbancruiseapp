@@ -193,7 +193,8 @@ const BookingsScreen: React.FC = () => {
         </Text>
       </View>
 
-      {/* Filter chip strip — solid-fill active, height-capped (see
+      {/* Filter chip strip — tinted active (matches Quotations, no
+          count badge), height-capped (see
           NotificationCentreScreen for the flex quirk this guards
           against). */}
       <ScrollView
@@ -287,7 +288,9 @@ const BookingsScreen: React.FC = () => {
 export default BookingsScreen;
 
 /* ================================================================
- * Local FilterChip — solid-fill variant matching the mockup
+ * Local FilterChip — same look as the QuotationsScreen chip
+ * (white outlined pill, soft-green tint when active) but WITHOUT
+ * the count badge. Keep the two in sync if either is restyled.
  * ================================================================ */
 
 const FilterChip: React.FC<{
@@ -344,25 +347,30 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   chip: {
-    height: 36,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceMuted,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.sm,
+    height: 40,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   chipActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryTint,
+    borderColor: Colors.primaryTint,
   },
   chipLabel: {
     ...Typography.bodySmall,
-    color: Colors.textSecondary,
+    color: Colors.textPrimary,
     fontWeight: '600',
     includeFontPadding: false,
     textAlignVertical: 'center',
   },
   chipLabelActive: {
-    color: Colors.textOnPrimary,
+    color: Colors.primaryDark,
     fontWeight: '700',
   },
 

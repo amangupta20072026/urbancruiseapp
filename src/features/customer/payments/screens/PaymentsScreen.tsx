@@ -242,7 +242,9 @@ const PaymentsScreen: React.FC = () => {
 export default PaymentsScreen;
 
 /* ================================================================
- * Local FilterChip
+ * Local FilterChip — same look as the Quotations / Bookings chips
+ * (white outlined pill, soft-green tint when active), no count badge.
+ * Keep the three in sync if any is restyled.
  * ================================================================ */
 
 const FilterChip: React.FC<{
@@ -295,23 +297,30 @@ const styles = StyleSheet.create({
   },
   chip: {
     flex: 1,
-    height: 36,
-    paddingHorizontal: Spacing.sm,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceMuted,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.sm,
+    height: 40,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  chipActive: { backgroundColor: Colors.primary },
+  chipActive: {
+    backgroundColor: Colors.primaryTint,
+    borderColor: Colors.primaryTint,
+  },
   chipLabel: {
     ...Typography.bodySmall,
-    color: Colors.textSecondary,
+    color: Colors.textPrimary,
     fontWeight: '600',
     includeFontPadding: false,
     textAlignVertical: 'center',
   },
   chipLabelActive: {
-    color: Colors.textOnPrimary,
+    color: Colors.primaryDark,
     fontWeight: '700',
   },
 
