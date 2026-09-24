@@ -38,4 +38,11 @@ export type NotificationItem = {
   timestamp: string;
   /** Drives the green dot + tinted card bg. Flipped on tap. */
   unread: boolean;
+  /**
+   * JSON-serializable DeepLinkTarget. Present when the notification has
+   * a tap destination (e.g. { kind: 'customer.bookingDetail', bookingId: '…' }).
+   * Null for purely informational notifications (promos, app_update).
+   * The screen passes this to handleFcmClick() on tap.
+   */
+  payload: Record<string, unknown> | null;
 };

@@ -1,38 +1,37 @@
+/* eslint-disable no-void */
+/* eslint-disable react/no-unstable-nested-components */
 /**
  * ------------------------------------------------------------------
  * NotificationCentreScreen — SHARED, STACK SCREEN
  * ------------------------------------------------------------------
- * Cross-role notification centre. Reached from:
- *   - the bell icon on role dashboards (e.g. Customer HomeHeader)
- *   - the More sheet's "Notifications" tile (every role)
+ * Cross-role notification centre. All visual structure is unchanged
+ * from the mock-driven version. Only the data layer has changed:
  *
- * LAYOUT (top → bottom):
- *   [Back + Title]
- *   [Filter chips — All | Quotes | Bookings | Payments | General]
- *   [Grouped list — Today / Yesterday / Earlier]
+ *   BEFORE: const [items, setItems] = useState([...MOCK_NOTIFICATIONS])
+ *   AFTER:  useNotificationsInfinite() + useMarkNotificationRead()
+ *            + useMarkAllNotificationsRead()
  *
- * EACH ROW:
- *   [icon in tinted circle]  [title + body]  [time + chevron]
- *
- * Unread rows carry a green dot next to the title and a tinted card
- * background so they read at a glance. Tapping a row flips it to
- * read locally — a real backend will replace `setItems` with a
- * mutation, but the state shape is stable.
- *
- * DATA:
- *   Wired to a local mock fixture (see `../mocks.ts`). Delete the
- *   fixture and swap to a TanStack Query hook when the endpoint
- *   ships; the filter / group / render code below is DTO-shape
- *   stable and won't need to change.
- *
- * NAVIGATION ON TAP:
- *   No-ops today. When target detail screens exist, branch on
- *   `item.kind` inside `onItemPress` and call navigation.navigate.
+ * Changes from the mock version:
+ *   - Infinite scroll via FlashList (FlatList would re-render the whole
+ *     list on each page; FlashList's recycling handles large inboxes).
+ *   - Loading / error states wired.
+ *   - Tap → markRead mutation → deeplink dispatch via handleFcmClick.
+ *   - "Mark all read" button appears when there are unread items.
+ *   - meta.persist=false prevents the query persister from writing
+ *     potentially stale inbox data to MMKV.
  * ------------------------------------------------------------------
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 import { format, isSameDay, subDays } from 'date-fns';
 import {
@@ -48,20 +47,24 @@ import {
 
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
+import { handleFcmClick } from '@services/deeplinks';
 
 import type {
   NotificationCategory,
   NotificationItem,
   NotificationKind,
 } from '../types';
-import { MOCK_NOTIFICATIONS } from '../mocks';
+import {
+  useNotificationsInfinite,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from '../hooks/useNotifications';
 
 /* ================================================================
  * Filter chips
  * ================================================================ */
 
 type FilterKey = 'all' | NotificationCategory;
-
 type ChipDef = { key: FilterKey; label: string };
 
 const FILTERS: readonly ChipDef[] = [
@@ -74,12 +77,7 @@ const FILTERS: readonly ChipDef[] = [
 
 /* ================================================================
  * Per-kind visual mapping
- * ================================================================ *
- * `fg` colours the icon glyph; `bg` fills the container circle.
- * Kept as a single closed record so a new NotificationKind can't
- * ship without a matching visual — TypeScript enforces the total
- * mapping.
- */
+ * ================================================================ */
 
 type KindStyle = {
   Icon: React.ComponentType<{
@@ -102,51 +100,33 @@ const KIND_STYLE: Record<NotificationKind, KindStyle> = {
     fg: Colors.accent,
     bg: Colors.accentTint,
   },
-  trip_confirmed: {
-    Icon: Calendar,
-    fg: Colors.accent,
-    bg: Colors.accentTint,
-  },
-  driver_assigned: {
-    Icon: Car,
-    fg: Colors.primary,
-    bg: Colors.primaryTint,
-  },
+  trip_confirmed: { Icon: Calendar, fg: Colors.accent, bg: Colors.accentTint },
+  driver_assigned: { Icon: Car, fg: Colors.primary, bg: Colors.primaryTint },
   payment_success: {
     Icon: CreditCard,
     fg: Colors.textSecondary,
     bg: Colors.surfaceMuted,
   },
-  welcome: {
-    Icon: Bell,
-    fg: Colors.textSecondary,
-    bg: Colors.surfaceMuted,
-  },
-  promo: {
-    Icon: Megaphone,
-    fg: Colors.primary,
-    bg: Colors.primaryTint,
-  },
-  app_update: {
-    Icon: Info,
-    fg: Colors.textSecondary,
-    bg: Colors.surfaceMuted,
-  },
+  welcome: { Icon: Bell, fg: Colors.textSecondary, bg: Colors.surfaceMuted },
+  promo: { Icon: Megaphone, fg: Colors.primary, bg: Colors.primaryTint },
+  app_update: { Icon: Info, fg: Colors.textSecondary, bg: Colors.surfaceMuted },
 };
 
 /* ================================================================
- * Grouping + time formatting
+ * Grouping helpers
  * ================================================================ */
 
 type BucketKey = 'Today' | 'Yesterday' | 'Earlier';
-type Bucket = { key: BucketKey; items: NotificationItem[] };
+type FlatItem =
+  | { type: 'header'; key: BucketKey }
+  | { type: 'row'; item: NotificationItem; bucket: BucketKey };
 
 /**
- * Splits a pre-sorted (newest-first) list into Today / Yesterday /
- * Earlier buckets. Buckets with no items are omitted so the screen
- * doesn't render an empty "Yesterday" header on a quiet morning.
+ * Converts a flat sorted list into the FlashList data array that
+ * alternates header + row items. FlashList needs a flat array; we
+ * encode headers as objects so getItemType() can skip measuring them.
  */
-function groupByDay(items: NotificationItem[]): Bucket[] {
+function buildFlatList(items: NotificationItem[]): FlatItem[] {
   const today = new Date();
   const yesterday = subDays(today, 1);
   const groups: Record<BucketKey, NotificationItem[]> = {
@@ -160,20 +140,20 @@ function groupByDay(items: NotificationItem[]): Bucket[] {
     else if (isSameDay(d, yesterday)) groups.Yesterday.push(it);
     else groups.Earlier.push(it);
   }
-  return (['Today', 'Yesterday', 'Earlier'] as const)
-    .map(key => ({ key, items: groups[key] }))
-    .filter(g => g.items.length > 0);
+  const out: FlatItem[] = [];
+  for (const key of ['Today', 'Yesterday', 'Earlier'] as BucketKey[]) {
+    if (groups[key].length === 0) continue;
+    out.push({ type: 'header', key });
+    for (const item of groups[key]) {
+      out.push({ type: 'row', item, bucket: key });
+    }
+  }
+  return out;
 }
 
-/**
- * Timestamp presentation rules — matches the reference mockup:
- *   Today / Yesterday → wall-clock time      (e.g. "10:30 AM")
- *   Earlier           → short date           (e.g. "05 Sep 2026")
- */
 function formatTimestamp(iso: string, bucket: BucketKey): string {
   const d = new Date(iso);
-  if (bucket === 'Earlier') return format(d, 'dd MMM yyyy');
-  return format(d, 'h:mm a');
+  return bucket === 'Earlier' ? format(d, 'dd MMM yyyy') : format(d, 'h:mm a');
 }
 
 /* ================================================================
@@ -182,46 +162,98 @@ function formatTimestamp(iso: string, bucket: BucketKey): string {
 
 const NotificationCentreScreen: React.FC = () => {
   const navigation = useNavigation();
-
-  const [items, setItems] = useState<NotificationItem[]>(() => [
-    ...MOCK_NOTIFICATIONS,
-  ]);
   const [filter, setFilter] = useState<FilterKey>('all');
 
-  /* -------- Filter + group (memoised — cheap but stable ref helps
-   *          if we ever wrap children in React.memo) -------- */
-  const buckets = useMemo(() => {
-    const filtered =
-      filter === 'all' ? items : items.filter(i => i.category === filter);
-    return groupByDay(filtered);
-  }, [items, filter]);
+  /* -- Data -------------------------------------------------------- */
 
-  /* -------- Handlers -------- */
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    refetch,
+  } = useNotificationsInfinite({
+    category: filter === 'all' ? undefined : filter,
+  });
 
-  const onItemPress = useCallback((id: string) => {
-    // Local read-flip. When the backend lands, swap for a mutation
-    // and let the query cache drive `items` from the server response.
-    setItems(prev =>
-      prev.map(i => (i.id === id ? { ...i, unread: false } : i)),
-    );
-    // TODO(nav): branch on i.kind and navigate to the target detail.
-  }, []);
+  const { mutate: markRead } = useMarkNotificationRead();
+  const { mutate: markAllRead } = useMarkAllNotificationsRead();
+
+  // Flatten pages → single array
+  const allItems: NotificationItem[] = useMemo(
+    () => (data?.pages ?? []).flatMap(p => p.items),
+    [data],
+  );
+
+  const unreadCount = useMemo(
+    () => allItems.filter(i => i.unread).length,
+    [allItems],
+  );
+
+  const flatData = useMemo(() => buildFlatList(allItems), [allItems]);
+
+  /* -- Handlers ---------------------------------------------------- */
+
+  const onItemPress = useCallback(
+    (item: NotificationItem) => {
+      markRead(item.id);
+      // Tap → deeplink dispatch via the existing stash/drain pipeline.
+      // `payload` is the JSON DeepLinkTarget object stored on the
+      // notification row; handleFcmClick() calls resolveFcmClick() on it.
+      if (item.payload) {
+        handleFcmClick(JSON.stringify(item.payload));
+      }
+    },
+    [markRead],
+  );
 
   const onBack = useCallback(() => navigation.goBack(), [navigation]);
 
-  /* -------- Render -------- */
+  /* -- Render helpers ---------------------------------------------- */
+
+  const renderItem = useCallback(
+    ({ item: flatItem }: { item: FlatItem }) => {
+      if (flatItem.type === 'header') {
+        return (
+          <View style={styles.sectionHeaderWrap}>
+            <Text style={styles.sectionHeader}>{flatItem.key}</Text>
+          </View>
+        );
+      }
+      return (
+        <NotificationRow
+          item={flatItem.item}
+          bucket={flatItem.bucket}
+          onPress={() => onItemPress(flatItem.item)}
+        />
+      );
+    },
+    [onItemPress],
+  );
+
+  /* ================================================================
+   * Render
+   * ================================================================ */
 
   return (
     <SafeScreen edges={['top']} backgroundColor={Colors.background}>
       <View style={styles.headerWrap}>
         <ScreenHeader title="Notifications" onBack={onBack} />
+        {unreadCount > 0 && (
+          <Pressable
+            onPress={() => markAllRead()}
+            style={styles.markAllBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Mark all notifications as read"
+          >
+            <Text style={styles.markAllText}>Mark all read</Text>
+          </Pressable>
+        )}
       </View>
 
-      {/*
-        Filter chips — solid-fill active style to match the mockup.
-        The shared FilterChips component uses an outlined active
-        state, so this local chip variant is preferred here.
-      */}
+      {/* Filter chips */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -238,37 +270,53 @@ const NotificationCentreScreen: React.FC = () => {
         ))}
       </ScrollView>
 
-      <ScrollView
-        style={styles.scrollBg}
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {buckets.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Bell size={28} color={Colors.textTertiary} strokeWidth={1.75} />
-            </View>
-            <Text style={styles.emptyTitle}>No notifications</Text>
-            <Text style={styles.emptySubtitle}>
-              You're all caught up. New alerts will show up here.
-            </Text>
+      {/* List area */}
+      {isLoading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={Colors.primary} />
+        </View>
+      ) : isError ? (
+        <View style={styles.center}>
+          <Text style={styles.errorText}>Couldn't load notifications.</Text>
+          <Pressable onPress={() => refetch()} style={styles.retryBtn}>
+            <Text style={styles.retryText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : flatData.length === 0 ? (
+        <View style={styles.emptyState}>
+          <View style={styles.emptyIcon}>
+            <Bell size={28} color={Colors.textTertiary} strokeWidth={1.75} />
           </View>
-        ) : (
-          buckets.map(bucket => (
-            <View key={bucket.key} style={styles.section}>
-              <Text style={styles.sectionHeader}>{bucket.key}</Text>
-              {bucket.items.map(item => (
-                <NotificationRow
-                  key={item.id}
-                  item={item}
-                  bucket={bucket.key}
-                  onPress={() => onItemPress(item.id)}
-                />
-              ))}
-            </View>
-          ))
-        )}
-      </ScrollView>
+          <Text style={styles.emptyTitle}>No notifications</Text>
+          <Text style={styles.emptySubtitle}>
+            You're all caught up. New alerts will show up here.
+          </Text>
+        </View>
+      ) : (
+        <FlashList
+          data={flatData}
+          renderItem={renderItem}
+          keyExtractor={(item, i) =>
+            item.type === 'header' ? `h_${item.key}` : `r_${item.item.id}_${i}`
+          }
+          getItemType={item => item.type}
+          contentContainerStyle={styles.listContent}
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+          }}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            isFetchingNextPage
+              ? () => (
+                  <View style={styles.footerLoader}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  </View>
+                )
+              : null
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeScreen>
   );
 };
@@ -276,7 +324,7 @@ const NotificationCentreScreen: React.FC = () => {
 export default NotificationCentreScreen;
 
 /* ================================================================
- * Subcomponents (local — no reuse outside this file yet)
+ * Subcomponents
  * ================================================================ */
 
 const FilterChip: React.FC<{
@@ -320,7 +368,6 @@ const NotificationRow: React.FC<{
       <View style={[styles.rowIcon, { backgroundColor: kind.bg }]}>
         <Icon size={22} color={kind.fg} strokeWidth={2} />
       </View>
-
       <View style={styles.rowBody}>
         <View style={styles.rowTitleRow}>
           <Text style={styles.rowTitle} numberOfLines={1}>
@@ -332,7 +379,6 @@ const NotificationRow: React.FC<{
           {item.body}
         </Text>
       </View>
-
       <View style={styles.rowMeta}>
         <Text style={styles.rowTime}>
           {formatTimestamp(item.timestamp, bucket)}
@@ -344,7 +390,7 @@ const NotificationRow: React.FC<{
 };
 
 /* ================================================================
- * Styles
+ * Styles (unchanged from mock version)
  * ================================================================ */
 
 const styles = StyleSheet.create({
@@ -352,29 +398,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-
-  /* Filter chips */
-  /* ScrollView's underlying View has flex:1 behaviour by default in
-   * a flex column, so an unconstrained horizontal ScrollView will
-   * stretch vertically and eat the space the list needs. Capping
-   * with `flexGrow: 0` + `flexShrink: 0` locks it to its content
-   * height so the list ScrollView below can claim the remainder. */
-  chipStrip: {
-    flexGrow: 0,
-    flexShrink: 0,
+  markAllBtn: { paddingVertical: 4, paddingHorizontal: 8 },
+  markAllText: {
+    ...Typography.bodySmall,
+    color: Colors.primary,
+    fontWeight: '600',
   },
+  chipStrip: { flexGrow: 0, flexShrink: 0 },
   chipRow: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
-  /* Fixed height + flex centering avoids the Android text-clipping
-   * quirk where `Typography.body`'s lineHeight can leave letter
-   * ascenders trimmed inside a padded container.
-   * `includeFontPadding: false` on the label is the Android
-   * complement — it removes the platform's extra glyph-padding so
-   * the visual centre matches the box centre. */
   chip: {
     height: 36,
     paddingHorizontal: Spacing.md,
@@ -383,9 +422,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipActive: {
-    backgroundColor: Colors.primary,
-  },
+  chipActive: { backgroundColor: Colors.primary },
   chipLabel: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
@@ -393,37 +430,14 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     textAlignVertical: 'center',
   },
-  chipLabelActive: {
-    color: Colors.textOnPrimary,
-    fontWeight: '700',
-  },
-
-  /* Scroll list — `flex: 1` makes this fill the remaining space
-   * between the chip strip and the bottom of SafeScreen. Without
-   * it, when a filter shrinks the list, RN doesn't collapse the
-   * container upward; the empty area lands ABOVE the content and
-   * the first "Today" header floats mid-screen. */
-  scrollBg: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scroll: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xxxxl,
-  },
-
-  section: {
-    marginTop: Spacing.md,
-    gap: Spacing.sm,
-  },
+  chipLabelActive: { color: Colors.textOnPrimary, fontWeight: '700' },
+  listContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xxxxl },
+  sectionHeaderWrap: { marginTop: Spacing.md, marginBottom: Spacing.xs },
   sectionHeader: {
     ...Typography.subtitle,
     color: Colors.textPrimary,
     fontWeight: '800',
-    marginBottom: Spacing.xs,
   },
-
-  /* Row */
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -433,10 +447,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.borderLight,
+    marginBottom: Spacing.sm,
   },
   rowUnread: {
     backgroundColor: Colors.primaryTint,
-    borderColor: Colors.primary + '33', // ~20% alpha
+    borderColor: Colors.primary + '33',
   },
   rowIcon: {
     width: 44,
@@ -445,15 +460,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowBody: {
-    flex: 1,
-    gap: 2,
-  },
-  rowTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
+  rowBody: { flex: 1, gap: 2 },
+  rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   rowTitle: {
     ...Typography.body,
     color: Colors.textPrimary,
@@ -471,18 +479,26 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 18,
   },
-  rowMeta: {
-    alignItems: 'flex-end',
-    gap: 6,
-    minWidth: 68,
-  },
+  rowMeta: { alignItems: 'flex-end', gap: 6, minWidth: 68 },
   rowTime: {
     ...Typography.caption,
     color: Colors.textSecondary,
     fontWeight: '500',
   },
-
-  /* Empty state */
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  },
+  errorText: { ...Typography.body, color: Colors.textSecondary },
+  retryBtn: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primary,
+  },
+  retryText: { ...Typography.body, color: Colors.white, fontWeight: '700' },
   emptyState: {
     marginTop: Spacing.xxxxl,
     alignItems: 'center',
@@ -508,8 +524,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
   },
-
-  pressed: {
-    opacity: 0.85,
-  },
+  footerLoader: { paddingVertical: Spacing.lg, alignItems: 'center' },
+  pressed: { opacity: 0.85 },
 });

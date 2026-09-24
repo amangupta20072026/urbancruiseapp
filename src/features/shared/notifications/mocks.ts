@@ -44,6 +44,10 @@ export const MOCK_NOTIFICATIONS: readonly NotificationItem[] = [
     body: 'Your quotation QREQ-2026-28996 is ready. Tap to view details.',
     timestamp: ago(1, 15),
     unread: true,
+    payload: {
+      kind: 'customer.quotationDetail',
+      quotationId: 'QREQ-2026-28996',
+    },
   },
   {
     id: 'n_002',
@@ -53,6 +57,7 @@ export const MOCK_NOTIFICATIONS: readonly NotificationItem[] = [
     body: 'Your booking for Delhi to Jaipur on 15 Sep 2026 has been confirmed.',
     timestamp: ago(3, 30),
     unread: false,
+    payload: { kind: 'customer.bookingDetail', bookingId: 'BKG-2026-001' },
   },
   {
     id: 'n_003',
@@ -62,6 +67,7 @@ export const MOCK_NOTIFICATIONS: readonly NotificationItem[] = [
     body: "Thank you for joining us. Let's plan more journeys together!",
     timestamp: ago(5, 0),
     unread: false,
+    payload: null,
   },
 
   /* ── Yesterday ─────────────────────────────────────────────── */
@@ -73,6 +79,10 @@ export const MOCK_NOTIFICATIONS: readonly NotificationItem[] = [
     body: "We've updated your quotation QREQ-2026-28991. Tap to view the latest options.",
     timestamp: daysAgoAt(1, 17, 24),
     unread: false,
+    payload: {
+      kind: 'customer.quotationDetail',
+      quotationId: 'QREQ-2026-28991',
+    },
   },
   {
     id: 'n_005',
@@ -82,6 +92,7 @@ export const MOCK_NOTIFICATIONS: readonly NotificationItem[] = [
     body: 'Your driver has been assigned for your upcoming trip on 12 Sep 2026.',
     timestamp: daysAgoAt(1, 14, 10),
     unread: false,
+    payload: { kind: 'customer.bookingDetail', bookingId: 'BKG-2026-002' },
   },
   {
     id: 'n_006',
@@ -91,6 +102,7 @@ export const MOCK_NOTIFICATIONS: readonly NotificationItem[] = [
     body: 'Your payment of ₹12,000 has been received. Thank you!',
     timestamp: daysAgoAt(1, 11, 45),
     unread: false,
+    payload: null,
   },
 
   /* ── Earlier ───────────────────────────────────────────────── */
@@ -102,6 +114,7 @@ export const MOCK_NOTIFICATIONS: readonly NotificationItem[] = [
     body: 'Get 10% off on outstation trips. Plan your next journey with us!',
     timestamp: daysAgoAt(8, 9, 30),
     unread: false,
+    payload: null,
   },
   {
     id: 'n_008',
@@ -111,5 +124,6 @@ export const MOCK_NOTIFICATIONS: readonly NotificationItem[] = [
     body: 'A new version of the app is available with improved features.',
     timestamp: daysAgoAt(11, 10, 0),
     unread: false,
+    payload: null,
   },
 ];
