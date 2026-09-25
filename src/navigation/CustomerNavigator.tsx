@@ -30,6 +30,12 @@ import type { CustomerStackParamList } from './types';
 import { NotImplementedScreen } from '@features/shared/screens';
 import SupportScreen from '@features/shared/support/screens/SupportScreen';
 import HelpSupportScreen from '@features/shared/support/screens/HelpSupportScreen';
+import QuotationHelpScreen from '@features/shared/support/screens/QuotationHelpScreen';
+import BookingHelpScreen from '@features/shared/support/screens/BookingHelpScreen';
+import PaymentsHelpScreen from '@features/shared/support/screens/PaymentsHelpScreen';
+import AccountHelpScreen from '@features/shared/support/screens/AccountHelpScreen';
+import SafetyHelpScreen from '@features/shared/support/screens/SafetyHelpScreen';
+import FeedbackHelpScreen from '@features/shared/support/screens/FeedbackHelpScreen';
 import { ProfileScreen } from '@features/shared/profile';
 import { SettingsScreen } from '@features/shared/settings';
 import { NotificationCentreScreen } from '@features/shared/notifications';
@@ -60,6 +66,12 @@ const CustomerNavigator: React.FC = () => {
       <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
       <Stack.Screen name="Support" component={SupportScreen} />
       <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+      <Stack.Screen name="QuotationHelp" component={QuotationHelpScreen} />
+      <Stack.Screen name="BookingHelp" component={BookingHelpScreen} />
+      <Stack.Screen name="PaymentsHelp" component={PaymentsHelpScreen} />
+      <Stack.Screen name="AccountHelp" component={AccountHelpScreen} />
+      <Stack.Screen name="SafetyHelp" component={SafetyHelpScreen} />
+      <Stack.Screen name="FeedbackHelp" component={FeedbackHelpScreen} />
 
       {/* More-sheet destinations — shared across roles */}
       <Stack.Screen name="Profile" component={ProfileScreen} />

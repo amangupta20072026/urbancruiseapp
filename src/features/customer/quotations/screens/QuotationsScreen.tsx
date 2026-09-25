@@ -125,15 +125,19 @@ const QuotationsScreen: React.FC = () => {
    *
    * The `mountedRef` guard prevents a "setState on unmounted component"
    * warning if the user pulls-to-refresh then navigates away before the
-   * simulated round-trip resolves. */
+   * simulated round-trip resolves. The ref MUST be set to true INSIDE
+   * the effect body — not just via `useRef(true)` — because under React
+   * 19 StrictMode / Fast Refresh the effect runs mount → cleanup →
+   * mount and the ref would otherwise stay false for the whole
+   * lifetime, freezing the spinner. */
   const [refreshing, setRefreshing] = useState(false);
   const mountedRef = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

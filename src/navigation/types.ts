@@ -102,6 +102,25 @@ export type CustomerStackParamList = {
    * with contact channels + topic browsing.
    */
   HelpSupport: undefined;
+  /**
+   * Per-topic FAQ list reached from a "Get Help With" tile inside
+   * HelpSupport. Ships one screen per topic (QuotationHelp,
+   * BookingHelp, PaymentsHelp, AccountHelp, SafetyHelp,
+   * FeedbackHelp) — each is a shared component registered on every
+   * role stack that also has HelpSupport.
+   *
+   * NB: FeedbackHelp is a SUBMISSION FORM, not an FAQ list — feedback
+   * has no "questions with answers" set to browse, only a place to
+   * write in. Route name follows the topic-tile naming convention
+   * so `handleTopicPress` reads uniformly. See FeedbackHelpScreen
+   * header for full rationale.
+   */
+  QuotationHelp: undefined;
+  BookingHelp: undefined;
+  PaymentsHelp: undefined;
+  AccountHelp: undefined;
+  SafetyHelp: undefined;
+  FeedbackHelp: undefined;
   // General customer feedback (from More sheet — no booking scope).
   // Distinct from booking-scoped `Feedback` above.
   CustomerFeedback: undefined;
@@ -144,6 +163,13 @@ export type VendorStackParamList = {
   Support: undefined;
   /** Rich "Help & Support" hub from the More sheet. See CustomerStackParamList for rationale. */
   HelpSupport: undefined;
+  /** Per-topic FAQ list from HelpSupport. See CustomerStackParamList. */
+  QuotationHelp: undefined;
+  BookingHelp: undefined;
+  PaymentsHelp: undefined;
+  AccountHelp: undefined;
+  SafetyHelp: undefined;
+  FeedbackHelp: undefined;
 };
 
 export type VendorTabParamList = {
@@ -169,6 +195,13 @@ export type DriverStackParamList = {
   Support: undefined;
   /** Rich "Help & Support" hub from the More sheet. See CustomerStackParamList for rationale. */
   HelpSupport: undefined;
+  /** Per-topic FAQ list from HelpSupport. See CustomerStackParamList. */
+  QuotationHelp: undefined;
+  BookingHelp: undefined;
+  PaymentsHelp: undefined;
+  AccountHelp: undefined;
+  SafetyHelp: undefined;
+  FeedbackHelp: undefined;
 };
 
 export type DriverTabParamList = {

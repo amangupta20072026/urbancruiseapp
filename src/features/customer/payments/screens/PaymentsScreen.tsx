@@ -95,15 +95,24 @@ const PaymentsScreen: React.FC = () => {
     [navigation],
   );
 
-  /* ---- Pull-to-refresh ---- */
+  /* ---- Pull-to-refresh ----
+   *
+   * `mountedRef` guards the deferred `setRefreshing(false)` so we
+   * don't call setState after the screen has been unmounted (would
+   * log a React warning). The ref MUST be set to true INSIDE the
+   * effect body — not just via `useRef(true)` — because under React
+   * 19 StrictMode / Fast Refresh the effect runs mount → cleanup →
+   * mount. Cleanup flips the ref to false, and without a reset on
+   * the second mount the ref stays false for the whole lifetime,
+   * which would make the spinner spin forever. */
   const [refreshing, setRefreshing] = useState(false);
   const mountedRef = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setTimeout(() => {
@@ -214,9 +223,6 @@ const PaymentsScreen: React.FC = () => {
               key={item.id}
               item={item}
               onPress={() => openPaymentDetail(item)}
-              onDownloadInvoice={() =>
-                downloadReceipt(item as unknown as CustomerPaymentDetail)
-              }
             />
           ))
         )}

@@ -10,15 +10,14 @@
  * LAYOUT (top → bottom):
  *   ScreenHeader ("Settings" + "Manage your account and app preferences")
  *   ┌─ Account Settings ────────────────────────────────────────┐
- *   │  Personal Information  · Travel Preferences  ·           │
- *   │  Saved Payment Methods                                    │
+ *   │  Personal Information · Saved Payment Methods             │
  *   └───────────────────────────────────────────────────────────┘
  *   ┌─ App Preferences ─────────────────────────────────────────┐
- *   │  Notifications · Language · Appearance · Location         │
+ *   │  Notifications · Language · Appearance · Permissions      │
  *   └───────────────────────────────────────────────────────────┘
  *   ┌─ Support & Legal ─────────────────────────────────────────┐
- *   │  Privacy & Security · Terms & Conditions · About ·       │
- *   │  Help & Support · Delete Account                          │
+ *   │  Terms & Conditions · About · Help & Support ·            │
+ *   │  Delete Account                                           │
  *   └───────────────────────────────────────────────────────────┘
  *   [ Logout ]                        ← red-tinted full-width CTA
  *
@@ -36,15 +35,13 @@
  *   Language screen only changes one line.
  *
  *     Personal Information     → Profile               (registered)
- *     Travel Preferences       → toast (no route)
  *     Saved Payment Methods    → toast (no route)
  *     Notifications            → toast (no PREFERENCES route yet;
  *                                       NotificationCentre is the
  *                                       inbox, not the settings)
  *     Language                 → toast (i18n not built)
  *     Appearance               → toast (dark-mode toggle not built)
- *     Location Settings        → Linking.openSettings()  ✅ real
- *     Privacy & Security       → toast (no route)
+ *     Permissions              → Linking.openSettings()  ✅ real
  *     Terms & Conditions       → open termsUrl (AppConfig)  ✅ real
  *     About Urban Cruise       → in-place Alert with app version  ✅
  *     Help & Support           → HelpSupport             ✅ (this PR)
@@ -88,11 +85,9 @@ import {
   Info,
   Languages,
   LogOut,
-  MapPin,
-  ShieldCheck,
+  Shield,
   Trash2,
   User,
-  Users,
   type LucideProps,
 } from 'lucide-react-native';
 
@@ -126,13 +121,11 @@ const PINK_BG = '#FCE7F3';
  */
 type RowId =
   | 'personalInfo'
-  | 'travelPreferences'
   | 'savedPayments'
   | 'notifications'
   | 'language'
   | 'appearance'
-  | 'locationSettings'
-  | 'privacySecurity'
+  | 'permissions'
   | 'termsConditions'
   | 'aboutApp'
   | 'helpSupport'
@@ -195,14 +188,6 @@ const SettingsScreen: React.FC = () => {
           iconBg: Colors.infoTint,
         },
         {
-          id: 'travelPreferences',
-          title: 'Travel Preferences',
-          subtitle: 'Preferred routes, service type, vehicle preferences',
-          Icon: Users,
-          iconFg: Colors.primary,
-          iconBg: Colors.primaryTint,
-        },
-        {
           id: 'savedPayments',
           title: 'Saved Payment Methods',
           subtitle: 'Cards, UPI, wallets',
@@ -243,10 +228,10 @@ const SettingsScreen: React.FC = () => {
           iconBg: PINK_BG,
         },
         {
-          id: 'locationSettings',
-          title: 'Location Settings',
-          subtitle: 'Manage location permissions',
-          Icon: MapPin,
+          id: 'permissions',
+          title: 'Permissions',
+          subtitle: 'Camera, location, notifications and more',
+          Icon: Shield,
           iconFg: Colors.info,
           iconBg: Colors.infoTint,
         },
@@ -256,14 +241,6 @@ const SettingsScreen: React.FC = () => {
       key: 'supportLegal',
       label: 'Support & Legal',
       rows: [
-        {
-          id: 'privacySecurity',
-          title: 'Privacy & Security',
-          subtitle: 'Manage your data and security settings',
-          Icon: ShieldCheck,
-          iconFg: Colors.primary,
-          iconBg: Colors.primaryTint,
-        },
         {
           id: 'termsConditions',
           title: 'Terms & Conditions',
@@ -317,10 +294,15 @@ const SettingsScreen: React.FC = () => {
           navigate('Profile');
           return;
 
-        case 'locationSettings':
-          // Deep-links straight to the OS Settings page for this app.
-          // No permission flow here — that's owned by the permissions
-          // service; the Settings screen only surfaces the entry point.
+        case 'permissions':
+          // Deep-links to the OS Settings page for this app, where
+          // the user can toggle every permission the app requests —
+          // camera, location, notifications, photos, background
+          // activity, etc. Runtime prompt flows are owned by the
+          // permissions service; this row only surfaces the entry
+          // point to the system-owned settings surface, which is
+          // authoritative and the only place a granted permission
+          // can be revoked.
           void Linking.openSettings().catch(() => {
             toast.error("Couldn't open Settings", {
               description: 'Please open Settings from your device manually.',
@@ -356,12 +338,10 @@ const SettingsScreen: React.FC = () => {
           navigate('HelpSupport');
           return;
 
-        case 'travelPreferences':
         case 'savedPayments':
         case 'notifications':
         case 'language':
         case 'appearance':
-        case 'privacySecurity':
         case 'deleteAccount':
           // TODO(nav): route each of these to its dedicated screen
           // when it lands — the switch is the ONE spot to change.

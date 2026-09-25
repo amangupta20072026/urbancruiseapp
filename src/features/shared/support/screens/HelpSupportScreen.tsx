@@ -33,10 +33,15 @@
  *     (still off today). Until the flag flips, tapping the tile
  *     shows an info toast — matches the pattern used by
  *     BookingsScreen's Track Vehicle button.
- *   - Every "Get Help With" topic currently toasts "coming soon".
- *     When per-topic help screens (Quotation Help, Booking Help,
- *     etc.) ship, each `topicId` in TOPICS[] gets its own case in
- *     `handleTopicPress` — no other file needs to change.
+ *   - All six "Get Help With" tiles now route to dedicated screens:
+ *     Quotation Help → QuotationHelpScreen, Booking Help →
+ *     BookingHelpScreen, Payments & Refunds → PaymentsHelpScreen,
+ *     Account & App Support → AccountHelpScreen, Safety & Travel
+ *     Support → SafetyHelpScreen, Feedback & Suggestions →
+ *     FeedbackHelpScreen (form, not FAQ — see its header). Adding
+ *     a seventh topic is: append to TopicId + TOPICS[], add its
+ *     case in `handleTopicPress`, and register the screen on each
+ *     role stack.
  *
  * DESIGN INVARIANTS:
  *   - Uses SafeScreen + ScreenHeader, matching every other stack
@@ -81,6 +86,7 @@ import {
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
 import { toast } from '@services/toast';
+import { navigate } from '@navigation/NavigationService';
 import { useAppSelector } from '@store/hooks';
 
 /* -----------------------------------------------------------------
@@ -293,20 +299,38 @@ const HelpSupportScreen: React.FC = () => {
   }, [supportChatEnabled]);
 
   const handleTopicPress = useCallback((topicId: TopicId) => {
-    // Every topic is a "coming soon" placeholder today. When the
-    // per-topic help surfaces land, replace the toast with a real
-    // navigate() call — the id is what disambiguates.
-    // TODO(nav): route each topicId to its dedicated help screen.
+    // Every topic tile now has a dedicated destination. Adding a
+    // new topic later means: add its id to the TopicId union above,
+    // add the corresponding case here, and register the screen on
+    // every role stack that has HelpSupport (mirror the existing
+    // topics in CustomerNavigator / VendorNavigator / DriverNavigator).
+    //
+    // Using the imperative `navigate` from NavigationService (not
+    // `navigation.navigate` from useNavigation) because this screen
+    // is registered on three role stacks (Customer, Vendor, Driver),
+    // and the useNavigation hook types calls against the global
+    // RootParamList — which only knows the outer flow-level routes.
+    // NavigationService.navigate is typed as the flat union of
+    // every ParamList precisely for cross-stack calls like this;
+    // see its header for the full contract.
     switch (topicId) {
       case 'quotation':
+        navigate('QuotationHelp');
+        return;
       case 'booking':
+        navigate('BookingHelp');
+        return;
       case 'payments':
+        navigate('PaymentsHelp');
+        return;
       case 'account':
+        navigate('AccountHelp');
+        return;
       case 'safety':
+        navigate('SafetyHelp');
+        return;
       case 'feedback':
-        toast.info('Coming soon', {
-          description: 'This help topic is on the way.',
-        });
+        navigate('FeedbackHelp');
         return;
       default: {
         const _exhaustive: never = topicId;

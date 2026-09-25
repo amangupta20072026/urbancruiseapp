@@ -86,6 +86,23 @@ export type EventName =
   | 'customer.feedback_submitted'
   | 'customer.feedback_failed'
 
+  // ── Support (self-service) ────────────────────────────
+  // Per-question "Was this helpful?" vote on the topic FAQ screens
+  // (QuotationHelp, BookingHelp, ...). Properties: { topic, faqId,
+  // helpful: boolean }. Aggregation on `helpful` gives per-topic
+  // deflection rate; drilling on `faqId` surfaces the specific
+  // answers that need rewriting.
+  | 'support.faq_helpful_voted'
+  // App-level (non-booking-scoped) feedback form on the "Feedback &
+  // Suggestions" support-topic screen. `_started` fires when the
+  // user taps Submit (useful funnel: how many drafts get discarded
+  // before submit), `_submitted` on 2xx, `_failed` on 4xx/5xx/
+  // network. Properties: { category, subjectLength, bodyLength,
+  // attachmentCount } — never the free-text content.
+  | 'support.feedback_submit_started'
+  | 'support.feedback_submitted'
+  | 'support.feedback_failed'
+
   // ── Push (FCM) ────────────────────────────────────────
   | 'fcm.notification_received'
   | 'fcm.notification_tapped'

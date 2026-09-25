@@ -8,16 +8,16 @@
  *   │ [icon]  Delhi → Jaipur                Quotation ID     ›   │
  *   │         📅 15 Sep 2026 · 09:12 AM     BK-2026-00123        │
  *   │         Tempo Traveller | 20 Passengers                    │
- *   │         ₹18,500  [Paid]              [⬇ Download Invoice] │
+ *   │         ₹18,500  [Paid]                                    │
  *   └────────────────────────────────────────────────────────────┘
  *
  * Status drives:
  *   1. leading status glyph (CheckCircle / Clock / XCircle) + tint
  *   2. amount colour + status pill copy/colour
  *
- * Download Invoice is always shown (per mockup) — even for pending
- * / failed rows a customer might want a proof-of-attempt. Tap is
- * a no-op today; wire to /customer/payments/invoice when it ships.
+ * The row-level Download Invoice CTA was removed — receipt download
+ * lives inside PaymentDetailSheet (opened by tapping the card), so
+ * the two entry points no longer diverge.
  * ------------------------------------------------------------------
  */
 
@@ -29,7 +29,6 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
-  Download,
   XCircle,
 } from 'lucide-react-native';
 
@@ -100,14 +99,9 @@ function formatRupees(amount: number): string {
 type Props = {
   item: CustomerPaymentListItem;
   onPress: () => void;
-  onDownloadInvoice: () => void;
 };
 
-export const PaymentCard: React.FC<Props> = ({
-  item,
-  onPress,
-  onDownloadInvoice,
-}) => {
+export const PaymentCard: React.FC<Props> = ({ item, onPress }) => {
   const style = STATUS_STYLE[item.status];
 
   return (
@@ -161,12 +155,9 @@ export const PaymentCard: React.FC<Props> = ({
         </View>
       </View>
 
-      {/* Bottom region: amount + pill on the left, invoice CTA on the right.
-       *
-       * Rendered as a single flex row (not inside `mid`) so the CTA
-       * stretches full width of the card's right half regardless of
-       * how narrow the middle grew — the mockup keeps the button in
-       * line with the Quotation ID above it. */}
+      {/* Bottom region: amount + status pill. The row-level Download
+       * Invoice CTA that used to sit on the right was removed —
+       * receipt download now lives only inside PaymentDetailSheet. */}
       <View style={styles.bottom}>
         <View style={styles.amountRow}>
           <Text style={[styles.amount, { color: style.fg }]}>
@@ -178,19 +169,6 @@ export const PaymentCard: React.FC<Props> = ({
             </Text>
           </View>
         </View>
-
-        <Pressable
-          onPress={onDownloadInvoice}
-          style={({ pressed }) => [
-            styles.invoiceBtn,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Download invoice"
-        >
-          <Download size={14} color={Colors.primary} strokeWidth={2.5} />
-          <Text style={styles.invoiceBtnText}>Download Invoice</Text>
-        </Pressable>
       </View>
     </Pressable>
   );
@@ -279,12 +257,10 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  /* Bottom region — amount + pill / invoice button */
+  /* Bottom region — amount + status pill only */
   bottom: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
   },
   amountRow: {
     flexDirection: 'row',
@@ -305,25 +281,6 @@ const styles = StyleSheet.create({
   },
   pillText: {
     ...Typography.caption,
-    fontWeight: '700',
-    includeFontPadding: false,
-  },
-
-  /* Invoice button */
-  invoiceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 36,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surface,
-  },
-  invoiceBtnText: {
-    ...Typography.caption,
-    color: Colors.primary,
     fontWeight: '700',
     includeFontPadding: false,
   },

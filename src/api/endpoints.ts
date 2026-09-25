@@ -175,4 +175,14 @@ export const endpoints = {
         `/notifications/tokens/${encodeURIComponent(deviceId)}`,
     },
   },
+
+  // App-level support surfaces (topic FAQs + free-text feedback).
+  // The FAQ helpful-vote and topic-FAQ list endpoints are TODO —
+  // add them here in the same shape when they ship.
+  support: {
+    // Non-booking-scoped app feedback from the "Feedback &
+    // Suggestions" topic screen. Multipart when screenshots are
+    // attached, JSON otherwise. Server dedupes by Idempotency-Key.
+    feedback: () => '/support/feedback',
+  },
 } as const;
