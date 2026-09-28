@@ -37,7 +37,10 @@ import AccountHelpScreen from '@features/shared/support/screens/AccountHelpScree
 import SafetyHelpScreen from '@features/shared/support/screens/SafetyHelpScreen';
 import FeedbackHelpScreen from '@features/shared/support/screens/FeedbackHelpScreen';
 import { ProfileScreen } from '@features/shared/profile';
-import { SettingsScreen } from '@features/shared/settings';
+import {
+  SettingsScreen,
+  NotificationPreferencesScreen,
+} from '@features/shared/settings';
 import { NotificationCentreScreen } from '@features/shared/notifications';
 import {
   CustomerFeedbackScreen,
@@ -76,6 +79,10 @@ const CustomerNavigator: React.FC = () => {
       {/* More-sheet destinations — shared across roles */}
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen
+        name="NotificationPreferences"
+        component={NotificationPreferencesScreen}
+      />
       <Stack.Screen
         name="NotificationCentre"
         component={NotificationCentreScreen}

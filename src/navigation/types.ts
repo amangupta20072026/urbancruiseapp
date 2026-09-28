@@ -134,6 +134,7 @@ export type CustomerStackParamList = {
   // -----------------------------------------------------------------
   Profile: undefined;
   Settings: undefined;
+  NotificationPreferences: undefined;
   Referrals: undefined;
 };
 
@@ -238,6 +239,7 @@ export type UcStackParamList = {
   // -----------------------------------------------------------------
   Profile: undefined;
   Settings: undefined;
+  NotificationPreferences: undefined;
   VendorsList: undefined;
   Payments: undefined;
   DriversList: undefined;

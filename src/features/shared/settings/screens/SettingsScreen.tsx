@@ -340,6 +340,8 @@ const SettingsScreen: React.FC = () => {
 
         case 'savedPayments':
         case 'notifications':
+          navigate('NotificationPreferences');
+          return;
         case 'language':
         case 'appearance':
         case 'deleteAccount':

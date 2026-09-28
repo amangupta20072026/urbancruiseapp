@@ -13,6 +13,14 @@ export const StorageKeys = {
   themeMode: 'app.themeMode',
   language: 'app.language',
   lastRoleSelected: 'app.lastRoleSelected',
+  /**
+   * Per-category notification subscription preferences. Persists a
+   * JSON object of `NotificationPreferenceId` → boolean. Owned by
+   * `NotificationPreferencesScreen`; also read by the FCM foreground
+   * / background handlers to gate rendering. See that screen for the
+   * default map and the "read-through defaults" rationale.
+   */
+  notificationPreferences: 'app.notificationPreferences',
 
   // Feature-scoped preferences (MMKV)
   customerBookingListFilters: 'customer.bookingListFilters',
