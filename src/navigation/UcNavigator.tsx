@@ -28,7 +28,10 @@ import {
   CustomerHistoryScreen,
 } from '@features/uc/customers';
 import { ProfileScreen } from '@features/shared/profile';
-import { SettingsScreen } from '@features/shared/settings';
+import {
+  SettingsScreen,
+  AboutUrbanCruiseScreen,
+} from '@features/shared/settings';
 import { NotificationCentreScreen } from '@features/shared/notifications';
 import { VendorsListScreen } from '@features/uc/vendors';
 import { PaymentsScreen } from '@features/uc/payments';
@@ -61,6 +64,10 @@ const UcNavigator: React.FC = () => {
       {/* ComingSoon placeholders — pushed from the More sheet */}
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen
+        name="AboutUrbanCruise"
+        component={AboutUrbanCruiseScreen}
+      />
       <Stack.Screen
         name="NotificationCentre"
         component={NotificationCentreScreen}

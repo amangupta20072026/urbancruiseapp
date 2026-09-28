@@ -134,6 +134,13 @@ export type CustomerStackParamList = {
   // -----------------------------------------------------------------
   Profile: undefined;
   Settings: undefined;
+  /**
+   * "About Urban Cruise" — reached from the Support & Legal section
+   * inside SettingsScreen. Static content screen: app version + brand,
+   * expandable About / Services / Mission / Why Choose Us / Contact
+   * sections and a Legal Information entry.
+   */
+  AboutUrbanCruise: undefined;
   NotificationPreferences: undefined;
   Referrals: undefined;
 };
@@ -239,6 +246,11 @@ export type UcStackParamList = {
   // -----------------------------------------------------------------
   Profile: undefined;
   Settings: undefined;
+  /**
+   * "About Urban Cruise" — reached from Settings. See
+   * CustomerStackParamList for the same route's rationale.
+   */
+  AboutUrbanCruise: undefined;
   NotificationPreferences: undefined;
   VendorsList: undefined;
   Payments: undefined;

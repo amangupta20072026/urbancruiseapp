@@ -43,8 +43,8 @@
  *     Appearance               → toast (dark-mode toggle not built)
  *     Permissions              → Linking.openSettings()  ✅ real
  *     Terms & Conditions       → open termsUrl (AppConfig)  ✅ real
- *     About Urban Cruise       → in-place Alert with app version  ✅
- *     Help & Support           → HelpSupport             ✅ (this PR)
+ *     About Urban Cruise       → AboutUrbanCruise screen    ✅ real
+ *     Help & Support           → HelpSupport             ✅
  *     Delete Account           → toast (no account-delete flow yet)
  *     Logout                   → useLogout() with confirm Alert  ✅
  *
@@ -325,11 +325,11 @@ const SettingsScreen: React.FC = () => {
           return;
 
         case 'aboutApp':
-          Alert.alert(
-            'About Urban Cruise',
-            `Version ${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})\n\nYour Journey. Our Priority.`,
-            [{ text: 'OK' }],
-          );
+          // Full "About Urban Cruise" screen — logo, version + build,
+          // tagline, About / Services / Mission / Why Choose Us /
+          // Contact and a Legal Information entry that opens
+          // legal.termsUrl. Registered in Customer + UC navigators.
+          navigate('AboutUrbanCruise');
           return;
 
         case 'helpSupport':

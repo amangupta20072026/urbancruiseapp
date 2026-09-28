@@ -40,6 +40,7 @@ import { ProfileScreen } from '@features/shared/profile';
 import {
   SettingsScreen,
   NotificationPreferencesScreen,
+  AboutUrbanCruiseScreen,
 } from '@features/shared/settings';
 import { NotificationCentreScreen } from '@features/shared/notifications';
 import {
@@ -79,6 +80,10 @@ const CustomerNavigator: React.FC = () => {
       {/* More-sheet destinations — shared across roles */}
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen
+        name="AboutUrbanCruise"
+        component={AboutUrbanCruiseScreen}
+      />
       <Stack.Screen
         name="NotificationPreferences"
         component={NotificationPreferencesScreen}
