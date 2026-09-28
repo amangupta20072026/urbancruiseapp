@@ -24,9 +24,6 @@
  *     - Why Choose Us     → expands
  *     - Contact Us        → expands (WhatsApp / Call / Email actions
  *                          pulled from remote AppConfig)
- *   Legal Information card (info-tinted surface — visually distinct
- *   from the primary card)
- *     - Legal Information → opens legal.termsUrl via Linking
  *   Footer
  *     - "Version <version> (<build>)"
  *     - "© <year> Urban Cruise. All rights reserved."
@@ -56,9 +53,6 @@
  *   - Rows are inline-expandable rather than pushing a new screen
  *     per section: the content is short, static, and reads better
  *     scanned together. The chevron rotates 90° on expand.
- *   - The Legal Information card is intentionally SEPARATE from the
- *     primary card (own surface, info-tinted background) to match
- *     the mock and to signal it navigates externally.
  *   - The hero logo spans the full horizontal padding — the ScrollView
  *     paddingHorizontal is neutralised for this element only via a
  *     negative margin so downstream cards keep their gutter.
@@ -81,7 +75,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
 import {
-  ChevronRight,
+  ChevronDown,
   FileText,
   Info,
   Mail,
@@ -159,7 +153,6 @@ const AboutUrbanCruiseScreen: React.FC = () => {
   // string fallbacks trigger a graceful toast on tap rather than a
   // dud `Linking.openURL('')`.
   const support = useAppSelector(s => s.app.appConfig?.support);
-  const termsUrl = useAppSelector(s => s.app.appConfig?.legal.termsUrl ?? '');
 
   const [openId, setOpenId] = useState<RowId | null>(null);
 
@@ -255,20 +248,6 @@ const AboutUrbanCruiseScreen: React.FC = () => {
     setOpenId(prev => (prev === id ? null : id));
   }, []);
 
-  const handleLegal = useCallback(() => {
-    if (!termsUrl) {
-      toast.info('Coming soon', {
-        description: 'Legal information will be available shortly.',
-      });
-      return;
-    }
-    void Linking.openURL(termsUrl).catch(() => {
-      toast.error("Couldn't open the page", {
-        description: 'Please try again in a moment.',
-      });
-    });
-  }, [termsUrl]);
-
   const openTel = useCallback((phone: string | undefined) => {
     if (!phone) {
       toast.info('Not available', {
@@ -347,10 +326,7 @@ const AboutUrbanCruiseScreen: React.FC = () => {
         <View style={styles.heroWrap}>
           <Image
             source={require('@assets/images/ucwithdesignandtext.png')}
-            style={[
-              styles.heroImage,
-              { width: screenWidth, height: screenWidth * 0.55 },
-            ]}
+            style={{ width: screenWidth, height: screenWidth * 0.85 }}
             resizeMode="contain"
             accessible
             accessibilityLabel="Urban Cruise logo"
@@ -376,7 +352,6 @@ const AboutUrbanCruiseScreen: React.FC = () => {
                 {isOpen ? (
                   <ExpandedBody
                     row={row}
-                    support={support}
                     onWhatsApp={() => openWhatsApp(support?.whatsapp)}
                     onCall={() => openTel(support?.phone)}
                     onEmail={() => openEmail(support?.email)}
@@ -389,33 +364,6 @@ const AboutUrbanCruiseScreen: React.FC = () => {
             );
           })}
         </Animated.View>
-
-        {/* -------- Legal card -------- */}
-        <Pressable
-          onPress={handleLegal}
-          style={({ pressed }) => [styles.legalCard, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Legal Information. Licenses, attributions and legal details"
-        >
-          <View
-            style={[styles.rowIconTile, { backgroundColor: Colors.infoTint }]}
-          >
-            <FileText size={20} color={Colors.info} strokeWidth={2.25} />
-          </View>
-          <View style={styles.rowTextCol}>
-            <Text style={styles.rowTitle} numberOfLines={1}>
-              Legal Information
-            </Text>
-            <Text style={styles.rowSubtitle} numberOfLines={2}>
-              Licenses, attributions and legal details
-            </Text>
-          </View>
-          <ChevronRight
-            size={20}
-            color={Colors.textTertiary}
-            strokeWidth={2.25}
-          />
-        </Pressable>
 
         {/* -------- Footer --------
          *
@@ -479,11 +427,7 @@ const RowItem: React.FC<{
           card `layout` transition handles the surrounding height
           change; the chevron flip itself is a plain style toggle. */}
       <View style={[styles.chevronBox, isOpen && styles.chevronBoxOpen]}>
-        <ChevronRight
-          size={20}
-          color={Colors.textTertiary}
-          strokeWidth={2.25}
-        />
+        <ChevronDown size={20} color={Colors.textTertiary} strokeWidth={2.25} />
       </View>
     </Pressable>
   );
@@ -500,18 +444,10 @@ const RowItem: React.FC<{
  */
 const ExpandedBody: React.FC<{
   row: Row;
-  support:
-    | {
-        phone: string;
-        whatsapp: string;
-        email: string;
-        helpUrl: string;
-      }
-    | undefined;
   onWhatsApp: () => void;
   onCall: () => void;
   onEmail: () => void;
-}> = ({ row, support, onWhatsApp, onCall, onEmail }) => {
+}> = ({ row, onWhatsApp, onCall, onEmail }) => {
   if (row.id === 'contactUs') {
     return (
       <View style={styles.expandedBox}>
@@ -524,7 +460,6 @@ const ExpandedBody: React.FC<{
           <ContactBtn
             Icon={MessageCircle}
             label="WhatsApp"
-            hint={support?.whatsapp ? `+${support.whatsapp}` : 'Chat with us'}
             fg={Colors.primary}
             bg={Colors.primaryTint}
             onPress={onWhatsApp}
@@ -532,7 +467,6 @@ const ExpandedBody: React.FC<{
           <ContactBtn
             Icon={Phone}
             label="Call"
-            hint={support?.phone ?? 'Speak to us'}
             fg={Colors.info}
             bg={Colors.infoTint}
             onPress={onCall}
@@ -540,7 +474,6 @@ const ExpandedBody: React.FC<{
           <ContactBtn
             Icon={Mail}
             label="Email"
-            hint={support?.email ?? 'Write to us'}
             fg={Colors.accent}
             bg={Colors.accentTint}
             onPress={onEmail}
@@ -564,11 +497,10 @@ const ExpandedBody: React.FC<{
 const ContactBtn: React.FC<{
   Icon: React.ComponentType<LucideProps>;
   label: string;
-  hint: string;
   fg: string;
   bg: string;
   onPress: () => void;
-}> = ({ Icon, label, hint, fg, bg, onPress }) => (
+}> = ({ Icon, label, fg, bg, onPress }) => (
   <Pressable
     onPress={onPress}
     style={({ pressed }) => [
@@ -577,13 +509,10 @@ const ContactBtn: React.FC<{
       pressed && styles.pressed,
     ]}
     accessibilityRole="button"
-    accessibilityLabel={`${label} — ${hint}`}
+    accessibilityLabel={label}
   >
     <Icon size={18} color={fg} strokeWidth={2.25} />
     <Text style={[styles.contactBtnLabel, { color: fg }]}>{label}</Text>
-    <Text style={styles.contactBtnHint} numberOfLines={1}>
-      {hint}
-    </Text>
   </Pressable>
 );
 
@@ -615,13 +544,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: -Spacing.lg,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  heroImage: {
-    // width / height are supplied inline from screenWidth so the
-    // layout is stable before the image resolves. No background
-    // color, no border — the logo sits directly on the screen.
+    marginTop: -80,
+    marginBottom: -50,
   },
 
   /* ---- Primary card ---- */
@@ -669,7 +593,7 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '0deg' }],
   },
   chevronBoxOpen: {
-    transform: [{ rotate: '90deg' }],
+    transform: [{ rotate: '180deg' }],
   },
 
   /* ---- Expanded body ---- */
@@ -708,24 +632,6 @@ const styles = StyleSheet.create({
   contactBtnLabel: {
     ...Typography.body,
     fontWeight: '800',
-  },
-  contactBtnHint: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-
-  /* ---- Legal card ---- */
-  legalCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.infoTint,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
 
   /* ---- Footer ---- */

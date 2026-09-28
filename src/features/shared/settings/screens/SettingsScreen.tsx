@@ -36,9 +36,7 @@
  *
  *     Personal Information     → Profile               (registered)
  *     Saved Payment Methods    → toast (no route)
- *     Notifications            → toast (no PREFERENCES route yet;
- *                                       NotificationCentre is the
- *                                       inbox, not the settings)
+ *     Notifications            → NotificationPreferences  ✅ real
  *     Language                 → toast (i18n not built)
  *     Appearance               → toast (dark-mode toggle not built)
  *     Permissions              → Linking.openSettings()  ✅ real
@@ -338,10 +336,12 @@ const SettingsScreen: React.FC = () => {
           navigate('HelpSupport');
           return;
 
-        case 'savedPayments':
         case 'notifications':
+          // Notification preference screen — per-channel toggles.
           navigate('NotificationPreferences');
           return;
+
+        case 'savedPayments':
         case 'language':
         case 'appearance':
         case 'deleteAccount':
