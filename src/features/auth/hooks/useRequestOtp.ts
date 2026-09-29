@@ -65,7 +65,7 @@ export type RequestOtpInput = {
   captchaToken?: string;
 };
 
-export type OtpChannel = 'whatsapp' | 'sms';
+export type OtpChannel = 'sms';
 
 export type RequestOtpResponse = {
   /**
@@ -80,10 +80,9 @@ export type RequestOtpResponse = {
    */
   resendAfterSeconds: number;
   /**
-   * Actual channel used. `'sms'` here means the WhatsApp send
-   * failed the deliverability check and the server auto-fell-back
-   * — the OTP-verify screen should show a "Sent via SMS" banner
-   * so the user doesn't sit in WhatsApp waiting.
+   * Delivery channel the server used. Currently always `'sms'` —
+   * kept as a union type for forward compatibility if additional
+   * channels are added later.
    */
   channel: OtpChannel;
   /**
@@ -127,9 +126,9 @@ export function useRequestOtp() {
     mutationKey: queryKeys.auth.requestOtp(),
     mutationFn: requestOtp,
     onSuccess: (data, variables) => {
-      // Segment by role AND channel so we can see the WA→SMS
-      // fallback rate in the funnel. NO phone number — PII, and
-      // Firebase Analytics is a Google-hosted pipeline.
+      // Segment by role AND channel so the OTP funnel is filterable
+      // per delivery channel. NO phone number — PII, and Firebase
+      // Analytics is a Google-hosted pipeline.
       logEvent('auth.otp_sent', {
         role: variables.role,
         channel: data.channel,

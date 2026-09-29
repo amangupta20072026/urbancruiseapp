@@ -44,12 +44,10 @@ export type AuthParamList = {
     /** Server-suggested resend cooldown; overrides RESEND_SECONDS if present. */
     resendAfterSeconds?: number;
     /**
-     * Channel actually used by the server. `'sms'` means the WhatsApp
-     * send failed the deliverability check and the server fell back —
-     * OtpVerify shows a "Sent via SMS" banner so users don't sit in
-     * WhatsApp waiting.
+     * Delivery channel the server used. Currently always `'sms'` —
+     * kept as a union type for forward compatibility.
      */
-    channel?: 'whatsapp' | 'sms';
+    channel?: 'sms';
     /**
      * True when the number matched a QA test mobile and the server
      * did not dispatch a real OTP. The screen shows a hint so QA
