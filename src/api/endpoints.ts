@@ -25,6 +25,7 @@ export const endpoints = {
     refresh: () => '/auth/refresh',
     logout: () => '/auth/logout',
     me: () => '/auth/me',
+    customerOnboard: () => '/auth/customer/onboard',
   },
 
   customer: {

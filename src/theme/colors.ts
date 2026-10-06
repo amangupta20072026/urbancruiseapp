@@ -149,6 +149,20 @@ export const Colors = {
 
   /**
    * ------------------------------------------------------------
+   * Service switcher (Customer Home)
+   * ------------------------------------------------------------
+   * Inactive tiles are filled a touch darker than the page so the
+   * active tile — which takes the page colour — reads as "open"
+   * into the content below.
+   * ------------------------------------------------------------
+   */
+  switcherInactiveTop: '#F1F2F4',
+  switcherInactiveBottom: '#E9EBEE',
+  switcherInactiveBorder: '#DCDFE4',
+  switcherBaseline: '#D1D5DB',
+
+  /**
+   * ------------------------------------------------------------
    * Overlay
    * ------------------------------------------------------------
    */
