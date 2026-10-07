@@ -6,20 +6,34 @@
  * This screen has TWO jobs, done in parallel:
  *
  *   1. Play the intro animation (icon slide + typewriter wordmark).
- *   2. Run the bootstrap DAG (Firebase, Keychain, /me, remote config).
+ *   2. Resolve the bootstrap DAG (Firebase, Keychain, /me, config)
+ *      via resolveBootstrap() — which does NOT touch Redux.
  *
- * When BOTH the minimum splash duration and the bootstrap resolve,
- * we dispatch bootstrapCompleted() which flips Redux state and
- * causes RootNavigator to swap this screen out. No navigation calls
- * are made from here — the swap is fully declarative.
+ * Only when BOTH are done do we call commitBootstrap(), which
+ * dispatches bootstrapCompleted → `bootstrapped = true` → RootNavigator
+ * swaps this screen out. No navigation calls are made from here — the
+ * swap is fully declarative.
  *
- * Why the "wait for BOTH" gate:
- *   - Bootstrap on a warm cache / fast device can finish in <200ms.
- *     Without a min duration, the splash would flash. Feels broken.
- *   - Bootstrap on a slow network can take 3s (our timeout budget).
- *     We must not truncate it — waiting is fine, hanging is not.
- *   - The min duration is exactly long enough for the typewriter
- *     animation to feel intentional (~2s).
+ * WHY THE "WAIT FOR BOTH" GATE (bug this fixes):
+ *   Previously bootstrap dispatched bootstrapCompleted itself, the
+ *   moment it finished. Bootstrap time varies with network / token
+ *   state (≈100ms … 3s+), so the splash was unmounted at a random
+ *   point of the animation:
+ *     - bootstrap < ~650ms    → only the UC logo was seen
+ *     - ~650ms … ~1.8s        → logo + partial text ("Urban")
+ *     - > ~1.8s               → full "Urban Cruise"
+ *   Now the hand-off is gated on the typewriter ACTUALLY completing
+ *   (plus a short hold), so the full wordmark is always shown, while
+ *   a slow network still extends the splash instead of being cut off.
+ *
+ * Gate is driven by the animation's real completion, not a fixed
+ * timer, so changing the wordmark or timings can never reintroduce
+ * the truncation. A hard ceiling (MAX_ANIMATION_WAIT_MS) guarantees
+ * the animation gate can never block the app forever.
+ *
+ * StrictMode / Fast Refresh safe: bootstrap is started once per
+ * component instance (ref-guarded) and every effect fully cleans up
+ * and can re-run; the commit is guarded so it happens exactly once.
  *
  * The native launch screen (iOS storyboard / Android drawable) MUST
  * use the same background color + logo position as this screen so
@@ -40,7 +54,11 @@ import Animated, {
 
 import { Colors } from '../../theme';
 import { useAppDispatch } from '../../store/hooks';
-import { runBootstrap } from '@app/bootstrap';
+import {
+  resolveBootstrap,
+  commitBootstrap,
+  type BootstrapResult,
+} from '@app/bootstrap';
 import { markAppReady } from '@/native/splashReady';
 
 /* ------------------------------------------------------------------
@@ -58,19 +76,28 @@ const TEXT_START_DELAY_MS = 650;
 const TYPEWRITER_INTERVAL_MS = 95;
 const OFFSCREEN_X = 420;
 const WORDMARK = 'Urban Cruise';
-const AUDIOWIDE_FONT = Platform.select({ android: 'audiowide', default: 'Audiowide' });
+const AUDIOWIDE_FONT = Platform.select({
+  android: 'audiowide',
+  default: 'Audiowide',
+});
 
 /**
- * Minimum time the splash stays on screen. Chosen so the typewriter
- * always completes gracefully.
- *   ICON_SLIDE_MS + TEXT_START_DELAY_MS
- *     + typewriter length
- *     + HOLD_AFTER_TYPING_MS
- * ≈ 750 + 650 + (12 * 95) + 400 ≈ 2940ms
- * We round to 2000ms as the floor because the icon and text overlap
- * for part of the sequence.
+ * How long the completed wordmark stays fully visible before the
+ * hand-off, so the user can actually read it rather than seeing the
+ * last letter appear and the screen vanish in the same instant.
  */
-const MIN_SPLASH_MS = 2000;
+const HOLD_AFTER_TYPING_MS = 400;
+
+/**
+ * Hard ceiling for the ANIMATION gate only (measured from mount).
+ * Normal sequence ≈ TEXT_START_DELAY_MS + WORDMARK.length *
+ * TYPEWRITER_INTERVAL_MS + HOLD_AFTER_TYPING_MS ≈ 650 + 1140 + 400
+ * ≈ 2.2s. If the animation gate somehow never opens (e.g. a future
+ * regression in the animation code), we stop waiting for it here.
+ * Bootstrap still has to resolve — it has its own timeouts and never
+ * rejects, so the app can never hang on this screen.
+ */
+const MAX_ANIMATION_WAIT_MS = 5000;
 
 /* ------------------------------------------------------------------
  * Component
@@ -79,14 +106,17 @@ const MIN_SPLASH_MS = 2000;
 const SplashIntroScreen: React.FC = () => {
   const dispatch = useAppDispatch();
 
-  // Two gates. When BOTH are true, we commit bootstrapCompleted
-  // (dispatched from inside runBootstrap) — but only if it hasn't
-  // dispatched already.
-  const [minDurationElapsed, setMinDurationElapsed] = useState(false);
-  const [bootstrapResolved, setBootstrapResolved] = useState(false);
+  // Gate 1: intro animation finished (full wordmark + hold).
+  const [animationDone, setAnimationDone] = useState(false);
+  // Gate 2: bootstrap resolved (holds the result to commit).
+  const [bootstrapResult, setBootstrapResult] =
+    useState<BootstrapResult | null>(null);
 
-  // Guards against double-dispatch on React 19 strict-mode double-mount.
-  const bootstrapStarted = useRef(false);
+  // One bootstrap run per component instance. Kept in a ref so a
+  // StrictMode / Fast Refresh effect re-run re-subscribes to the SAME
+  // in-flight promise instead of starting a second run.
+  const bootstrapPromise = useRef<Promise<BootstrapResult> | null>(null);
+  // Guarantees commitBootstrap() is dispatched exactly once.
   const committed = useRef(false);
 
   // Animation values
@@ -97,56 +127,36 @@ const SplashIntroScreen: React.FC = () => {
   const [typedText, setTypedText] = useState('');
 
   /* ------------------------------------------------------------------
-   * Kick off bootstrap and minimum-duration timer on mount.
+   * Gate 2 — resolve bootstrap (no Redux writes) on mount.
    * ------------------------------------------------------------------ */
 
   useEffect(() => {
-    if (bootstrapStarted.current) return;
-    bootstrapStarted.current = true;
+    if (bootstrapPromise.current === null) {
+      bootstrapPromise.current = resolveBootstrap();
+    }
 
-    // Run the DAG. It dispatches bootstrapCompleted internally
-    // when it resolves — but we DON'T let RootNavigator react to
-    // that action yet if the min duration hasn't elapsed. The
-    // reducer will flip `bootstrapped` immediately; to gate the
-    // transition on the animation we simply hold BOTH promises
-    // here and re-dispatch only after both resolve.
-    //
-    // Design note: we choose to LET the bootstrapCompleted action
-    // fire whenever bootstrap finishes. RootNavigator does swap,
-    // but visually the swap is `fade` so the perceived duration
-    // ~= max(anim, bootstrap). If you want *exact* control (e.g.
-    // never swap before 2s no matter what), split into two actions
-    // (`bootstrapResolved` + `splashDismissed`) and gate the flag
-    // on both. Two dispatches, one Redux write.
-
-    void runBootstrap(dispatch).finally(() => {
-      setBootstrapResolved(true);
+    let active = true;
+    void bootstrapPromise.current.then(result => {
+      if (active) setBootstrapResult(result);
     });
 
     // Tell native it's safe to dismiss the system splash — this
     // screen has now mounted and rendered a frame that visually
     // matches the native launch theme (same background + icon),
-    // so the handoff is invisible. See MainActivity.kt.
+    // so the handoff is invisible. Idempotent. See MainActivity.kt.
     markAppReady();
 
-    const minTimer = setTimeout(() => {
-      setMinDurationElapsed(true);
-    }, MIN_SPLASH_MS);
-
     return () => {
-      clearTimeout(minTimer);
+      active = false;
     };
-    // Run once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ------------------------------------------------------------------
-   * Animation sequence (unchanged from original).
+   * Gate 1 — intro animation. Opens `animationDone` only after the
+   * full wordmark has been typed and held on screen.
    * ------------------------------------------------------------------ */
 
   useEffect(() => {
-    let mounted = true;
-
     iconX.value = withTiming(0, {
       duration: ICON_SLIDE_MS,
       easing: Easing.out(Easing.cubic),
@@ -160,45 +170,53 @@ const SplashIntroScreen: React.FC = () => {
       easing: Easing.out(Easing.back(1.15)),
     });
 
+    let typewriterInterval: ReturnType<typeof setInterval> | undefined;
+    let holdTimeout: ReturnType<typeof setTimeout> | undefined;
+
     const typewriterTimeout = setTimeout(() => {
-      if (!mounted) return;
       let currentIndex = 0;
-      const typewriterInterval = setInterval(() => {
-        if (!mounted) {
-          clearInterval(typewriterInterval);
-          return;
-        }
+      typewriterInterval = setInterval(() => {
         currentIndex += 1;
         setTypedText(WORDMARK.substring(0, currentIndex));
+
         if (currentIndex >= WORDMARK.length) {
           clearInterval(typewriterInterval);
+          typewriterInterval = undefined;
+          holdTimeout = setTimeout(() => {
+            setAnimationDone(true);
+          }, HOLD_AFTER_TYPING_MS);
         }
       }, TYPEWRITER_INTERVAL_MS);
     }, TEXT_START_DELAY_MS);
 
+    // Safety ceiling — never let the animation gate block forever.
+    const ceilingTimeout = setTimeout(() => {
+      setTypedText(WORDMARK);
+      setAnimationDone(true);
+    }, MAX_ANIMATION_WAIT_MS);
+
     return () => {
-      mounted = false;
       clearTimeout(typewriterTimeout);
+      clearTimeout(ceilingTimeout);
+      if (typewriterInterval !== undefined) clearInterval(typewriterInterval);
+      if (holdTimeout !== undefined) clearTimeout(holdTimeout);
     };
+    // Shared values are stable refs; run once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ------------------------------------------------------------------
-   * Belt-and-braces: if bootstrap failed catastrophically and never
-   * dispatched bootstrapCompleted (should not happen — runBootstrap
-   * has a top-level try/catch), this effect logs it. In practice
-   * the reducer is always written before this effect could see it.
+   * Commit — only when BOTH gates are open. Dispatching
+   * bootstrapCompleted flips `bootstrapped`, and RootNavigator swaps
+   * this screen out with its fade transition.
    * ------------------------------------------------------------------ */
 
   useEffect(() => {
-    if (!minDurationElapsed || !bootstrapResolved) return;
+    if (!animationDone || bootstrapResult === null) return;
     if (committed.current) return;
     committed.current = true;
-    // No-op: bootstrapCompleted was dispatched inside runBootstrap.
-    // If for some reason it wasn't, RootNavigator stays on splash
-    // and we'd need to redispatch here. Left as an explicit hook
-    // for future observability.
-  }, [minDurationElapsed, bootstrapResolved]);
+    commitBootstrap(dispatch, bootstrapResult);
+  }, [animationDone, bootstrapResult, dispatch]);
 
   /* ------------------------------------------------------------------
    * Animated styles
@@ -214,8 +232,7 @@ const SplashIntroScreen: React.FC = () => {
   }));
 
   const urbanText = typedText.substring(0, Math.min(5, typedText.length));
-  const cruiseText =
-    typedText.length > 6 ? typedText.substring(6) : '';
+  const cruiseText = typedText.length > 6 ? typedText.substring(6) : '';
 
   return (
     <View style={styles.flex}>
@@ -234,9 +251,7 @@ const SplashIntroScreen: React.FC = () => {
         <Animated.View style={[styles.wordmarkContainer, textStyle]}>
           <Text style={styles.wordmark}>
             <Text style={styles.wordmarkUrban}>{urbanText}</Text>
-            {typedText.length > 5 && (
-              <Text style={styles.space}>{' '}</Text>
-            )}
+            {typedText.length > 5 && <Text style={styles.space}> </Text>}
             <Text style={styles.wordmarkCruise}>{cruiseText}</Text>
           </Text>
         </Animated.View>
