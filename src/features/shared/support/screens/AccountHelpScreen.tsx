@@ -20,7 +20,7 @@
  *   account creation, mobile-number changes, logout, notification
  *   management, app updates and account deletion all work the same
  *   for every role. When role-specific account behaviour appears
- *   (e.g. vendor multi-user sub-role management), read `userRole`
+ *   read `userRole`
  *   from Redux and filter — no route split.
  *
  * CONTENT IS THE SSoT:

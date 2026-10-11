@@ -26,8 +26,8 @@
  *
  * TRUSTING THE SERVER'S ROLE (not the selected one):
  *   The user picked a role on the role sheet, but the same phone
- *   number could legitimately be a customer AND a vendor (different
- *   sub-roles share phones). The server is source of truth — we
+ *   number could legitimately be a customer AND a vendor. The server
+ *   is source of truth — we
  *   dispatch whatever role /auth/otp/verify returns, and
  *   RootNavigator branches on that.
  *
@@ -52,7 +52,7 @@ import { getDeviceInfo, type DeviceInfoPayload } from '@services/device';
 import { useAppDispatch } from '@store/hooks';
 import { loginSuccess } from '@store/slices/appSlice';
 import { userReceived, type UserProfile } from '@store/slices/userSlice';
-import type { UserRole, SubRole } from '@rbac/roles';
+import type { UserRole } from '@rbac/roles';
 import { logEvent } from '@services/telemetry/logEvent';
 import { identifyUser } from '@services/telemetry/identify';
 import { registerFcmToken } from '@services/notifications/fcmToken';
@@ -87,7 +87,6 @@ export type VerifyOtpResponse = {
   refreshToken: string;
   userId: string;
   role: UserRole;
-  subRole: SubRole;
   entityId: string;
   /**
    * True on first successful login when the row was just created
@@ -155,7 +154,6 @@ export function useVerifyOtp() {
         loginSuccess({
           userId: data.userId,
           role: data.role,
-          subRole: data.subRole,
           entityId: data.entityId,
         }),
       );
@@ -167,7 +165,6 @@ export function useVerifyOtp() {
       identifyUser({
         userId: data.userId,
         role: data.role,
-        subRole: data.subRole,
         entityId: data.entityId,
       });
       logEvent('auth.otp_verified');

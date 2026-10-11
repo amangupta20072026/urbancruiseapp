@@ -24,12 +24,12 @@
  */
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { UserRole, SubRole } from '@rbac/roles';
+import type { UserRole } from '@rbac/roles';
 
 // Re-export so existing consumers (roles/config.tsx, RoleCard, RoleSelectionSheet,
-// LoginScreen) that import `UserRole`/`SubRole` from '@store/slices/appSlice'
+// LoginScreen) that import `UserRole` from '@store/slices/appSlice'
 // keep working. New code should prefer importing from '@rbac/roles' directly.
-export type { UserRole, SubRole } from '@rbac/roles';
+export type { UserRole } from '@rbac/roles';
 import type { AppConfig } from '@app/bootstrap/steps/appConfig';
 import type { AuthResolution } from '@app/bootstrap/steps/auth';
 
@@ -53,7 +53,6 @@ export type AppState = {
   isAuthenticated: boolean;
   userId: string | null;
   userRole: UserRole | null;
-  subRole: SubRole;
   entityId: string | null;
 
   // Remote config
@@ -68,7 +67,6 @@ const initialState: AppState = {
   isAuthenticated: false,
   userId: null,
   userRole: null,
-  subRole: null,
   entityId: null,
   appConfig: null,
 };
@@ -102,7 +100,6 @@ const appSlice = createSlice({
         state.isAuthenticated = true;
         state.userId = auth.userId;
         state.userRole = auth.role;
-        state.subRole = auth.subRole;
         state.entityId = auth.entityId;
       } else if (auth.status === 'provisional') {
         // We trust the local token for now. A background /me refetch
@@ -115,7 +112,6 @@ const appSlice = createSlice({
         state.isAuthenticated = false;
         state.userId = null;
         state.userRole = null;
-        state.subRole = null;
         state.entityId = null;
       }
 
@@ -147,7 +143,6 @@ const appSlice = createSlice({
       action: PayloadAction<{
         userId: string;
         role: UserRole;
-        subRole: SubRole;
         entityId: string;
       }>,
     ) => {
@@ -155,7 +150,6 @@ const appSlice = createSlice({
       state.isAuthenticated = true;
       state.userId = action.payload.userId;
       state.userRole = action.payload.role;
-      state.subRole = action.payload.subRole;
       state.entityId = action.payload.entityId;
     },
 
@@ -171,14 +165,12 @@ const appSlice = createSlice({
         state.isAuthenticated = true;
         state.userId = auth.userId;
         state.userRole = auth.role;
-        state.subRole = auth.subRole;
         state.entityId = auth.entityId;
       } else if (auth.status === 'unauthenticated') {
         state.authStatus = 'unauthenticated';
         state.isAuthenticated = false;
         state.userId = null;
         state.userRole = null;
-        state.subRole = null;
         state.entityId = null;
       }
     },
@@ -189,7 +181,6 @@ const appSlice = createSlice({
       state.isAuthenticated = false;
       state.userId = null;
       state.userRole = null;
-      state.subRole = null;
       state.entityId = null;
       state.selectedRole = null;
     },

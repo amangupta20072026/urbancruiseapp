@@ -13,13 +13,12 @@
  * ------------------------------------------------------------------
  */
 
-import type { UserRole, SubRole } from '@rbac/roles';
+import type { UserRole } from '@rbac/roles';
 import { setAnalyticsUserId, setAnalyticsUserProperty } from './analytics';
 
 export type Identity = {
   userId: string;
   role: UserRole;
-  subRole: SubRole;
   entityId: string;
 };
 
@@ -32,12 +31,14 @@ export type Identity = {
  * automatically).
  *
  * User properties are Firebase's segmentation dimensions. You can
- * filter any report by role='driver', subRole='dispatcher', etc.
+ * filter any report by role='driver', etc.
  */
 export function identifyUser(identity: Identity): void {
   setAnalyticsUserId(identity.userId);
   setAnalyticsUserProperty('role', identity.role);
-  setAnalyticsUserProperty('sub_role', String(identity.subRole ?? ''));
+  // Sub-roles were removed. Clear any value an older app build set, so
+  // existing installs don't keep reporting a stale sub_role.
+  setAnalyticsUserProperty('sub_role', null);
   setAnalyticsUserProperty('entity_id', identity.entityId);
 }
 

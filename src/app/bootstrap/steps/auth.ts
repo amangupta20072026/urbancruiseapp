@@ -4,7 +4,7 @@
  * ------------------------------------------------------------------
  * Called only when Keychain returned tokens. Hits /auth/me to confirm
  * the session is still valid server-side and to fetch the identity
- * (userId, role, subRole, entityId).
+ * (userId, role, entityId).
  *
  * Three outcomes:
  *
@@ -23,7 +23,7 @@ import { apiClient } from '@api/axios';
 import { endpoints } from '@api/endpoints';
 import { ApiError } from '@api/errors';
 import { clearTokens } from '@services/storage/secureStorage';
-import type { UserRole, SubRole } from '@rbac/roles';
+import type { UserRole } from '@rbac/roles';
 import type { UserProfile } from '@store/slices/userSlice';
 
 export type AuthResolution =
@@ -31,7 +31,6 @@ export type AuthResolution =
       status: 'authenticated';
       userId: string;
       role: UserRole;
-      subRole: SubRole;
       entityId: string;
       /** Full display profile — dispatched to user slice by bootstrap. */
       profile: UserProfile;
@@ -45,7 +44,6 @@ export type AuthResolution =
 type MeResponse = {
   userId: string;
   role: UserRole;
-  subRole: SubRole;
   entityId: string;
   profile: UserProfile;
 };
@@ -63,7 +61,6 @@ export async function validateAuth(): Promise<AuthResolution> {
       status: 'authenticated',
       userId: data.userId,
       role: data.role,
-      subRole: data.subRole,
       entityId: data.entityId,
       profile: data.profile,
     };

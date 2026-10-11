@@ -69,28 +69,14 @@ export type CustomerClassification =
   | { category: 'corporate'; type: CorporateCustomerType; companyName: string }
   | { category: 'agent'; type: AgentCustomerType; companyName: string };
 
-// ── Sub-roles ─────────────────────────────────────────────────────
-// Corporate customers can have multiple logins under the same CustomerId
-// with different privileges — a booking-person places bookings, an admin
-// can also manage seats / cancel / pay. Personal customers and agents have
-// no sub-role today (agent sub-roles TBD).
-//
-// Vendor has 4 operational roles sharing one VendorId.
-// Driver + UC are single-role.
-export type CorporateSubRole = 'bookingPerson' | 'admin';
-export type VendorSubRole =
-  | 'owner'
-  | 'bookingManager'
-  | 'opsManager'
-  | 'accountsManager';
-
-export type SubRole = CorporateSubRole | VendorSubRole | null;
+// ── No sub-roles ──────────────────────────────────────────────────
+// Login and access are decided by the top-level `UserRole` only. There
+// is no sub-role for any role (customer, vendor, driver or uc).
 
 // ── Identity ──────────────────────────────────────────────────────
 // Populated from a decoded JWT. Mirrors the backend Identity shape.
 export type Identity = {
   userId: string;
   role: UserRole;
-  subRole: SubRole;
   entityId: string; // customerId / vendorId / driverId / ucUserId
 };

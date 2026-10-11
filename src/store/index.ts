@@ -57,10 +57,7 @@ type RootReducerState = ReturnType<typeof rootReducer>;
  * Persist transform — whitelist only durable identity fields
  * ----------------------------------------------------------------- */
 
-type PersistedAppSubset = Pick<
-  AppState,
-  'userId' | 'userRole' | 'subRole' | 'entityId'
->;
+type PersistedAppSubset = Pick<AppState, 'userId' | 'userRole' | 'entityId'>;
 
 const SESSION_DEFAULTS = {
   bootstrapped: false,
@@ -75,14 +72,12 @@ const appSliceTransform = createTransform<AppState, PersistedAppSubset>(
   (inbound): PersistedAppSubset => ({
     userId: inbound.userId,
     userRole: inbound.userRole,
-    subRole: inbound.subRole,
     entityId: inbound.entityId,
   }),
   (outbound): AppState => ({
     ...SESSION_DEFAULTS,
     userId: outbound.userId,
     userRole: outbound.userRole,
-    subRole: outbound.subRole,
     entityId: outbound.entityId,
   }),
   { whitelist: ['app'] },

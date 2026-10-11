@@ -171,7 +171,6 @@ export function commitBootstrap(
       identifyUser({
         userId: auth.userId,
         role: auth.role,
-        subRole: auth.subRole,
         entityId: auth.entityId,
       });
     } catch {
