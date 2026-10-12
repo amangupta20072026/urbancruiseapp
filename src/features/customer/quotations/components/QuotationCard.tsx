@@ -5,11 +5,10 @@
  * One row in the Customer Quotations list. Composition:
  *
  *   ┌──────────────────────────────────────────────────────────────┐
- *   │ ┌─────┐  Quotation QU10257           ┌──────────────────┐    │
- *   │ │ 📄 │  Delhi → Agra → Jaipur → Delhi│ ✓ Accepted        │   │
- *   │ └─────┘  📅 12 Aug – 15 Aug 2026     │ ₹35,200           │   │
- *   │          (3 Nights / 4 Days)         │                   │   │
- *   │          👥 2 Adults, 1 Child        │ [ 👁 View ]       │   │
+ *   │ ┌─────┐  QU10257 📋                  ┌──────────────────┐    │
+ *   │ │ 📄 │  📍 Delhi → Agra → Jaipur → Delhi│ ✓ Accepted    │   │
+ *   │ └─────┘  📅 12 Aug – 15 Aug 2026     │                   │   │
+ *   │          👥 3 Passengers            │ [ 👁 View ]       │   │
  *   │          Created on 10 Aug 2026      └───────────────────┘   │
  *   └──────────────────────────────────────────────────────────────┘
  *
@@ -28,7 +27,7 @@
  * WHY THE THREE-COLUMN LAYOUT:
  *   The prior design stacked route / meta / footer vertically and
  *   pushed price + status onto separate rows. Product wanted the
- *   price and status visible without any scanning, which is why
+ *   status visible without any scanning, which is why
  *   they now live in a dedicated right rail that stays with the
  *   card even when the middle column wraps. The right rail is
  *   FIXED WIDTH — the middle column takes the rest with `flex: 1`
@@ -53,6 +52,7 @@ import {
   Copy,
   Eye,
   FileText,
+  MapPin,
   Users,
   XCircle,
 } from 'lucide-react-native';
@@ -121,17 +121,9 @@ function formatDateFull(iso: string): string {
   });
 }
 
-function formatAmount(rupees: number): string {
-  return `₹${rupees.toLocaleString('en-IN')}`;
-}
-
 function formatPassengers(adults: number, children: number): string {
-  const parts: string[] = [];
-  parts.push(`${adults} ${adults === 1 ? 'Adult' : 'Adults'}`);
-  if (children > 0) {
-    parts.push(`${children} ${children === 1 ? 'Child' : 'Children'}`);
-  }
-  return parts.join(', ');
+  const total = adults + children;
+  return `${total} ${total === 1 ? 'Passenger' : 'Passengers'}`;
 }
 
 /* ================================================================
@@ -180,9 +172,7 @@ export const QuotationCard: React.FC<Props> = ({ item, onPress, onView }) => {
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={`Quotation ${item.quotationNumber}, ${
-        pill.label
-      }, ${formatAmount(item.amount)}`}
+      accessibilityLabel={`Quotation ${item.quotationNumber}, ${pill.label}`}
     >
       <View style={styles.iconTile}>
         <FileText size={22} color={Colors.primary} strokeWidth={2} />
@@ -208,33 +198,31 @@ export const QuotationCard: React.FC<Props> = ({ item, onPress, onView }) => {
           </Pressable>
         </View>
 
-        <View style={styles.routeRow}>
-          {item.stops.map((stop, i) => (
-            <React.Fragment key={`${stop}-${i}`}>
-              {i > 0 ? (
-                <ArrowRight
-                  size={12}
-                  color={Colors.textTertiary}
-                  strokeWidth={2.5}
-                />
-              ) : null}
-              <Text style={styles.routeText} numberOfLines={1}>
-                {stop}
-              </Text>
-            </React.Fragment>
-          ))}
+        <View style={styles.metaLine}>
+          <MapPin size={14} color={Colors.textSecondary} strokeWidth={2} />
+          <View style={styles.routeRow}>
+            {item.stops.map((stop, i) => (
+              <React.Fragment key={`${stop}-${i}`}>
+                {i > 0 ? (
+                  <ArrowRight
+                    size={12}
+                    color={Colors.textTertiary}
+                    strokeWidth={2.5}
+                  />
+                ) : null}
+                <Text style={styles.routeText} numberOfLines={1}>
+                  {stop}
+                </Text>
+              </React.Fragment>
+            ))}
+          </View>
         </View>
 
         <View style={styles.metaLine}>
           <Calendar size={14} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.metaText} numberOfLines={2}>
+          <Text style={styles.metaText} numberOfLines={1}>
             {formatDateShort(item.travelDateStart)} –{' '}
             {formatDateFull(item.travelDateEnd)}
-            {'\n'}
-            <Text style={styles.metaTextMuted}>
-              ({item.nights} {item.nights === 1 ? 'Night' : 'Nights'} /{' '}
-              {item.days} {item.days === 1 ? 'Day' : 'Days'})
-            </Text>
           </Text>
         </View>
 
@@ -258,10 +246,6 @@ export const QuotationCard: React.FC<Props> = ({ item, onPress, onView }) => {
           </Text>
         </View>
 
-        <Text style={styles.amount} numberOfLines={1}>
-          {formatAmount(item.amount)}
-        </Text>
-
         <Pressable
           onPress={onView}
           style={({ pressed }) => [styles.viewBtn, pressed && styles.pressed]}
@@ -269,7 +253,7 @@ export const QuotationCard: React.FC<Props> = ({ item, onPress, onView }) => {
           accessibilityLabel={`View quotation ${item.quotationNumber}`}
           hitSlop={6}
         >
-          <Eye size={14} color={Colors.primary} strokeWidth={2} />
+          <Eye size={14} color={Colors.textPrimary} strokeWidth={2} />
           <Text style={styles.viewBtnText}>View</Text>
         </Pressable>
       </View>
@@ -325,6 +309,8 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   routeRow: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
@@ -346,10 +332,6 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontWeight: '500',
     flexShrink: 1,
-  },
-  metaTextMuted: {
-    color: Colors.textSecondary,
-    fontWeight: '400',
   },
   createdOn: {
     ...Typography.caption,
@@ -378,12 +360,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     includeFontPadding: false,
   },
-  amount: {
-    ...Typography.subtitle,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
   viewBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -393,13 +369,11 @@ const styles = StyleSheet.create({
     height: 36,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.secondary,
   },
   viewBtnText: {
     ...Typography.caption,
-    color: Colors.primary,
+    color: Colors.textPrimary,
     fontWeight: '700',
   },
 
