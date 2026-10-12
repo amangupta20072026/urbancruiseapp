@@ -36,6 +36,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   ArrowRight,
   Calendar,
+  CalendarClock,
+  Car,
   Check,
   Clock,
   Navigation,
@@ -70,14 +72,14 @@ type StatusStyle = {
 const STATUS_STYLE: Record<BookingStatus, StatusStyle> = {
   upcoming: {
     label: 'Upcoming',
-    Icon: null,
-    fg: Colors.primary,
-    bg: Colors.primaryTint,
+    Icon: CalendarClock,
+    fg: Colors.textOnPrimary,
+    bg: Colors.primaryDark,
     cardBg: '#EAF7EE', // slightly deeper than primaryTint — matches mockup hero
   },
   ongoing: {
     label: 'Ongoing',
-    Icon: null,
+    Icon: Car,
     fg: Colors.info,
     bg: Colors.infoTint,
     cardBg: Colors.surface,
@@ -109,11 +111,6 @@ function formatDate(iso: string): string {
     month: 'short',
     year: 'numeric',
   });
-}
-
-function formatDateShort(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 }
 
 /** ₹18,500 — Indian grouping. */
@@ -221,7 +218,6 @@ export const BookingCard: React.FC<Props> = ({
           {(() => {
             const bits = [
               item.seater ? `${item.seater} Seater` : item.vehicleType,
-              item.hasAC ? 'AC' : null,
             ].filter(Boolean);
             return bits.length > 0 ? `  ·  ${bits.join(' | ')}` : '';
           })()}
@@ -232,14 +228,7 @@ export const BookingCard: React.FC<Props> = ({
       {isUpcoming ? (
         <>
           <View style={styles.trackerDivider} />
-          <BookingProgressTracker
-            currentStep={item.progressStep}
-            subLabels={{
-              booked: formatDateShort(item.bookedDate),
-              confirmed: item.progressNote ?? undefined,
-              started: formatDateShort(item.travelDate),
-            }}
-          />
+          <BookingProgressTracker currentStep={item.progressStep} />
         </>
       ) : null}
 
