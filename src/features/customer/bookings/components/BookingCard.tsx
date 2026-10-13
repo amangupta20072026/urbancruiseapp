@@ -6,7 +6,7 @@
  *
  *   ┌───────────────────────────────────────────────────────┐
  *   │ [status pill]                              Booking ID │
- *   │ ┌────────┐ Delhi  →  Jaipur                BK-… -00123│
+ *   │ ┌────────┐ Delhi  →  Jaipur         BK-2026-001234 📋 │
  *   │ │  🚌   │  📅 15 Sep  🕐 09:00 AM  👥 20 Passengers  │
  *   │ │ image │  Tempo Traveller               ₹18,500      │
  *   │ └────────┘ 17 Seater | AC              Total Amount   │
@@ -31,8 +31,14 @@
  * ------------------------------------------------------------------
  */
 
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  GestureResponderEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   ArrowRight,
   Calendar,
@@ -40,10 +46,12 @@ import {
   Car,
   Check,
   Clock,
+  Copy,
   Navigation,
   RotateCw,
   Users,
 } from 'lucide-react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import type { BookingStatus, CustomerBookingListItem } from '../types';
@@ -142,6 +150,32 @@ export const BookingCard: React.FC<Props> = ({
   const style = STATUS_STYLE[item.status];
   const isUpcoming = item.status === 'upcoming';
 
+  /* -------- Copy Booking ID -------- *
+   *
+   * Same Clipboard + flash-checkmark pattern as QuotationCard.
+   * `e.stopPropagation()` stops the tap from also firing the card's
+   * own onPress, which would open the booking. */
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    },
+    [],
+  );
+
+  const onCopyId = useCallback(
+    (e: GestureResponderEvent) => {
+      e.stopPropagation();
+      Clipboard.setString(item.bookingNumber);
+      setCopied(true);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
+    },
+    [item.bookingNumber],
+  );
+
   return (
     <Pressable
       onPress={onPress}
@@ -165,7 +199,25 @@ export const BookingCard: React.FC<Props> = ({
         </View>
         <View style={styles.idBlock}>
           <Text style={styles.idLabel}>Booking ID</Text>
-          <Text style={styles.idValue}>{item.bookingNumber}</Text>
+          <View style={styles.idRow}>
+            <Text style={styles.idValue}>{item.bookingNumber}</Text>
+            <Pressable
+              onPress={onCopyId}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.copyBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Copy booking ID ${item.bookingNumber}`}
+            >
+              {copied ? (
+                <Check size={13} color={Colors.success} strokeWidth={2.5} />
+              ) : (
+                <Copy size={13} color={Colors.textTertiary} strokeWidth={2} />
+              )}
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -442,6 +494,14 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '500',
     includeFontPadding: false,
+  },
+  idRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  copyBtn: {
+    padding: 2,
   },
   idValue: {
     ...Typography.caption,

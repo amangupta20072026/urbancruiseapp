@@ -52,6 +52,9 @@ export type CustomerBookingListItem = {
   id: BookingId;
   /** Human-facing booking id, e.g. "BK-2026-001234". */
   bookingNumber: string;
+  /** Human-facing trip id shown on Booking Details, e.g.
+   *  "TR-2026-735204". Format: TR-<year>-<6 random digits>. */
+  tripNumber: string;
   status: BookingStatus;
 
   /* Journey */

@@ -79,8 +79,8 @@ type Props = {
    * Optional sub-label per step. Keyed by step so callers pass in
    * only the ones they want to show; unspecified steps render no
    * sub-label. Strings may contain `\n` for a two-line sub — used
-   * by BookingDetailScreen to render "05 Sept\n08:00 AM". Example:
-   *   { booked: '10 Sep', confirmed: 'Pending', started: '15 Sep' }
+   * by BookingDetailScreen to render "05 Sept 2026\n08:00 AM". Example:
+   *   { booked: '10 Sept 2026', confirmed: 'Pending', started: '15 Sept 2026' }
    */
   subLabels?: Partial<Record<BookingProgressStep, string>>;
   /**
@@ -177,6 +177,8 @@ const Dot: React.FC<{ state: State }> = ({ state }) => {
  * ================================================================ */
 
 const DOT = 20; // outer diameter for all three dot states
+/** Step column width — wide enough for "10 Sept 2026" on one line. */
+const STEP_COL_WIDTH = 72;
 
 const styles = StyleSheet.create({
   row: {
@@ -187,7 +189,7 @@ const styles = StyleSheet.create({
   stepCol: {
     alignItems: 'center',
     gap: 3,
-    width: 60,
+    width: STEP_COL_WIDTH,
   },
 
   /* Connector — sits between two step columns. */
@@ -196,7 +198,8 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: Colors.border,
     marginTop: DOT / 2 - 1,
-    marginHorizontal: -20,
+    // Pull the line into both columns so it meets the dot edges.
+    marginHorizontal: -(STEP_COL_WIDTH / 2 - DOT / 2),
   },
   connectorDone: {
     backgroundColor: Colors.primary,

@@ -37,8 +37,15 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
+  GestureResponderEvent,
   Image,
   Pressable,
   ScrollView,
@@ -50,6 +57,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
+import Clipboard from '@react-native-clipboard/clipboard';
 import {
   Bus,
   Calendar,
@@ -61,6 +69,7 @@ import {
   CheckCircle2,
   CircleDot,
   Clock,
+  Copy,
   FileText,
   Headphones,
   IndianRupee,
@@ -117,6 +126,8 @@ const BLUE_FG = '#2563EB';
  *  `DOT` constant in BookingProgressTracker so the two trackers line
  *  up visually if they ever appear near each other. */
 const TRACKER_DOT = 20;
+/** Matches BookingProgressTracker — fits "10 Aug 2026" on one line. */
+const TRACKER_STEP_COL_WIDTH = 72;
 
 /* ================================================================
  * Status → header pill + subtitle
@@ -181,11 +192,6 @@ function formatLongDate(iso: string): string {
   });
 }
 
-/** "2026-09-05" → "Friday". */
-function formatWeekday(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-IN', { weekday: 'long' });
-}
-
 /** ₹12,000 — Indian grouping. */
 function formatRupees(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
@@ -214,13 +220,6 @@ function initialsOf(name: string): string {
   const first = parts[0]?.[0] ?? '';
   const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
   return (first + last).toUpperCase() || '?';
-}
-
-/** "10 Adults, 2 Children" — omits the Children clause when zero. */
-function formatPassengerBreakdown(a: number, c: number): string {
-  const bits = [`${a} ${a === 1 ? 'Adult' : 'Adults'}`];
-  if (c > 0) bits.push(`${c} ${c === 1 ? 'Child' : 'Children'}`);
-  return bits.join(', ');
 }
 
 const PAYMENT_STATUS_COLOR: Record<BookingPaymentStatus, string> = {
@@ -439,7 +438,7 @@ const CompletedDetail: React.FC<CompletedProps> = ({
         </View>
 
         {/* ── Booking info card ──
-            Head row = calendar tile + booking-id block + inline
+            Head row = calendar tile + trip-id block + inline
             Book Again outline button. A divider separates the head
             from the route + meta block. */}
         <View style={styles.card}>
@@ -454,8 +453,8 @@ const CompletedDetail: React.FC<CompletedProps> = ({
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
             </View>
             <View style={styles.idBody}>
-              <Text style={styles.idLabel}>Booking ID</Text>
-              <Text style={styles.idValue}>{detail.bookingNumber}</Text>
+              <Text style={styles.idLabel}>Trip ID</Text>
+              <CopyableTripId value={detail.tripNumber} />
             </View>
             <Pressable
               onPress={onBookAgain}
@@ -483,32 +482,18 @@ const CompletedDetail: React.FC<CompletedProps> = ({
             </Text>
           </View>
 
-          {/* Meta triplet — date · time · passengers. Each cell has a
-              small primary label and a muted sub-line ("(Friday)",
-              "Departure", "(10 Adults, 2 Children)"). Columns are
-              evenly weighted so labels align to the same baselines. */}
+          {/* Meta triplet — date · time · passengers, one line each
+              (no muted sub-lines). Columns are evenly weighted so
+              labels align to the same baselines. */}
           <View style={styles.metaRowLarge}>
             <MetaCell
               Icon={Calendar}
               primary={formatLongDate(detail.travelDate)}
-              secondary={`(${formatWeekday(detail.travelDate)})`}
             />
-            <MetaCell
-              Icon={Clock}
-              primary={detail.pickupTime}
-              secondary="Departure"
-            />
+            <MetaCell Icon={Clock} primary={detail.pickupTime} />
             <MetaCell
               Icon={Users}
               primary={`${detail.passengers} Passengers`}
-              secondary={
-                detail.passengerBreakdown
-                  ? `(${formatPassengerBreakdown(
-                      detail.passengerBreakdown.adults,
-                      detail.passengerBreakdown.children,
-                    )})`
-                  : undefined
-              }
             />
           </View>
 
@@ -867,8 +852,8 @@ const CancelledDetail: React.FC<CancelledProps> = ({
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
             </View>
             <View style={styles.idBody}>
-              <Text style={styles.idLabel}>Booking ID</Text>
-              <Text style={styles.idValue}>{detail.bookingNumber}</Text>
+              <Text style={styles.idLabel}>Trip ID</Text>
+              <CopyableTripId value={detail.tripNumber} />
             </View>
           </View>
 
@@ -888,24 +873,11 @@ const CancelledDetail: React.FC<CancelledProps> = ({
             <MetaCell
               Icon={Calendar}
               primary={formatLongDate(detail.travelDate)}
-              secondary={`(${formatWeekday(detail.travelDate)})`}
             />
-            <MetaCell
-              Icon={Clock}
-              primary={detail.pickupTime}
-              secondary="Departure"
-            />
+            <MetaCell Icon={Clock} primary={detail.pickupTime} />
             <MetaCell
               Icon={Users}
               primary={`${detail.passengers} Passengers`}
-              secondary={
-                detail.passengerBreakdown
-                  ? `(${formatPassengerBreakdown(
-                      detail.passengerBreakdown.adults,
-                      detail.passengerBreakdown.children,
-                    )})`
-                  : undefined
-              }
             />
           </View>
 
@@ -1171,8 +1143,8 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
             </View>
             <View style={styles.idBody}>
-              <Text style={styles.idLabel}>Booking ID</Text>
-              <Text style={styles.idValue}>{detail.bookingNumber}</Text>
+              <Text style={styles.idLabel}>Trip ID</Text>
+              <CopyableTripId value={detail.tripNumber} />
             </View>
           </View>
 
@@ -1192,24 +1164,11 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
             <MetaCell
               Icon={Calendar}
               primary={formatLongDate(detail.travelDate)}
-              secondary={`(${formatWeekday(detail.travelDate)})`}
             />
-            <MetaCell
-              Icon={Clock}
-              primary={detail.pickupTime}
-              secondary="Departure"
-            />
+            <MetaCell Icon={Clock} primary={detail.pickupTime} />
             <MetaCell
               Icon={Users}
               primary={`${detail.passengers} Passengers`}
-              secondary={
-                detail.passengerBreakdown
-                  ? `(${formatPassengerBreakdown(
-                      detail.passengerBreakdown.adults,
-                      detail.passengerBreakdown.children,
-                    )})`
-                  : undefined
-              }
             />
           </View>
 
@@ -1556,8 +1515,8 @@ const OngoingDetail: React.FC<OngoingProps> = ({
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
             </View>
             <View style={styles.idBody}>
-              <Text style={styles.idLabel}>Booking ID</Text>
-              <Text style={styles.idValue}>{detail.bookingNumber}</Text>
+              <Text style={styles.idLabel}>Trip ID</Text>
+              <CopyableTripId value={detail.tripNumber} />
             </View>
           </View>
 
@@ -1577,24 +1536,11 @@ const OngoingDetail: React.FC<OngoingProps> = ({
             <MetaCell
               Icon={Calendar}
               primary={formatLongDate(detail.travelDate)}
-              secondary={`(${formatWeekday(detail.travelDate)})`}
             />
-            <MetaCell
-              Icon={Clock}
-              primary={detail.pickupTime}
-              secondary="Departure"
-            />
+            <MetaCell Icon={Clock} primary={detail.pickupTime} />
             <MetaCell
               Icon={Users}
               primary={`${detail.passengers} Passengers`}
-              secondary={
-                detail.passengerBreakdown
-                  ? `(${formatPassengerBreakdown(
-                      detail.passengerBreakdown.adults,
-                      detail.passengerBreakdown.children,
-                    )})`
-                  : undefined
-              }
             />
           </View>
 
@@ -1915,8 +1861,8 @@ const GenericDetail: React.FC<GenericProps> = ({ detail, onBack }) => {
               <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
             </View>
             <View style={styles.idBody}>
-              <Text style={styles.idLabel}>Booking ID</Text>
-              <Text style={styles.idValue}>{detail.bookingNumber}</Text>
+              <Text style={styles.idLabel}>Trip ID</Text>
+              <CopyableTripId value={detail.tripNumber} />
             </View>
           </View>
           <View style={styles.routeRow}>
@@ -2058,6 +2004,55 @@ const TripDetailsHeader: React.FC<{ tripType: TripType }> = ({ tripType }) => {
           {label}
         </Text>
       </View>
+    </View>
+  );
+};
+
+/**
+ * Trip ID value with a copy button beside it — same Clipboard +
+ * flash-checkmark pattern as QuotationCard and BookingCard. Used in
+ * the Trip Details card of every status variant.
+ */
+const CopyableTripId: React.FC<{ value: string }> = ({ value }) => {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
+  const onCopy = useCallback(
+    (e: GestureResponderEvent) => {
+      e.stopPropagation();
+      Clipboard.setString(value);
+      setCopied(true);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setCopied(false), 1500);
+    },
+    [value],
+  );
+
+  return (
+    <View style={styles.idValueRow}>
+      <Text style={styles.idValue} numberOfLines={1}>
+        {value}
+      </Text>
+      <Pressable
+        onPress={onCopy}
+        hitSlop={8}
+        style={({ pressed }) => [styles.copyBtn, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`Copy trip ID ${value}`}
+      >
+        {copied ? (
+          <Check size={16} color={Colors.success} strokeWidth={2.5} />
+        ) : (
+          <Copy size={16} color={Colors.textTertiary} strokeWidth={2} />
+        )}
+      </Pressable>
     </View>
   );
 };
@@ -2249,7 +2244,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     includeFontPadding: false,
   },
+  idValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  copyBtn: {
+    padding: 2,
+  },
   idValue: {
+    flexShrink: 1,
     ...Typography.subtitle,
     color: Colors.textPrimary,
     fontWeight: '800',
@@ -2720,14 +2724,14 @@ const styles = StyleSheet.create({
   stepCol: {
     alignItems: 'center',
     gap: 3,
-    width: 60,
+    width: TRACKER_STEP_COL_WIDTH,
   },
   connector: {
     flex: 1,
     height: 2,
     backgroundColor: Colors.border,
     marginTop: TRACKER_DOT / 2 - 1,
-    marginHorizontal: -20,
+    marginHorizontal: -(TRACKER_STEP_COL_WIDTH / 2 - TRACKER_DOT / 2),
   },
   connectorDone: {
     backgroundColor: Colors.primary,
