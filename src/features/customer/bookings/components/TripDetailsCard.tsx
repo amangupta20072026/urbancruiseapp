@@ -19,14 +19,11 @@
  *   │ Delhi         Agra         Jaipur                        │
  *   │ ──────────────────────────────────────────────────────── │
  *   │ {tracker}   ← date + time under each step               │
- *   │ {footerAction}                                           │
  *   └──────────────────────────────────────────────────────────┘
  *
  * Shared by every status layout in BookingDetailScreen. What differs
  * per status is passed in:
  *   - `tracker`   — the progress tracker (normal / ongoing / cancelled)
- *   - `footerAction` — optional full-width action under the tracker
- *                      (Completed's "Book Again" button)
  *
  * Times live in the tracker (date + time under each step, e.g.
  * "01 Nov 2026" / "09:24 PM"), so the card has no separate time row.
@@ -187,15 +184,9 @@ type Props = {
   detail: CustomerBookingDetail;
   /** Progress tracker shown at the bottom of the card. */
   tracker: React.ReactNode;
-  /** Optional full-width action under the tracker (e.g. Book Again). */
-  footerAction?: React.ReactNode;
 };
 
-export const TripDetailsCard: React.FC<Props> = ({
-  detail,
-  tracker,
-  footerAction,
-}) => {
+export const TripDetailsCard: React.FC<Props> = ({ detail, tracker }) => {
   const { Icon: TripTypeIcon, label: tripTypeLabel } = getTripTypeOption(
     detail.tripType,
   );
@@ -362,8 +353,6 @@ export const TripDetailsCard: React.FC<Props> = ({
       <View style={styles.divider} />
 
       {tracker}
-
-      {footerAction}
     </View>
   );
 };

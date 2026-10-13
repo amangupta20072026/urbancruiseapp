@@ -425,7 +425,7 @@ const CompletedDetail: React.FC<CompletedProps> = ({
                 size={30}
                 color={Colors.textOnPrimary}
                 strokeWidth={2.5}
-                fill={Colors.primary}
+                fill={Colors.secondaryDark}
               />
             </View>
           </View>
@@ -439,8 +439,8 @@ const CompletedDetail: React.FC<CompletedProps> = ({
         </View>
 
         {/* ── Trip Details card (shared TripDetailsCard) ──
-            Book Again is a full-width button under the tracker; the
-            tracker shows the past-tense "Trip Started" label. */}
+            The tracker shows the past-tense "Trip Started" label; Book
+            Again lives only in the sticky bar at the bottom. */}
         <TripDetailsCard
           detail={detail}
           tracker={
@@ -449,20 +449,6 @@ const CompletedDetail: React.FC<CompletedProps> = ({
               subLabels={detail.timeline}
               labelOverrides={{ started: 'Trip Started' }}
             />
-          }
-          footerAction={
-            <Pressable
-              onPress={onBookAgain}
-              style={({ pressed }) => [
-                styles.bookAgainFull,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Book again"
-            >
-              <RotateCw size={14} color={Colors.primary} strokeWidth={2.5} />
-              <Text style={styles.bookAgainSmallText}>Book Again</Text>
-            </Pressable>
           }
         />
 
@@ -1817,16 +1803,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.borderLight,
   },
 
-  /* ── Completed banner ── */
+  /* ── Welcome banner (Upcoming "Your trip is confirmed!" and
+     Completed "Trip Completed!") — brand secondary (gold) so it
+     stands apart from the green Trip Details card below. ── */
   completedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
     padding: Spacing.md,
     borderRadius: Radius.lg,
-    backgroundColor: Colors.primaryTint,
+    backgroundColor: Colors.secondaryTint,
     borderWidth: 1,
-    borderColor: Colors.primaryTint,
+    borderColor: Colors.secondaryLight,
   },
   completedBadge: {
     width: 60,
@@ -1838,7 +1826,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: Radius.circle,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.secondaryDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1848,7 +1836,7 @@ const styles = StyleSheet.create({
   },
   completedTitle: {
     ...Typography.subtitle,
-    color: Colors.primary,
+    color: Colors.secondaryDark,
     fontWeight: '800',
     fontSize: 18,
     lineHeight: 22,
@@ -1857,24 +1845,6 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.textSecondary,
     lineHeight: 18,
-  },
-
-  bookAgainFull: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 44,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surface,
-  },
-  bookAgainSmallText: {
-    ...Typography.caption,
-    color: Colors.primary,
-    fontWeight: '700',
-    includeFontPadding: false,
   },
 
   /* ── Vehicle & Driver section heading ── */
