@@ -13,6 +13,7 @@
 import { asBookingId } from '@app-types/ids';
 import type { BookingId } from '@app-types/ids';
 import type {
+  BookingCharge,
   BookingProgressTimeline,
   CustomerBookingDetail,
   CustomerBookingListItem,
@@ -370,6 +371,67 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
   },
 };
 
+/* ================================================================
+ * Notes + Other Charges (static for now)
+ * ================================================================
+ * Shown on the upcoming-booking detail screen after Fare Details.
+ * The real values will come from the backend per booking (they vary
+ * by state, route and vehicle); until then every booking gets this
+ * one standard set, worded from the quotation sheet.
+ * TODO(api): take `notes` / `otherCharges` from /customer/bookings/:id.
+ * ================================================================ */
+
+const STANDARD_NOTES: readonly string[] = [
+  'Pricing includes vehicle cost, fuel cost, driver and local tax.',
+  'KM will be counted from pickup point to pickup point.',
+  'A/C will be switched off intermittently on hills.',
+  'Visits to local city places are not included in the cost.',
+  'Restricted places — the vehicle may not go to some places on hills due to local govt. restrictions, difficult terrain or narrow roads.',
+];
+
+const STANDARD_OTHER_CHARGES: readonly BookingCharge[] = [
+  {
+    label: 'Toll Charges',
+    status: 'included',
+    detail: 'Already included in the cost.',
+    rates: [],
+  },
+  {
+    label: 'State Tax (Karnataka)',
+    status: 'not_included',
+    detail: 'Client will pay to driver.',
+    rates: [],
+  },
+  {
+    label: 'Parking & Police Entry',
+    status: 'not_included',
+    detail: 'Client will pay to driver.',
+    rates: [],
+  },
+  {
+    label: 'Extra Charge above 1800 km',
+    status: 'extra',
+    detail: null,
+    rates: ['₹20/km (Option 1–3)', '₹26/km (Option 4)', '₹40/km (Option 5)'],
+  },
+  {
+    label: 'Extra Charge (Local)',
+    status: 'extra',
+    detail: null,
+    rates: ['₹20/km', '₹150/hr'],
+  },
+  {
+    label: 'Driver Night Charge',
+    status: 'not_included',
+    detail: 'Client will pay to driver.',
+    rates: [
+      'Before 6 AM (1st day) & after 11 PM (last day): ₹500',
+      'After 1 AM: ₹500/hr',
+      'After 3 AM: next day charge',
+    ],
+  },
+];
+
 /**
  * O(1) detail lookup by id. Returns `null` when the id isn't in the
  * fixture (e.g. a stale deep-link) so the screen can render a proper
@@ -400,5 +462,10 @@ export function getCustomerBookingDetail(
     fareBreakdown: null,
     liveTracking: null,
   };
-  return { ...base, ...extra };
+  return {
+    ...base,
+    notes: STANDARD_NOTES,
+    otherCharges: STANDARD_OTHER_CHARGES,
+    ...extra,
+  };
 }

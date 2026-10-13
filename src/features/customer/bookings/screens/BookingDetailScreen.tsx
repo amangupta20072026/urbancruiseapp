@@ -101,6 +101,10 @@ import type {
 import { getCustomerBookingDetail } from '../mocks';
 import { BookingProgressTracker } from '../components/BookingProgressTracker';
 import { TripDetailsCard } from '../components/TripDetailsCard';
+import {
+  BookingNotesCard,
+  BookingOtherChargesCard,
+} from '../components/BookingTermsCards';
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList, 'BookingDetail'>;
 type Route = RouteProp<CustomerStackParamList, 'BookingDetail'>;
@@ -981,7 +985,8 @@ const CancelDetailRow: React.FC<{
  * Mirrors the same card rhythm as CompletedDetail/CancelledDetail:
  * status banner → booking info card → tracker card → Trip
  * Information (pickup/drop) → Vehicle + Driver as two side-by-side
- * cards → Fare Details (advance/remaining split) → a sticky bottom
+ * cards → Fare Details (advance/remaining split) → Notes → Other
+ * Charges (if applicable) → a sticky bottom
  * bar with two equal actions: "Need Changes" (opens the shared
  * Request Changes sheet from Quotations) and "Need Help" (opens the
  * shared Need Help sheet). Kept as its own component rather than
@@ -1243,6 +1248,10 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
             ) : null}
           </View>
         </View>
+
+        {/* ── Notes + Other Charges (from the booking; static for now) ── */}
+        <BookingNotesCard notes={detail.notes} />
+        <BookingOtherChargesCard charges={detail.otherCharges} />
       </ScrollView>
 
       {/* ── Sticky bottom bar: Need Changes · Need Help ── */}

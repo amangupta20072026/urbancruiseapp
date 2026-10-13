@@ -227,6 +227,27 @@ export type BookingLiveTracking = {
   routeSummary: string;
 };
 
+/** How an "other charge" relates to the quoted fare. */
+export type BookingChargeStatus =
+  /** Already part of the quoted fare (e.g. tolls). */
+  | 'included'
+  /** Not in the fare — the customer pays the driver directly. */
+  | 'not_included'
+  /** Billed on top of the fare only when the trip goes beyond plan
+   *  (extra km, extra hours). */
+  | 'extra';
+
+/** One row of the "Other Charges (if applicable)" card. */
+export type BookingCharge = {
+  /** e.g. "State Tax (Karnataka)". */
+  label: string;
+  status: BookingChargeStatus;
+  /** One-line explanation, e.g. "Client will pay to driver". */
+  detail: string | null;
+  /** Rate lines rendered as small chips, e.g. ["₹20/km (1–3)"]. */
+  rates: readonly string[];
+};
+
 /** One stop on a booking's travel itinerary. */
 export type BookingItineraryStop = {
   /** City or town, e.g. "Agra". */
@@ -290,6 +311,14 @@ export type CustomerBookingDetail = CustomerBookingListItem & {
    *  Null when the booking is pre-payment (e.g. cancelled before
    *  charge). */
   payment: BookingPaymentSummary | null;
+  /** "Notes" card bullets — what the fare covers and trip rules
+   *  (km counting, A/C on hills, restricted places…). Comes from the
+   *  backend per booking; static for now (see mocks). */
+  notes: readonly string[];
+  /** "Other Charges (if applicable)" card rows — tolls, state tax,
+   *  parking, extra km, driver night charges. Comes from the backend
+   *  per booking; static for now (see mocks). */
+  otherCharges: readonly BookingCharge[];
   /** Live tracking snapshot for the ongoing-booking Live Location
    *  card. Null unless the booking is currently rolling and a feed
    *  is available. */
