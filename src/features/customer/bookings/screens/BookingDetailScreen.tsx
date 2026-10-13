@@ -658,6 +658,10 @@ const CompletedDetail: React.FC<CompletedProps> = ({
           </View>
         </View>
 
+        {/* ── Notes + Other Charges (from the booking; static for now) ── */}
+        <BookingNotesCard notes={detail.notes} />
+        <BookingOtherChargesCard charges={detail.otherCharges} />
+
         {/* ── Need Help support card ── */}
         <View style={styles.helpCard}>
           <View style={styles.helpIconTile}>
@@ -1342,6 +1346,7 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
  *     — Map placeholder (real map SDK not wired yet — see notes)
  *     — Overlay ETA badge + "En route to X" chip
  *   Vehicle + Driver side-by-side            [reused from upcoming]
+ *   Notes + Other Charges                    [shared BookingTermsCards]
  *   Need Help support card (green variant)   [ongoing-only]
  *   Sticky "Track Vehicle" primary CTA       [ongoing-only]
  *
@@ -1614,6 +1619,10 @@ const OngoingDetail: React.FC<OngoingProps> = ({
             )}
           </View>
         </View>
+
+        {/* ── Notes + Other Charges (from the booking; static for now) ── */}
+        <BookingNotesCard notes={detail.notes} />
+        <BookingOtherChargesCard charges={detail.otherCharges} />
 
         {/* ── Need Help support card ── */}
         <View style={styles.helpCard}>
