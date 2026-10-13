@@ -227,6 +227,19 @@ export type BookingLiveTracking = {
   routeSummary: string;
 };
 
+/** One stop on a booking's travel itinerary. */
+export type BookingItineraryStop = {
+  /** City or town, e.g. "Agra". */
+  city: string;
+  /** Landmark or address in that city, e.g. "Agra Fort, Agra".
+   *  Null when not captured yet. */
+  place: string | null;
+  /** True where the customer stays without the vehicle — the "Z" in
+   *  a Pickup & Drop trip (X → Z, stay at Z, then Z → X on a later
+   *  day). The card tags this stop "Stay · N nights". */
+  stay?: boolean;
+};
+
 export type CustomerBookingDetail = CustomerBookingListItem & {
   /** Service category — One Way / Round Trip / Pickup & Drop. Shares
    *  the `TripType` vocabulary (and icon/label metadata) with
@@ -237,10 +250,23 @@ export type CustomerBookingDetail = CustomerBookingListItem & {
   tripType: TripType;
   /** Populated only for cancelled bookings; null otherwise. */
   cancellation: BookingCancellation | null;
-  /** Pickup / drop addresses for the Trip Information card. Null
-   *  when not yet captured (e.g. a stale or malformed booking). */
-  pickupLocation: string | null;
-  dropLocation: string | null;
+  /** Last day of the trip (ISO date, "2026-09-17"). Equals
+   *  `travelDate` for a same-day trip. Together with `travelDate` it
+   *  drives the Start → End panel and the "3 Days" duration pill. */
+  endDate: string;
+  /** Every stop in travel order — first entry is the pickup, last is
+   *  the final drop (so it replaces the old pickup/drop fields).
+   *  Always at least two entries. Rendered as the horizontal Travel
+   *  Itinerary on the Trip Details card.
+   *
+   *  Pickup & Drop trips are two one-way legs booked together, with
+   *  the vehicle leaving in between: [X, Z (stay: true), X]. */
+  itinerary: readonly BookingItineraryStop[];
+  /** Pickup & Drop only: time the vehicle comes back to collect the
+   *  customer for the return leg (Z → X) on `endDate`, e.g.
+   *  "04:00 PM". `pickupTime` is the onward leg's time. Null for
+   *  every other trip type. */
+  returnPickupTime: string | null;
   /** Advance/remaining fare split for the upcoming-booking detail
    *  screen. Null once the trip completes and the simple total-only
    *  Invoice & Payment summary takes over instead. */

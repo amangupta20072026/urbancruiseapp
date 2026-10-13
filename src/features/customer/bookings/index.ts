@@ -10,6 +10,7 @@ export type {
   BookingProgressStep,
   BookingProgressTimeline,
   BookingDriver,
+  BookingItineraryStop,
   BookingPaymentStatus,
   BookingPaymentSummary,
   PassengerBreakdown,

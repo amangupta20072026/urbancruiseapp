@@ -37,15 +37,8 @@
  * ------------------------------------------------------------------
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
-  GestureResponderEvent,
   Image,
   Pressable,
   ScrollView,
@@ -57,10 +50,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import Clipboard from '@react-native-clipboard/clipboard';
 import {
   Bus,
-  Calendar,
   CalendarClock,
   CalendarX,
   Car,
@@ -69,7 +60,6 @@ import {
   CheckCircle2,
   CircleDot,
   Clock,
-  Copy,
   FileText,
   Headphones,
   IndianRupee,
@@ -93,9 +83,7 @@ import type { CustomerStackParamList } from '@navigation/types';
 import {
   NeedHelpSheet,
   STANDARD_EXECUTIVE,
-  getTripTypeOption,
 } from '@features/customer/quotations';
-import type { TripType } from '@features/customer/quotations';
 
 import type {
   BookingPaymentStatus,
@@ -104,6 +92,7 @@ import type {
 } from '../types';
 import { getCustomerBookingDetail } from '../mocks';
 import { BookingProgressTracker } from '../components/BookingProgressTracker';
+import { TripDetailsCard } from '../components/TripDetailsCard';
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList, 'BookingDetail'>;
 type Route = RouteProp<CustomerStackParamList, 'BookingDetail'>;
@@ -437,25 +426,12 @@ const CompletedDetail: React.FC<CompletedProps> = ({
           </View>
         </View>
 
-        {/* ── Booking info card ──
-            Head row = calendar tile + trip-id block + inline
-            Book Again outline button. A divider separates the head
-            from the route + meta block. */}
-        <View style={styles.card}>
-          {/* Card top-right marker — labels the whole card as the
-              trip's at-a-glance details (id + route + timeline).
-              Merged with the tracker below so the two related
-              blocks read as one section. */}
-          <TripDetailsHeader tripType={detail.tripType} />
-
-          <View style={styles.bookingHeadRow}>
-            <View style={styles.idTile}>
-              <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
-            </View>
-            <View style={styles.idBody}>
-              <Text style={styles.idLabel}>Trip ID</Text>
-              <CopyableTripId value={detail.tripNumber} />
-            </View>
+        {/* ── Trip Details card (shared TripDetailsCard) ──
+            Book Again sits beside the Trip ID; the tracker shows the
+            past-tense "Trip Started" label. */}
+        <TripDetailsCard
+          detail={detail}
+          idAction={
             <Pressable
               onPress={onBookAgain}
               style={({ pressed }) => [
@@ -468,45 +444,15 @@ const CompletedDetail: React.FC<CompletedProps> = ({
               <RotateCw size={14} color={Colors.primary} strokeWidth={2.5} />
               <Text style={styles.bookAgainSmallText}>Book Again</Text>
             </Pressable>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.routeRow}>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {detail.from}
-            </Text>
-            <Text style={styles.routeArrow}>→</Text>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {detail.to}
-            </Text>
-          </View>
-
-          {/* Meta triplet — date · time · passengers, one line each
-              (no muted sub-lines). Columns are evenly weighted so
-              labels align to the same baselines. */}
-          <View style={styles.metaRowLarge}>
-            <MetaCell
-              Icon={Calendar}
-              primary={formatLongDate(detail.travelDate)}
+          }
+          tracker={
+            <BookingProgressTracker
+              currentStep={detail.progressStep}
+              subLabels={detail.timeline}
+              labelOverrides={{ started: 'Trip Started' }}
             />
-            <MetaCell Icon={Clock} primary={detail.pickupTime} />
-            <MetaCell
-              Icon={Users}
-              primary={`${detail.passengers} Passengers`}
-            />
-          </View>
-
-          {/* Tracker lives INSIDE the same card, separated by a
-              hairline divider — id/route/meta above, timeline below,
-              read together as one "trip details" surface. */}
-          <View style={styles.trackerDivider} />
-          <BookingProgressTracker
-            currentStep={detail.progressStep}
-            subLabels={detail.timeline}
-            labelOverrides={{ started: 'Trip Started' }}
-          />
-        </View>
+          }
+        />
 
         {/* ── Vehicle & Driver combined card ── */}
         <View style={styles.card}>
@@ -843,54 +789,18 @@ const CancelledDetail: React.FC<CancelledProps> = ({
           </View>
         </View>
 
-        {/* ── Trip Details card (booking info + cancelled tracker) ── */}
-        <View style={styles.card}>
-          <TripDetailsHeader tripType={detail.tripType} />
-
-          <View style={styles.idRow}>
-            <View style={styles.idTile}>
-              <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
-            </View>
-            <View style={styles.idBody}>
-              <Text style={styles.idLabel}>Trip ID</Text>
-              <CopyableTripId value={detail.tripNumber} />
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.routeRow}>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {detail.from}
-            </Text>
-            <Text style={styles.routeArrow}>→</Text>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {detail.to}
-            </Text>
-          </View>
-
-          <View style={styles.metaRowLarge}>
-            <MetaCell
-              Icon={Calendar}
-              primary={formatLongDate(detail.travelDate)}
+        {/* ── Trip Details card + cancelled tracker ── */}
+        <TripDetailsCard
+          detail={detail}
+          tracker={
+            <CancelledProgressTracker
+              bookedDate={detail.timeline.booked}
+              cancelledDate={
+                cancellation ? formatLongDate(cancellation.cancelledAt) : null
+              }
             />
-            <MetaCell Icon={Clock} primary={detail.pickupTime} />
-            <MetaCell
-              Icon={Users}
-              primary={`${detail.passengers} Passengers`}
-            />
-          </View>
-
-          {/* Cancelled-flavoured tracker, folded into the same card
-              so booking info + timeline read as one section. */}
-          <View style={styles.trackerDivider} />
-          <CancelledProgressTracker
-            bookedDate={detail.timeline.booked}
-            cancelledDate={
-              cancellation ? formatLongDate(cancellation.cancelledAt) : null
-            }
-          />
-        </View>
+          }
+        />
 
         {/* ── Cancellation Details card ── */}
         {cancellation ? (
@@ -1134,85 +1044,16 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
           </View>
         </View>
 
-        {/* ── Trip Details card (booking info + progress tracker) ── */}
-        <View style={styles.card}>
-          <TripDetailsHeader tripType={detail.tripType} />
-
-          <View style={styles.idRow}>
-            <View style={styles.idTile}>
-              <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
-            </View>
-            <View style={styles.idBody}>
-              <Text style={styles.idLabel}>Trip ID</Text>
-              <CopyableTripId value={detail.tripNumber} />
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.routeRow}>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {detail.from}
-            </Text>
-            <Text style={styles.routeArrow}>→</Text>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {detail.to}
-            </Text>
-          </View>
-
-          <View style={styles.metaRowLarge}>
-            <MetaCell
-              Icon={Calendar}
-              primary={formatLongDate(detail.travelDate)}
+        {/* ── Trip Details card (shared TripDetailsCard) ── */}
+        <TripDetailsCard
+          detail={detail}
+          tracker={
+            <BookingProgressTracker
+              currentStep={detail.progressStep}
+              subLabels={detail.timeline}
             />
-            <MetaCell Icon={Clock} primary={detail.pickupTime} />
-            <MetaCell
-              Icon={Users}
-              primary={`${detail.passengers} Passengers`}
-            />
-          </View>
-
-          {/* Tracker folded into the same card. */}
-          <View style={styles.trackerDivider} />
-          <BookingProgressTracker
-            currentStep={detail.progressStep}
-            subLabels={detail.timeline}
-          />
-        </View>
-
-        {/* ── Trip Information card ── */}
-        {detail.pickupLocation || detail.dropLocation ? (
-          <View style={styles.card}>
-            <View style={styles.sectionHeadingRow}>
-              <View style={styles.sectionIconTile}>
-                <MapPin size={18} color={Colors.primary} strokeWidth={2.25} />
-              </View>
-              <Text style={styles.sectionHeadingText}>Trip Information</Text>
-            </View>
-
-            <View style={styles.tripInfoRow}>
-              <View style={styles.tripInfoRail}>
-                <View style={styles.tripInfoDotPickup} />
-                <View style={styles.tripInfoRailLine} />
-                <View style={styles.tripInfoDotDrop} />
-              </View>
-              <View style={styles.tripInfoTextCol}>
-                <View style={styles.tripInfoStop}>
-                  <Text style={styles.tripInfoLabel}>Pickup Location</Text>
-                  <Text style={styles.tripInfoValue}>
-                    {detail.pickupLocation ?? '—'}
-                  </Text>
-                </View>
-                <View style={styles.tripInfoStop}>
-                  <Text style={styles.tripInfoLabel}>Drop Location</Text>
-                  <Text style={styles.tripInfoValue}>
-                    {detail.dropLocation ?? '—'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        ) : null}
+          }
+        />
 
         {/* ── Vehicle + Driver — side-by-side cards ── */}
         <View style={styles.sideBySideRow}>
@@ -1418,9 +1259,7 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
  * where to look, but the surface is retuned for a trip in motion:
  *
  *   Blue "in progress" banner (replaces the confirmation banner)
- *   Booking info card                        [reused from upcoming]
- *   Tracker card                             [reused, `started` step]
- *   Trip Information (pickup/drop)           [reused, guarded]
+ *   Trip Details card + tracker              [shared TripDetailsCard]
  *   Live Location card                       [ongoing-only]
  *     — Header with green "Live" pill
  *     — Map placeholder (real map SDK not wired yet — see notes)
@@ -1506,56 +1345,18 @@ const OngoingDetail: React.FC<OngoingProps> = ({
           </View>
         </View>
 
-        {/* ── Trip Details card (booking info + progress tracker) ── */}
-        <View style={styles.card}>
-          <TripDetailsHeader tripType={detail.tripType} />
-
-          <View style={styles.idRow}>
-            <View style={styles.idTile}>
-              <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
-            </View>
-            <View style={styles.idBody}>
-              <Text style={styles.idLabel}>Trip ID</Text>
-              <CopyableTripId value={detail.tripNumber} />
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.routeRow}>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {detail.from}
-            </Text>
-            <Text style={styles.routeArrow}>→</Text>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {detail.to}
-            </Text>
-          </View>
-
-          <View style={styles.metaRowLarge}>
-            <MetaCell
-              Icon={Calendar}
-              primary={formatLongDate(detail.travelDate)}
+        {/* ── Trip Details card (shared TripDetailsCard) ── */}
+        <TripDetailsCard
+          detail={detail}
+          tracker={
+            <BookingProgressTracker
+              currentStep={detail.progressStep}
+              subLabels={detail.timeline}
+              renderCurrentAs="done"
+              labelOverrides={{ started: 'Trip Started' }}
             />
-            <MetaCell Icon={Clock} primary={detail.pickupTime} />
-            <MetaCell
-              Icon={Users}
-              primary={`${detail.passengers} Passengers`}
-            />
-          </View>
-
-          {/* Tracker folded into the same card — the ongoing view
-              still renders the "started" step as done (see
-              renderCurrentAs) because the live-location card below
-              is the true current-state UI. */}
-          <View style={styles.trackerDivider} />
-          <BookingProgressTracker
-            currentStep={detail.progressStep}
-            subLabels={detail.timeline}
-            renderCurrentAs="done"
-            labelOverrides={{ started: 'Trip Started' }}
-          />
-        </View>
+          }
+        />
 
         {/* ── Live Location card ── */}
         {live ? (
@@ -1607,40 +1408,6 @@ const OngoingDetail: React.FC<OngoingProps> = ({
                 <Text style={styles.liveEtaRemaining}>
                   ({live.remainingLabel})
                 </Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
-
-        {/* ── Trip Information card ── */}
-        {detail.pickupLocation || detail.dropLocation ? (
-          <View style={styles.card}>
-            <View style={styles.sectionHeadingRow}>
-              <View style={styles.sectionIconTile}>
-                <MapPin size={18} color={Colors.primary} strokeWidth={2.25} />
-              </View>
-              <Text style={styles.sectionHeadingText}>Trip Information</Text>
-            </View>
-
-            <View style={styles.tripInfoRow}>
-              <View style={styles.tripInfoRail}>
-                <View style={styles.tripInfoDotPickup} />
-                <View style={styles.tripInfoRailLine} />
-                <View style={styles.tripInfoDotDrop} />
-              </View>
-              <View style={styles.tripInfoTextCol}>
-                <View style={styles.tripInfoStop}>
-                  <Text style={styles.tripInfoLabel}>Pickup Location</Text>
-                  <Text style={styles.tripInfoValue}>
-                    {detail.pickupLocation ?? '—'}
-                  </Text>
-                </View>
-                <View style={styles.tripInfoStop}>
-                  <Text style={styles.tripInfoLabel}>Drop Location</Text>
-                  <Text style={styles.tripInfoValue}>
-                    {detail.dropLocation ?? '—'}
-                  </Text>
-                </View>
               </View>
             </View>
           </View>
@@ -1854,54 +1621,15 @@ const GenericDetail: React.FC<GenericProps> = ({ detail, onBack }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.card}>
-          <TripDetailsHeader tripType={detail.tripType} />
-          <View style={styles.idRow}>
-            <View style={styles.idTile}>
-              <Calendar size={22} color={Colors.primary} strokeWidth={2.25} />
-            </View>
-            <View style={styles.idBody}>
-              <Text style={styles.idLabel}>Trip ID</Text>
-              <CopyableTripId value={detail.tripNumber} />
-            </View>
-          </View>
-          <View style={styles.routeRow}>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {detail.from}
-            </Text>
-            <Text style={styles.routeArrow}>→</Text>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {detail.to}
-            </Text>
-          </View>
-          <View style={styles.metaRowSimple}>
-            <View style={styles.metaItem}>
-              <Calendar
-                size={14}
-                color={Colors.textSecondary}
-                strokeWidth={2}
-              />
-              <Text style={styles.metaText}>
-                {formatLongDate(detail.travelDate)}
-              </Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Clock size={14} color={Colors.textSecondary} strokeWidth={2} />
-              <Text style={styles.metaText}>{detail.pickupTime}</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Users size={14} color={Colors.textSecondary} strokeWidth={2} />
-              <Text style={styles.metaText}>
-                {detail.passengers} Passengers
-              </Text>
-            </View>
-          </View>
-          <View style={styles.trackerDivider} />
-          <BookingProgressTracker
-            currentStep={detail.progressStep}
-            subLabels={detail.timeline}
-          />
-        </View>
+        <TripDetailsCard
+          detail={detail}
+          tracker={
+            <BookingProgressTracker
+              currentStep={detail.progressStep}
+              subLabels={detail.timeline}
+            />
+          }
+        />
 
         <Text style={styles.plainSectionHeading}>Vehicle</Text>
         <View style={styles.card}>
@@ -1978,104 +1706,6 @@ const GenericDetail: React.FC<GenericProps> = ({ detail, onBack }) => {
 /* ================================================================
  * Local reusable sub-components
  * ================================================================ */
-
-/**
- * TripDetailsHeader — icon + "Trip Details" title on the left, a
- * read-only trip-type badge (One Way / Round Trip / Pickup & Drop)
- * on the right. Mirrors the header used on the QuotationDetailScreen
- * Trip Details card so the same section reads identically across
- * both screens. First child of every merged summary+tracker card
- * across the five status-specific detail layouts below — nothing
- * else in the card changes.
- */
-const TripDetailsHeader: React.FC<{ tripType: TripType }> = ({ tripType }) => {
-  const { Icon, label } = getTripTypeOption(tripType);
-  return (
-    <View style={styles.tripDetailsHeaderRow}>
-      <View style={styles.sectionIconTile}>
-        <MapPin size={18} color={Colors.primary} strokeWidth={2.25} />
-      </View>
-      <Text style={[styles.sectionHeadingText, styles.tripDetailsTitleGrow]}>
-        Trip Details
-      </Text>
-      <View style={styles.tripTypeBadge}>
-        <Icon size={13} color={Colors.primaryDark} strokeWidth={2.5} />
-        <Text style={styles.tripTypeBadgeText} numberOfLines={1}>
-          {label}
-        </Text>
-      </View>
-    </View>
-  );
-};
-
-/**
- * Trip ID value with a copy button beside it — same Clipboard +
- * flash-checkmark pattern as QuotationCard and BookingCard. Used in
- * the Trip Details card of every status variant.
- */
-const CopyableTripId: React.FC<{ value: string }> = ({ value }) => {
-  const [copied, setCopied] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(
-    () => () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    },
-    [],
-  );
-
-  const onCopy = useCallback(
-    (e: GestureResponderEvent) => {
-      e.stopPropagation();
-      Clipboard.setString(value);
-      setCopied(true);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setCopied(false), 1500);
-    },
-    [value],
-  );
-
-  return (
-    <View style={styles.idValueRow}>
-      <Text style={styles.idValue} numberOfLines={1}>
-        {value}
-      </Text>
-      <Pressable
-        onPress={onCopy}
-        hitSlop={8}
-        style={({ pressed }) => [styles.copyBtn, pressed && styles.pressed]}
-        accessibilityRole="button"
-        accessibilityLabel={`Copy trip ID ${value}`}
-      >
-        {copied ? (
-          <Check size={16} color={Colors.success} strokeWidth={2.5} />
-        ) : (
-          <Copy size={16} color={Colors.textTertiary} strokeWidth={2} />
-        )}
-      </Pressable>
-    </View>
-  );
-};
-
-const MetaCell: React.FC<{
-  Icon: IconComp;
-  primary: string;
-  secondary?: string;
-}> = ({ Icon, primary, secondary }) => (
-  <View style={styles.metaCell}>
-    <View style={styles.metaCellHead}>
-      <Icon size={14} color={Colors.textSecondary} strokeWidth={2} />
-      <Text style={styles.metaCellPrimary} numberOfLines={1}>
-        {primary}
-      </Text>
-    </View>
-    {secondary ? (
-      <Text style={styles.metaCellSecondary} numberOfLines={1}>
-        {secondary}
-      </Text>
-    ) : null}
-  </View>
-);
 
 const ContactPillButton: React.FC<{
   Icon: IconComp;
@@ -2215,51 +1845,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* ── Booking head row (calendar tile + id + Book Again pill) ── */
-  bookingHeadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  idRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  idTile: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  idBody: {
-    flex: 1,
-    gap: 2,
-  },
-  idLabel: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    includeFontPadding: false,
-  },
-  idValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  copyBtn: {
-    padding: 2,
-  },
-  idValue: {
-    flexShrink: 1,
-    ...Typography.subtitle,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-    fontSize: 18,
-    lineHeight: 22,
-  },
   bookAgainSmall: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2276,114 +1861,6 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '700',
     includeFontPadding: false,
-  },
-
-  /* ── Route line ── */
-  routeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    flexWrap: 'wrap',
-  },
-  routeText: {
-    ...Typography.subtitle,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-    fontSize: 24,
-    lineHeight: 28,
-    flexShrink: 1,
-  },
-  routeArrow: {
-    ...Typography.subtitle,
-    color: Colors.textSecondary,
-    fontWeight: '700',
-    fontSize: 22,
-    lineHeight: 26,
-  },
-
-  /* ── Meta triplet (rich, for completed) ── */
-  metaRowLarge: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  metaCell: {
-    flex: 1,
-    gap: 2,
-  },
-  metaCellHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  metaCellPrimary: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '700',
-    flexShrink: 1,
-    includeFontPadding: false,
-  },
-  metaCellSecondary: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    marginLeft: 19, // aligns under the primary text (icon + gap)
-    includeFontPadding: false,
-  },
-
-  /* ── Meta row (simple, for generic) ── */
-  metaRowSimple: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.lg,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  metaText: {
-    ...Typography.bodySmall,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    includeFontPadding: false,
-  },
-
-  /* Generic: divider above tracker */
-  trackerDivider: {
-    height: 1,
-    backgroundColor: Colors.borderLight,
-    marginTop: 2,
-  },
-
-  /* ── Trip Details card header (icon + title + trip-type badge) ──
-     Placed as the FIRST child of the merged summary+tracker card.
-     Icon + "Trip Details" sit at the top-left (reusing the same
-     icon-tile + heading pair as the other card headings below); the
-     trip-type badge sits at the top-right. Mirrors the header on the
-     QuotationDetailScreen Trip Details card. */
-  tripDetailsHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  tripDetailsTitleGrow: {
-    flex: 1,
-  },
-  tripTypeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    maxWidth: 130,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 5,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.primaryTint,
-  },
-  tripTypeBadgeText: {
-    ...Typography.caption,
-    fontWeight: '700',
-    color: Colors.primaryDark,
   },
 
   /* ── Vehicle & Driver section heading ── */
@@ -2874,55 +2351,6 @@ const styles = StyleSheet.create({
     color: BLUE_FG,
     fontWeight: '800',
     includeFontPadding: false,
-  },
-
-  /* ── Trip Information (pickup/drop) card ── */
-  tripInfoRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  tripInfoRail: {
-    width: 16,
-    alignItems: 'center',
-    paddingTop: 4,
-  },
-  tripInfoDotPickup: {
-    width: 12,
-    height: 12,
-    borderRadius: Radius.circle,
-    borderWidth: 2.5,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surface,
-  },
-  tripInfoRailLine: {
-    flex: 1,
-    width: 2,
-    minHeight: 28,
-    backgroundColor: Colors.border,
-    marginVertical: 4,
-  },
-  tripInfoDotDrop: {
-    width: 12,
-    height: 12,
-    borderRadius: Radius.circle,
-    backgroundColor: Colors.info,
-  },
-  tripInfoTextCol: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  tripInfoStop: {
-    gap: 2,
-  },
-  tripInfoLabel: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  tripInfoValue: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '800',
   },
 
   /* ── Vehicle + Driver side-by-side cards ── */

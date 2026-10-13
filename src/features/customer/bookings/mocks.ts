@@ -20,6 +20,48 @@ import type {
 
 export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
   {
+    // Multi-stop circuit taken from a real quotation (NB 1007) so the
+    // horizontally-scrolling itinerary has something long to show.
+    id: asBookingId('bk_00125'),
+    bookingNumber: 'BK-2026-001250',
+    tripNumber: 'TR-2026-562190',
+    status: 'upcoming',
+    from: 'Mumbai',
+    to: 'Mumbai',
+    travelDate: '2026-11-09',
+    pickupTime: '06:30 AM',
+    passengers: 17,
+    vehicleType: 'Force Urbania',
+    vehicleModel: null,
+    seater: 15,
+    hasAC: true,
+    totalAmount: 30_000,
+    bookedDate: '2026-11-01',
+    progressStep: 'started',
+    progressNote: null,
+  },
+  {
+    // Pickup & Drop: airport → Mysuru hotel on 24 Oct, customer stays
+    // in Mysuru without the vehicle, picked up again on 26 Oct.
+    id: asBookingId('bk_00124'),
+    bookingNumber: 'BK-2026-001242',
+    tripNumber: 'TR-2026-649813',
+    status: 'upcoming',
+    from: 'Bengaluru',
+    to: 'Mysuru',
+    travelDate: '2026-10-24',
+    pickupTime: '10:30 AM',
+    passengers: 8,
+    vehicleType: 'Tempo Traveller',
+    vehicleModel: null,
+    seater: 12,
+    hasAC: true,
+    totalAmount: 6_500,
+    bookedDate: '2026-10-12',
+    progressStep: 'started',
+    progressNote: null,
+  },
+  {
     id: asBookingId('bk_00123'),
     bookingNumber: 'BK-2026-001234',
     tripNumber: 'TR-2026-735204',
@@ -101,8 +143,9 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
  * Per-id detail overrides
  * ================================================================
  * The list fixture above carries every field needed by the list card.
- * The detail screen also renders vehicle plate, assigned driver, and
- * a per-step timeline of milestone dates. Kept as a separate map
+ * The detail screen also renders vehicle plate, assigned driver, the
+ * trip's end date + full itinerary, and a per-step timeline of
+ * milestone dates. Kept as a separate map
  * (rather than inflating the list fixture) so the list stays cheap
  * and the extra fields are only present where they'd actually be
  * populated on the backend.
@@ -122,13 +165,87 @@ type DetailOverride = {
   timeline: BookingProgressTimeline;
   payment: CustomerBookingDetail['payment'];
   cancellation: CustomerBookingDetail['cancellation'];
-  pickupLocation: string | null;
-  dropLocation: string | null;
+  endDate: CustomerBookingDetail['endDate'];
+  itinerary: CustomerBookingDetail['itinerary'];
+  returnPickupTime: CustomerBookingDetail['returnPickupTime'];
   fareBreakdown: CustomerBookingDetail['fareBreakdown'];
   liveTracking: CustomerBookingDetail['liveTracking'];
 };
 
 const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
+  bk_00125: {
+    tripType: 'round_trip',
+    vehiclePlate: null,
+    vehicleFuel: 'Diesel',
+    passengerBreakdown: { adults: 15, children: 2 },
+    driver: {
+      name: 'Suresh Patil',
+      avatarUrl: null,
+      rating: 4.9,
+      tripsCompleted: 412,
+      phoneE164: '+919820012345',
+    },
+    timeline: {
+      booked: '01 Nov 2026',
+      confirmed: '02 Nov 2026',
+      started: '09 Nov 2026',
+    },
+    payment: { status: 'partial', method: 'UPI' },
+    cancellation: null,
+    endDate: '2026-11-15',
+    itinerary: [
+      { city: 'Mumbai', place: 'Chhatrapati Shivaji Maharaj Intl Airport' },
+      { city: 'Trimbakeshwar', place: 'Trimbakeshwar Jyotirlinga Temple' },
+      { city: 'Nashik', place: 'Panchavati, Nashik' },
+      { city: 'Shirdi', place: 'Sai Baba Temple, Shirdi' },
+      { city: 'Shani Shingnapur', place: 'Shani Shingnapur Temple' },
+      { city: 'Aurangabad', place: 'Ellora Caves, Aurangabad' },
+      { city: 'Mumbai', place: 'Chhatrapati Shivaji Maharaj Intl Airport' },
+    ],
+    returnPickupTime: null,
+    fareBreakdown: {
+      advancePaid: 7_500,
+      advancePercent: 25,
+      remainingAmount: 22_500,
+      remainingNote: 'Pay Later',
+    },
+    liveTracking: null,
+  },
+  bk_00124: {
+    tripType: 'pickup_drop',
+    vehiclePlate: null,
+    vehicleFuel: 'Diesel',
+    passengerBreakdown: { adults: 8, children: 0 },
+    // No driver yet — shows the "assigned closer to your trip date" state.
+    driver: null,
+    timeline: {
+      booked: '12 Oct 2026',
+      confirmed: '13 Oct 2026',
+      started: '24 Oct 2026',
+    },
+    payment: { status: 'partial', method: 'UPI' },
+    cancellation: null,
+    endDate: '2026-10-26',
+    itinerary: [
+      {
+        city: 'Bengaluru',
+        place: 'Kempegowda International Airport, Bengaluru',
+      },
+      { city: 'Mysuru', place: 'Radisson Blu Plaza Hotel, Mysuru', stay: true },
+      {
+        city: 'Bengaluru',
+        place: 'Kempegowda International Airport, Bengaluru',
+      },
+    ],
+    returnPickupTime: '04:00 PM',
+    fareBreakdown: {
+      advancePaid: 1_625,
+      advancePercent: 25,
+      remainingAmount: 4_875,
+      remainingNote: 'Pay Later',
+    },
+    liveTracking: null,
+  },
   bk_00123: {
     tripType: 'one_way',
     vehiclePlate: null,
@@ -148,8 +265,13 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
     payment: { status: 'partial', method: 'UPI' },
     cancellation: null,
-    pickupLocation: 'Indira Gandhi International Airport, Delhi',
-    dropLocation: 'Jaipur Railway Station, Jaipur',
+    endDate: '2026-09-17',
+    itinerary: [
+      { city: 'Delhi', place: 'Indira Gandhi International Airport, Delhi' },
+      { city: 'Agra', place: 'Agra Fort, Agra' },
+      { city: 'Jaipur', place: 'Jaipur Railway Station, Jaipur' },
+    ],
+    returnPickupTime: null,
     fareBreakdown: {
       advancePaid: 4_625,
       advancePercent: 25,
@@ -177,8 +299,13 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
     payment: { status: 'paid', method: 'Card' },
     cancellation: null,
-    pickupLocation: 'Sector 29, Gurugram',
-    dropLocation: 'Taj East Gate, Agra',
+    endDate: '2026-09-12',
+    itinerary: [
+      { city: 'Gurugram', place: 'Sector 29, Gurugram' },
+      { city: 'Agra', place: 'Taj East Gate, Agra' },
+      { city: 'Gurugram', place: 'Sector 29, Gurugram' },
+    ],
+    returnPickupTime: null,
     fareBreakdown: null,
     liveTracking: {
       etaLabel: '12:45 PM',
@@ -206,8 +333,13 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
     payment: { status: 'paid', method: 'UPI' },
     cancellation: null,
-    pickupLocation: 'Bandra Kurla Complex, Mumbai',
-    dropLocation: 'Shivajinagar, Pune',
+    endDate: '2026-09-05',
+    itinerary: [
+      { city: 'Mumbai', place: 'Bandra Kurla Complex, Mumbai' },
+      { city: 'Pune', place: 'Shivajinagar, Pune' },
+      { city: 'Mumbai', place: 'Bandra Kurla Complex, Mumbai' },
+    ],
+    returnPickupTime: null,
     fareBreakdown: null,
     liveTracking: null,
   },
@@ -226,8 +358,13 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       refundAmount: 0,
       refundNote: 'No refund applicable',
     },
-    pickupLocation: 'Sector 62, Noida',
-    dropLocation: 'Laxman Jhula, Rishikesh',
+    endDate: '2026-08-20',
+    itinerary: [
+      { city: 'Noida', place: 'Sector 62, Noida' },
+      { city: 'Rishikesh', place: 'Laxman Jhula, Rishikesh', stay: true },
+      { city: 'Noida', place: 'Sector 62, Noida' },
+    ],
+    returnPickupTime: '05:00 PM',
     fareBreakdown: null,
     liveTracking: null,
   },
@@ -254,8 +391,12 @@ export function getCustomerBookingDetail(
     timeline: {},
     payment: null,
     cancellation: null,
-    pickupLocation: null,
-    dropLocation: null,
+    endDate: base.travelDate,
+    itinerary: [
+      { city: base.from, place: null },
+      { city: base.to, place: null },
+    ],
+    returnPickupTime: null,
     fareBreakdown: null,
     liveTracking: null,
   };
