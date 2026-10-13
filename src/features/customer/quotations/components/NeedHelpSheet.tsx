@@ -40,6 +40,9 @@
  *     0.55 (matches the other sheets in the app for consistency).
  *   - `handleIndicatorStyle` + `backgroundStyle` = the rounded top
  *     bar all sheets share.
+ *   - Android hardware back is swallowed while the sheet is open
+ *     (same as NeedChangesSheet), so a back press never closes it
+ *     by accident.
  *   - Fixed snap point rather than dynamic sizing — dynamic sizing
  *     over-shrinks on the small Android surfaces the design was
  *     approved against and pushes the primary buttons under the
@@ -65,11 +68,19 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
 } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  BackHandler,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
@@ -123,6 +134,35 @@ export const NeedHelpSheet = forwardRef<BottomSheetModal, Props>(
 
     const dismiss = useCallback(() => {
       internalRef.current?.dismiss();
+    }, []);
+
+    /* Mirrors the sheet's open/closed state for the hardware-back
+       handler below — a ref, not state, so it doesn't re-render on
+       every animation frame. Same as NeedChangesSheet. */
+    const isOpenRef = useRef(false);
+
+    const handleSheetChange = useCallback((index: number) => {
+      isOpenRef.current = index >= 0;
+    }, []);
+
+    /* -------- Hardware back (Android) -------- *
+     *
+     * Same behaviour as NeedChangesSheet. `BottomSheetModalProvider`
+     * sits above `NavigationContainer` (App.tsx), so the sheet lives
+     * in a portal outside the navigator. Without this listener a back
+     * press pops the screen underneath while the sheet stays on top.
+     * While the sheet is open, the back press is swallowed entirely —
+     * no dismiss, no navigation — so closing stays explicit (× icon /
+     * Close link / backdrop / swipe, as in NeedChangesSheet). */
+    useEffect(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (isOpenRef.current) return true;
+          return false;
+        },
+      );
+      return () => subscription.remove();
     }, []);
 
     /**
@@ -199,6 +239,7 @@ export const NeedHelpSheet = forwardRef<BottomSheetModal, Props>(
         enablePanDownToClose
         enableDynamicSizing={false}
         enableOverDrag={false}
+        onChange={handleSheetChange}
       >
         {/* Pinned close row — the visual title lives in the scroll
             body (centered), so this row just carries the X. */}

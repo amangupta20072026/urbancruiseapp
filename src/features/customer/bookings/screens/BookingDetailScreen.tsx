@@ -62,11 +62,13 @@ import {
   Clock,
   FileText,
   Headphones,
+  Lock,
   IndianRupee,
   Info,
   MapPin,
   MessageSquare,
   Navigation,
+  PenSquare,
   Phone,
   RotateCw,
   Star,
@@ -81,6 +83,7 @@ import { makePhoneCall, openWhatsApp } from '@services/contact';
 import { toast } from '@services/toast';
 import type { CustomerStackParamList } from '@navigation/types';
 import {
+  NeedChangesSheet,
   NeedHelpSheet,
   STANDARD_EXECUTIVE,
 } from '@features/customer/quotations';
@@ -973,8 +976,10 @@ const CancelDetailRow: React.FC<{
  * Mirrors the same card rhythm as CompletedDetail/CancelledDetail:
  * status banner → booking info card → tracker card → Trip
  * Information (pickup/drop) → Vehicle + Driver as two side-by-side
- * cards → Fare Details (advance/remaining split) → a sticky Book
- * Again CTA. Kept as its own component rather than
+ * cards → Fare Details (advance/remaining split) → a sticky bottom
+ * bar with two equal actions: "Need Changes" (opens the shared
+ * Request Changes sheet from Quotations) and "Need Help" (opens the
+ * shared Need Help sheet). Kept as its own component rather than
  * folding into GenericDetail for the same reason CompletedDetail and
  * CancelledDetail are separate: this is a fully designed surface
  * with its own section set (pickup/drop, side-by-side vehicle+driver,
@@ -990,10 +995,19 @@ type UpcomingProps = {
 const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
   const status = STATUS_VISUAL.upcoming;
 
-  /* Bottom-sheet ref for the "Need Help?" contact sheet. Same pattern
-     as OngoingDetail / CancelledDetail — mounted once inside SafeScreen,
-     presented imperatively when the user taps Contact Support. */
+  const navigation = useNavigation<Nav>();
+
+  /* Two bottom sheets, both reused as-is from Quotations and mounted
+     once inside SafeScreen, presented imperatively from the sticky
+     bottom bar:
+       - Need Changes → NeedChangesSheet ("Request Changes")
+       - Need Help    → NeedHelpSheet (call / WhatsApp / email) */
+  const needChangesRef = useRef<BottomSheetModal>(null);
   const needHelpRef = useRef<BottomSheetModal>(null);
+
+  const openNeedChanges = useCallback(() => {
+    needChangesRef.current?.present();
+  }, []);
 
   const openNeedHelp = useCallback(() => {
     needHelpRef.current?.present();
@@ -1211,36 +1225,72 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
             ) : null}
           </View>
         </View>
+      </ScrollView>
 
-        {/* ── Need Help support card ── */}
-        <View style={styles.helpCard}>
-          <View style={styles.helpIconTile}>
-            <Headphones size={20} color={BLUE_FG} strokeWidth={2.25} />
-          </View>
-          <View style={styles.helpTextCol}>
-            <Text style={styles.helpTitle}>Need Help?</Text>
-            <Text style={styles.helpBody}>
-              Contact our support team for any queries.
-            </Text>
-          </View>
+      {/* ── Sticky bottom bar: Need Changes · Need Help ── */}
+      <View style={styles.actionBar}>
+        <View style={styles.actionRow}>
           <Pressable
-            onPress={openNeedHelp}
+            onPress={openNeedChanges}
             style={({ pressed }) => [
-              styles.contactSupportBtn,
+              styles.actionBtn,
+              styles.needChangesBtn,
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Contact support"
+            accessibilityLabel="Need changes"
+            accessibilityHint="Request changes to this booking"
           >
-            <Text style={styles.contactSupportBtnText}>Contact Support</Text>
+            <PenSquare size={18} color={Colors.accent} strokeWidth={2.25} />
+            <View style={styles.actionBody}>
+              <Text style={styles.actionTitle}>Need Changes</Text>
+              <Text style={styles.actionSubtitle} numberOfLines={1}>
+                Request changes to this booking
+              </Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={openNeedHelp}
+            style={({ pressed }) => [
+              styles.actionBtn,
+              styles.needHelpBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Need help"
+            accessibilityHint="Contact our support team"
+          >
+            <Headphones size={18} color={BLUE_FG} strokeWidth={2.25} />
+            <View style={styles.actionBody}>
+              <Text style={styles.actionTitle}>Need Help</Text>
+              <Text style={styles.actionSubtitle} numberOfLines={1}>
+                Talk to our support team
+              </Text>
+            </View>
           </Pressable>
         </View>
-      </ScrollView>
 
-      {/* Need Help bottom sheet — mounted once, presented imperatively
-          via `needHelpRef` from the Need Help card's Contact Support
-          button. Portaled to the app-root BottomSheetModalProvider
-          (App.tsx). */}
+        <View style={styles.trustRow}>
+          <Lock size={12} color={Colors.textTertiary} strokeWidth={2} />
+          <Text style={styles.trustText}>
+            Your data is secure and 100% safe with Urban Cruise
+          </Text>
+        </View>
+      </View>
+
+      {/* Both sheets portal to the app-root BottomSheetModalProvider
+          (App.tsx); same props as on QuotationDetailScreen. */}
+      <NeedChangesSheet
+        ref={needChangesRef}
+        executive={STANDARD_EXECUTIVE}
+        onGoToQuotations={() =>
+          navigation.navigate('CustomerTabs', { screen: 'Quotations' })
+        }
+        onBackToHome={() =>
+          navigation.navigate('CustomerTabs', { screen: 'Home' })
+        }
+      />
       <NeedHelpSheet
         ref={needHelpRef}
         executive={STANDARD_EXECUTIVE}
@@ -1801,6 +1851,66 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: Colors.borderLight,
+  },
+
+  /* ── Upcoming sticky bottom bar (Need Changes · Need Help) ──
+     Mirrors QuotationDetailScreen's bottom bar: two equal outline
+     buttons with a title + one-line subtitle, then the trust line. */
+  actionBar: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    backgroundColor: Colors.background,
+    gap: Spacing.sm,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    minHeight: 52,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    backgroundColor: Colors.surface,
+  },
+  needChangesBtn: {
+    borderColor: Colors.accent,
+  },
+  needHelpBtn: {
+    borderColor: BLUE_FG,
+  },
+  actionBody: {
+    flex: 1,
+  },
+  actionTitle: {
+    ...Typography.bodySmall,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+  },
+  actionSubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  trustText: {
+    ...Typography.caption,
+    color: Colors.textTertiary,
+    fontWeight: '500',
   },
 
   /* ── Welcome banner (Upcoming "Your trip is confirmed!" and
