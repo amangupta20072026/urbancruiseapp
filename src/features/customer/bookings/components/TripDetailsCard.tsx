@@ -5,33 +5,37 @@
  *
  *   ┌──────────────────────────────────────────────────────────┐
  *   │ [📍] Trip Details                          [✈ One Way]   │
- *   │ Trip ID                                   [idAction]     │
- *   │ TR-2026-735204 📋                                        │
+ *   │ Trip ID                                                  │
+ *   │ TR-2026-735204 📋                      👥 20 Passengers  │
  *   │ ──────────────────────────────────────────────────────── │
  *   │ TRAVEL DATES                                             │
  *   │ ┌ Start ─────────── ┄┄ [3 Days] ┄┄ ─────────── End ┐     │
  *   │ │ 15 Sept 2026                        17 Sept 2026 │     │
+ *   │ │                 (Pickup & Drop only) Return 04:00 PM │ │
  *   │ └──────────────────────────────────────────────────┘     │
- *   │ 🕐 09:00 AM    👥 20 Passengers                          │
- *   │   (Pickup & Drop: 🕐 Onward 10:30 AM  🕐 Return 04:00 PM) │
  *   │ ──────────────────────────────────────────────────────── │
  *   │ TRAVEL ITINERARY                              ⤳ 3 stops  │
  *   │ ●┄┄┄┄┄┄┄┄┄┄┄┄●┄┄┄┄┄┄┄┄┄┄┄┄●   ← scrolls sideways         │
  *   │ Delhi         Agra         Jaipur                        │
  *   │ ──────────────────────────────────────────────────────── │
- *   │ {tracker}                                                │
+ *   │ {tracker}   ← date + time under each step               │
+ *   │ {footerAction}                                           │
  *   └──────────────────────────────────────────────────────────┘
  *
  * Shared by every status layout in BookingDetailScreen. What differs
  * per status is passed in:
  *   - `tracker`   — the progress tracker (normal / ongoing / cancelled)
- *   - `idAction`  — optional element beside the Trip ID (Completed's
- *                   "Book Again" button)
+ *   - `footerAction` — optional full-width action under the tracker
+ *                      (Completed's "Book Again" button)
+ *
+ * Times live in the tracker (date + time under each step, e.g.
+ * "01 Nov 2026" / "09:24 PM"), so the card has no separate time row.
  *
  * Pickup & Drop trips are two one-way legs booked together — X → Z,
  * the customer stays at Z without the vehicle, then Z → X on
- * `endDate`. The stay stop gets a 🛏 "N nights" stay tag and the meta
- * row shows both leg times (onward `pickupTime`, `returnPickupTime`).
+ * `endDate`. The stay stop gets a 🛏 "N nights" stay tag, the onward
+ * time shows under "Trip Starts" in the tracker, and the return time
+ * (`returnPickupTime`) shows under the End date.
  *
  * Each itinerary stop shows only its city name; the stop's `place`
  * (address) stays in the data and is read out by screen readers but
@@ -56,7 +60,6 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import {
   BedDouble,
   Check,
-  Clock,
   Copy,
   MapPin,
   Route,
@@ -184,14 +187,14 @@ type Props = {
   detail: CustomerBookingDetail;
   /** Progress tracker shown at the bottom of the card. */
   tracker: React.ReactNode;
-  /** Optional element on the right of the Trip ID (e.g. Book Again). */
-  idAction?: React.ReactNode;
+  /** Optional full-width action under the tracker (e.g. Book Again). */
+  footerAction?: React.ReactNode;
 };
 
 export const TripDetailsCard: React.FC<Props> = ({
   detail,
   tracker,
-  idAction,
+  footerAction,
 }) => {
   const { Icon: TripTypeIcon, label: tripTypeLabel } = getTripTypeOption(
     detail.tripType,
@@ -237,13 +240,18 @@ export const TripDetailsCard: React.FC<Props> = ({
         </View>
       </View>
 
-      {/* ── Trip ID (plain label + bold id + copy) ── */}
+      {/* ── Trip ID (plain label + bold id + copy) · Passengers ── */}
       <View style={styles.idRow}>
         <View style={styles.idBlock}>
           <Text style={styles.smallLabel}>Trip ID</Text>
           <CopyableTripId value={detail.tripNumber} />
         </View>
-        {idAction}
+        <View style={styles.passengers}>
+          <Users size={15} color={Colors.textSecondary} strokeWidth={2} />
+          <Text style={styles.passengersText} numberOfLines={1}>
+            {detail.passengers} Passengers
+          </Text>
+        </View>
       </View>
 
       <View style={styles.divider} />
@@ -272,35 +280,11 @@ export const TripDetailsCard: React.FC<Props> = ({
             <Text style={styles.dateValue} numberOfLines={1}>
               {formatTripDate(detail.endDate)}
             </Text>
-          </View>
-        </View>
-        <View style={styles.metaRow}>
-          {returnTime ? (
-            <>
-              <View style={styles.metaItem}>
-                <Clock size={15} color={Colors.textSecondary} strokeWidth={2} />
-                <Text style={styles.metaText}>
-                  <Text style={styles.metaPrefix}>Onward </Text>
-                  {detail.pickupTime}
-                </Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Clock size={15} color={Colors.textSecondary} strokeWidth={2} />
-                <Text style={styles.metaText}>
-                  <Text style={styles.metaPrefix}>Return </Text>
-                  {returnTime}
-                </Text>
-              </View>
-            </>
-          ) : (
-            <View style={styles.metaItem}>
-              <Clock size={15} color={Colors.textSecondary} strokeWidth={2} />
-              <Text style={styles.metaText}>{detail.pickupTime}</Text>
-            </View>
-          )}
-          <View style={styles.metaItem}>
-            <Users size={15} color={Colors.textSecondary} strokeWidth={2} />
-            <Text style={styles.metaText}>{detail.passengers} Passengers</Text>
+            {returnTime ? (
+              <Text style={styles.returnText} numberOfLines={1}>
+                Return <Text style={styles.returnTime}>{returnTime}</Text>
+              </Text>
+            ) : null}
           </View>
         </View>
       </View>
@@ -378,6 +362,8 @@ export const TripDetailsCard: React.FC<Props> = ({
       <View style={styles.divider} />
 
       {tracker}
+
+      {footerAction}
     </View>
   );
 };
@@ -453,8 +439,20 @@ const styles = StyleSheet.create({
   /* Trip ID */
   idRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: Spacing.sm,
+  },
+  passengers: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    // Line up with the Trip ID value (its copy button is 19 px tall).
+    paddingBottom: 3,
+  },
+  passengersText: {
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    fontWeight: '700',
   },
   idBlock: {
     flex: 1,
@@ -524,6 +522,14 @@ const styles = StyleSheet.create({
   dateColEnd: {
     alignItems: 'flex-end',
   },
+  returnText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+  },
+  returnTime: {
+    color: Colors.textPrimary,
+    fontWeight: '700',
+  },
   dateCaption: {
     ...Typography.caption,
     fontSize: 11,
@@ -555,27 +561,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.textOnPrimary,
   },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    columnGap: 18,
-    rowGap: Spacing.sm,
-    paddingHorizontal: 2,
-  },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  metaText: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '700',
-  },
-  metaPrefix: {
-    color: Colors.textSecondary,
-    fontWeight: '500',
   },
   stopCount: {
     ...Typography.caption,

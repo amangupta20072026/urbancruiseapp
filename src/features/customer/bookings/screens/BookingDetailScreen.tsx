@@ -188,6 +188,18 @@ function formatRupees(amount: number): string {
 
 /** ISO timestamp → "12 Aug 2026, 02:15 PM" — used by the Cancellation
  *  Details card. */
+/** Tracker sub-label: "12 Aug 2026\n02:15 PM" (date over time). */
+function formatTrackerDateTime(iso: string): string {
+  const time = new Date(iso)
+    .toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+    .toUpperCase();
+  return `${formatLongDate(iso)}\n${time}`;
+}
+
 function formatDateTime(iso: string): string {
   const date = new Date(iso);
   const datePart = date.toLocaleDateString('en-IN', {
@@ -427,15 +439,22 @@ const CompletedDetail: React.FC<CompletedProps> = ({
         </View>
 
         {/* ── Trip Details card (shared TripDetailsCard) ──
-            Book Again sits beside the Trip ID; the tracker shows the
-            past-tense "Trip Started" label. */}
+            Book Again is a full-width button under the tracker; the
+            tracker shows the past-tense "Trip Started" label. */}
         <TripDetailsCard
           detail={detail}
-          idAction={
+          tracker={
+            <BookingProgressTracker
+              currentStep={detail.progressStep}
+              subLabels={detail.timeline}
+              labelOverrides={{ started: 'Trip Started' }}
+            />
+          }
+          footerAction={
             <Pressable
               onPress={onBookAgain}
               style={({ pressed }) => [
-                styles.bookAgainSmall,
+                styles.bookAgainFull,
                 pressed && styles.pressed,
               ]}
               accessibilityRole="button"
@@ -444,13 +463,6 @@ const CompletedDetail: React.FC<CompletedProps> = ({
               <RotateCw size={14} color={Colors.primary} strokeWidth={2.5} />
               <Text style={styles.bookAgainSmallText}>Book Again</Text>
             </Pressable>
-          }
-          tracker={
-            <BookingProgressTracker
-              currentStep={detail.progressStep}
-              subLabels={detail.timeline}
-              labelOverrides={{ started: 'Trip Started' }}
-            />
           }
         />
 
@@ -796,7 +808,9 @@ const CancelledDetail: React.FC<CancelledProps> = ({
             <CancelledProgressTracker
               bookedDate={detail.timeline.booked}
               cancelledDate={
-                cancellation ? formatLongDate(cancellation.cancelledAt) : null
+                cancellation
+                  ? formatTrackerDateTime(cancellation.cancelledAt)
+                  : null
               }
             />
           }
@@ -1845,12 +1859,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  bookAgainSmall: {
+  bookAgainFull: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    height: 34,
-    paddingHorizontal: Spacing.md,
+    justifyContent: 'center',
+    gap: 6,
+    height: 44,
     borderRadius: Radius.md,
     borderWidth: 1.5,
     borderColor: Colors.primary,

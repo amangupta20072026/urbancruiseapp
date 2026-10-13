@@ -281,10 +281,10 @@ export type CustomerBookingDetail = CustomerBookingListItem & {
   passengerBreakdown: PassengerBreakdown | null;
   /** Assigned driver. Null until a driver is assigned. */
   driver: BookingDriver | null;
-  /** ISO timestamp per lifecycle milestone reached so far. Used to
-   *  render "05 Sep" (list card) or "05 Sept\n08:00 AM" (detail
-   *  tracker) under each done step. Newline splits render as two
-   *  lines in the detail tracker. */
+  /** Display label per lifecycle milestone reached so far, date and
+   *  time split by a newline — "01 Nov 2026\n09:24 PM" — rendered as
+   *  two lines under each step of the detail tracker. The "started"
+   *  time is the trip's pickup time. */
   timeline: BookingProgressTimeline;
   /** Payment summary for the detail card's Invoice & Payment block.
    *  Null when the booking is pre-payment (e.g. cancelled before
