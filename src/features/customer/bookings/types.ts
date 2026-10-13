@@ -236,7 +236,7 @@ export type BookingItineraryStop = {
   place: string | null;
   /** True where the customer stays without the vehicle — the "Z" in
    *  a Pickup & Drop trip (X → Z, stay at Z, then Z → X on a later
-   *  day). The card tags this stop "Stay · N nights". */
+   *  day). The card tags this stop with a bed icon and "N nights". */
   stay?: boolean;
 };
 

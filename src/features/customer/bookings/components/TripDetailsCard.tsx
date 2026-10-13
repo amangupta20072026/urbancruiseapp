@@ -18,7 +18,6 @@
  *   │ TRAVEL ITINERARY                              ⤳ 3 stops  │
  *   │ ●┄┄┄┄┄┄┄┄┄┄┄┄●┄┄┄┄┄┄┄┄┄┄┄┄●   ← scrolls sideways         │
  *   │ Delhi         Agra         Jaipur                        │
- *   │ IGI Airport…  Agra Fort…   Jaipur Rly…                   │
  *   │ ──────────────────────────────────────────────────────── │
  *   │ {tracker}                                                │
  *   └──────────────────────────────────────────────────────────┘
@@ -31,8 +30,12 @@
  *
  * Pickup & Drop trips are two one-way legs booked together — X → Z,
  * the customer stays at Z without the vehicle, then Z → X on
- * `endDate`. The stay stop gets a "Stay · N nights" tag and the meta
+ * `endDate`. The stay stop gets a 🛏 "N nights" stay tag and the meta
  * row shows both leg times (onward `pickupTime`, `returnPickupTime`).
+ *
+ * Each itinerary stop shows only its city name; the stop's `place`
+ * (address) stays in the data and is read out by screen readers but
+ * isn't drawn, so 2–3 stops fit across the card.
  *
  * The Trip ID is deliberately plain text (small grey label + bold id
  * + copy icon), matching how Quotation ID and Booking ID read on
@@ -41,7 +44,14 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  LayoutChangeEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import {
   BedDouble,
@@ -189,6 +199,22 @@ export const TripDetailsCard: React.FC<Props> = ({
   const stops = detail.itinerary;
   const lastIndex = stops.length - 1;
   const stayNights = nightsBetween(detail.travelDate, detail.endDate);
+
+  /* Stop column width comes from the scroller's measured width, never
+     from the text inside it, so a long city can't stretch its column.
+     Up to 3 stops share the card evenly; with more, 3 fit plus a peek
+     of the next one so it's clear the row scrolls. */
+  const [scrollerWidth, setScrollerWidth] = useState(0);
+  const onScrollerLayout = useCallback((e: LayoutChangeEvent) => {
+    setScrollerWidth(e.nativeEvent.layout.width);
+  }, []);
+  const visibleStops = stops.length <= 3 ? stops.length : 3.4;
+  const stopWidth = scrollerWidth
+    ? Math.max(
+        MIN_STOP_WIDTH,
+        (scrollerWidth - Spacing.md * 2) / Math.max(visibleStops, 1),
+      )
+    : MIN_STOP_WIDTH;
   const returnTime = detail.returnPickupTime;
 
   return (
@@ -297,13 +323,14 @@ export const TripDetailsCard: React.FC<Props> = ({
           showsHorizontalScrollIndicator={false}
           style={styles.stopsScroller}
           contentContainerStyle={styles.stopsContent}
+          onLayout={onScrollerLayout}
         >
           {stops.map((stop, i) => {
             const isLast = i === lastIndex;
             return (
               <View
                 key={`${stop.city}-${i}`}
-                style={styles.stopCol}
+                style={[styles.stopCol, { width: stopWidth }]}
                 accessible
                 accessibilityLabel={`Stop ${i + 1}: ${stop.city}${
                   stop.place ? `, ${stop.place}` : ''
@@ -329,17 +356,16 @@ export const TripDetailsCard: React.FC<Props> = ({
                 >
                   {stop.city}
                 </Text>
-                {stop.place ? (
-                  <Text style={styles.stopPlace} numberOfLines={2}>
-                    {stop.place}
-                  </Text>
-                ) : null}
                 {stop.stay && stayNights > 0 ? (
                   <View style={styles.stayTag}>
-                    <BedDouble size={12} color={STAY_FG} strokeWidth={2.25} />
-                    <Text style={styles.stayTagText}>
-                      Stay · {stayNights}{' '}
-                      {stayNights === 1 ? 'night' : 'nights'}
+                    <BedDouble
+                      size={12}
+                      color={STAY_FG}
+                      strokeWidth={2.25}
+                      accessibilityLabel="Stay"
+                    />
+                    <Text style={styles.stayTagText} numberOfLines={1}>
+                      {stayNights} {stayNights === 1 ? 'night' : 'nights'}
                     </Text>
                   </View>
                 ) : null}
@@ -361,6 +387,8 @@ export const TripDetailsCard: React.FC<Props> = ({
  * ================================================================ */
 
 const HALO = 20;
+/** Narrowest a stop column gets (very small screens). */
+const MIN_STOP_WIDTH = 88;
 const DOT = 12;
 /** Stay tag colours — blue, so it reads apart from the green route. */
 const STAY_BG = '#EFF6FF';
@@ -580,15 +608,10 @@ const styles = StyleSheet.create({
     marginHorizontal: -Spacing.md,
   },
   stopsContent: {
-    flexGrow: 1,
     paddingHorizontal: Spacing.md,
     paddingVertical: 2,
   },
   stopCol: {
-    // 3 stops × 96 + padding fits a 360 dp phone; more stops scroll.
-    flexGrow: 1,
-    flexBasis: 96,
-    minWidth: 96,
     gap: 6,
   },
   stopDotRow: {
@@ -629,12 +652,6 @@ const styles = StyleSheet.create({
   },
   stopCityLast: {
     color: Colors.error,
-  },
-  stopPlace: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    lineHeight: 16,
-    paddingRight: 10,
   },
   stayTag: {
     alignSelf: 'flex-start',
