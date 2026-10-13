@@ -34,7 +34,7 @@ import type {
 export const MOCK_CUSTOMER_QUOTATIONS: readonly CustomerQuotationListItem[] = [
   {
     id: asQuotationId('q_10257'),
-    quotationNumber: 'QU10257',
+    quotationNumber: 'QU-2026-482913',
     status: 'accepted',
     tripType: 'round_trip',
     stops: ['Delhi', 'Agra', 'Jaipur', 'Delhi'],
@@ -49,7 +49,7 @@ export const MOCK_CUSTOMER_QUOTATIONS: readonly CustomerQuotationListItem[] = [
   },
   {
     id: asQuotationId('q_10245'),
-    quotationNumber: 'QU10245',
+    quotationNumber: 'QU-2026-731056',
     status: 'accepted',
     tripType: 'round_trip',
     stops: ['Mumbai', 'Goa', 'Mumbai'],
@@ -64,7 +64,7 @@ export const MOCK_CUSTOMER_QUOTATIONS: readonly CustomerQuotationListItem[] = [
   },
   {
     id: asQuotationId('q_10230'),
-    quotationNumber: 'QU10230',
+    quotationNumber: 'QU-2026-259847',
     status: 'pending',
     tripType: 'one_way',
     stops: ['Bangalore', 'Mysore', 'Ooty', 'Bangalore'],
@@ -79,7 +79,7 @@ export const MOCK_CUSTOMER_QUOTATIONS: readonly CustomerQuotationListItem[] = [
   },
   {
     id: asQuotationId('q_10218'),
-    quotationNumber: 'QU10218',
+    quotationNumber: 'QU-2026-604192',
     status: 'expired',
     tripType: 'pickup_drop',
     stops: ['Chennai', 'Pondicherry', 'Chennai'],
@@ -94,7 +94,7 @@ export const MOCK_CUSTOMER_QUOTATIONS: readonly CustomerQuotationListItem[] = [
   },
   {
     id: asQuotationId('q_10205'),
-    quotationNumber: 'QU10205',
+    quotationNumber: 'QU-2026-918374',
     status: 'accepted',
     tripType: 'round_trip',
     stops: ['Hyderabad', 'Ramoji', 'Hyderabad'],
@@ -109,7 +109,7 @@ export const MOCK_CUSTOMER_QUOTATIONS: readonly CustomerQuotationListItem[] = [
   },
   {
     id: asQuotationId('q_10198'),
-    quotationNumber: 'QU10198',
+    quotationNumber: 'QU-2026-375620',
     status: 'pending',
     tripType: 'round_trip',
     stops: ['Kolkata', 'Darjeeling', 'Gangtok', 'Kolkata'],

@@ -65,7 +65,8 @@ export type CustomerQuotationListItem = {
   id: QuotationId;
 
   /**
-   * Human-facing quotation number, e.g. "QU10257".
+   * Human-facing quotation number, e.g. "QU-2026-482913".
+   * Format: QU-<year created>-<6 random digits>.
    * NB: distinct from the older QREQ- (request) numbering — a
    * quotation is issued by ops in response to a request, so the
    * numbers do not share a namespace with request IDs.

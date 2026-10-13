@@ -50,7 +50,7 @@ export type BookingProgressStep =
 
 export type CustomerBookingListItem = {
   id: BookingId;
-  /** Human-facing booking id, e.g. "BK-2026-00123". */
+  /** Human-facing booking id, e.g. "BK-2026-001234". */
   bookingNumber: string;
   status: BookingStatus;
 

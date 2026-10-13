@@ -21,7 +21,7 @@ import type {
 export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
   {
     id: asBookingId('bk_00123'),
-    bookingNumber: 'BK-2026-00123',
+    bookingNumber: 'BK-2026-001234',
     status: 'upcoming',
     from: 'Delhi',
     to: 'Jaipur',
@@ -39,7 +39,7 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
   },
   {
     id: asBookingId('bk_00122'),
-    bookingNumber: 'BK-2026-00122',
+    bookingNumber: 'BK-2026-001223',
     status: 'ongoing',
     from: 'Gurugram',
     to: 'Agra',
@@ -57,7 +57,7 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
   },
   {
     id: asBookingId('bk_00110'),
-    bookingNumber: 'BK-2026-00110',
+    bookingNumber: 'BK-2026-001101',
     status: 'completed',
     from: 'Mumbai',
     to: 'Pune',
@@ -75,7 +75,7 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
   },
   {
     id: asBookingId('bk_00098'),
-    bookingNumber: 'BK-2026-00098',
+    bookingNumber: 'BK-2026-000987',
     status: 'cancelled',
     from: 'Noida',
     to: 'Rishikesh',

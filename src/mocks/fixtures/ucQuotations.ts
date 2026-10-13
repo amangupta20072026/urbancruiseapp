@@ -1,3 +1,4 @@
+/* eslint-disable no-bitwise */
 /**
  * ------------------------------------------------------------------
  * Fixture: UC quotations list
@@ -193,6 +194,21 @@ function startOfToday(now: Date): Date {
   return d;
 }
 
+/**
+ * QU-<year created>-<6 digits>, e.g. "QU-2026-482913".
+ * The 6 digits come from an integer hash of the serial, so they look
+ * random but each row keeps the same number on every launch (the 36
+ * fixture serials, 93–128, all hash to distinct values).
+ */
+function quotationNumberFor(createdAt: Date, serial: number): string {
+  let h = Math.imul(serial ^ 0x5bd1e995, 0x27d4eb2d);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x165667b1);
+  h ^= h >>> 13;
+  const digits = ((h >>> 0) % 900000) + 100000;
+  return `QU-${createdAt.getFullYear()}-${digits}`;
+}
+
 function buildFixture(): UcQuotationListItem[] {
   const now = new Date();
   const today = startOfToday(now);
@@ -216,10 +232,7 @@ function buildFixture(): UcQuotationListItem[] {
 
     rows.push({
       id: asQuotationId(`uc-q-${serial}`),
-      quotationNumber: `Q-${createdAt.getFullYear()}-${String(serial).padStart(
-        5,
-        '0',
-      )}`,
+      quotationNumber: quotationNumberFor(createdAt, serial),
       status: seed.status,
       customerId: `uc-c-${(i % SEEDS.length) + 1}`,
       customerName: seed.customerName,

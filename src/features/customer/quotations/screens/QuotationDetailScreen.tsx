@@ -13,7 +13,7 @@
  *   [  Review your quotation and proceed                         ]
  *
  *   ┌──────────────────────────────────────────────────────────┐
- *   │ 📄  Quotation ID QU10257     [ status confirmation box ]  │
+ *   │ 📄  Quotation ID QU-2026-482913  [ status confirmation box ]│
  *   │      Created on 10 Aug 2026                              │
  *   └──────────────────────────────────────────────────────────┘
  *

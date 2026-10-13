@@ -5,7 +5,8 @@
  * One row in the Customer Quotations list. Composition:
  *
  *   ┌──────────────────────────────────────────────────────────────┐
- *   │ ┌─────┐  QU10257 📋                  ┌──────────────────┐    │
+ *   │ ┌─────┐  Quotation ID                ┌──────────────────┐    │
+ *   │ │     │  QU-2026-482913 📋           │                   │   │
  *   │ │ 📄 │  📍 Delhi → Agra → Jaipur → Delhi│ ✓ Accepted    │   │
  *   │ └─────┘  📅 12 Aug – 15 Aug 2026     │                   │   │
  *   │          👥 3 Passengers            │ [ 👁 View ]       │   │
@@ -179,23 +180,29 @@ export const QuotationCard: React.FC<Props> = ({ item, onPress, onView }) => {
       </View>
 
       <View style={styles.body}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={1}>
-            {item.quotationNumber}
-          </Text>
-          <Pressable
-            onPress={onCopyId}
-            hitSlop={8}
-            style={({ pressed }) => [styles.copyBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={`Copy quotation ID ${item.quotationNumber}`}
-          >
-            {copied ? (
-              <Check size={13} color={Colors.success} strokeWidth={2.5} />
-            ) : (
-              <Copy size={13} color={Colors.textTertiary} strokeWidth={2} />
-            )}
-          </Pressable>
+        <View style={styles.idBlock}>
+          <Text style={styles.idLabel}>Quotation ID</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title} numberOfLines={1}>
+              {item.quotationNumber}
+            </Text>
+            <Pressable
+              onPress={onCopyId}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.copyBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Copy quotation ID ${item.quotationNumber}`}
+            >
+              {copied ? (
+                <Check size={13} color={Colors.success} strokeWidth={2.5} />
+              ) : (
+                <Copy size={13} color={Colors.textTertiary} strokeWidth={2} />
+              )}
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.metaLine}>
@@ -294,12 +301,22 @@ const styles = StyleSheet.create({
     gap: 6,
     minWidth: 0,
   },
+  idBlock: {
+    gap: 1,
+  },
+  idLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    includeFontPadding: false,
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   title: {
+    flexShrink: 1,
     ...Typography.bodySmall,
     color: Colors.textPrimary,
     fontWeight: '800',

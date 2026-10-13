@@ -17,7 +17,7 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   {
     id: asPaymentId('pay_00123_1'),
     quotationId: asQuotationId('q_10257'),
-    quotationNumber: 'QU10257',
+    quotationNumber: 'QU-2026-482913',
     status: 'paid',
     from: 'Delhi',
     to: 'Jaipur',
@@ -30,7 +30,7 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   {
     id: asPaymentId('pay_00122_1'),
     quotationId: asQuotationId('q_10245'),
-    quotationNumber: 'QU10245',
+    quotationNumber: 'QU-2026-731056',
     status: 'pending',
     from: 'Gurugram',
     to: 'Agra',
@@ -43,7 +43,7 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   {
     id: asPaymentId('pay_00110_1'),
     quotationId: asQuotationId('q_10230'),
-    quotationNumber: 'QU10230',
+    quotationNumber: 'QU-2026-259847',
     status: 'paid',
     from: 'Mumbai',
     to: 'Pune',
@@ -56,7 +56,7 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   {
     id: asPaymentId('pay_00098_1'),
     quotationId: asQuotationId('q_10218'),
-    quotationNumber: 'QU10218',
+    quotationNumber: 'QU-2026-604192',
     status: 'failed',
     from: 'Noida',
     to: 'Rishikesh',
@@ -69,7 +69,7 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   {
     id: asPaymentId('pay_00087_1'),
     quotationId: asQuotationId('q_10205'),
-    quotationNumber: 'QU10205',
+    quotationNumber: 'QU-2026-918374',
     status: 'paid',
     from: 'Delhi',
     to: 'Manali',
@@ -82,7 +82,7 @@ export const MOCK_CUSTOMER_PAYMENTS: readonly CustomerPaymentListItem[] = [
   {
     id: asPaymentId('pay_00076_1'),
     quotationId: asQuotationId('q_10198'),
-    quotationNumber: 'QU10198',
+    quotationNumber: 'QU-2026-375620',
     status: 'paid',
     from: 'Bengaluru',
     to: 'Chennai',
@@ -115,7 +115,7 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   {
     id: asPaymentId('pay_00123_1'),
     quotationId: asQuotationId('q_10257'),
-    quotationNumber: 'QU10257',
+    quotationNumber: 'QU-2026-482913',
     status: 'paid',
     from: 'Delhi',
     to: 'Jaipur',
@@ -133,7 +133,7 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   {
     id: asPaymentId('pay_00122_1'),
     quotationId: asQuotationId('q_10245'),
-    quotationNumber: 'QU10245',
+    quotationNumber: 'QU-2026-731056',
     status: 'pending',
     from: 'Gurugram',
     to: 'Agra',
@@ -151,7 +151,7 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   {
     id: asPaymentId('pay_00110_1'),
     quotationId: asQuotationId('q_10230'),
-    quotationNumber: 'QU10230',
+    quotationNumber: 'QU-2026-259847',
     status: 'paid',
     from: 'Mumbai',
     to: 'Pune',
@@ -169,7 +169,7 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   {
     id: asPaymentId('pay_00098_1'),
     quotationId: asQuotationId('q_10218'),
-    quotationNumber: 'QU10218',
+    quotationNumber: 'QU-2026-604192',
     status: 'failed',
     from: 'Noida',
     to: 'Rishikesh',
@@ -189,7 +189,7 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   {
     id: asPaymentId('pay_00087_1'),
     quotationId: asQuotationId('q_10205'),
-    quotationNumber: 'QU10205',
+    quotationNumber: 'QU-2026-918374',
     status: 'paid',
     from: 'Delhi',
     to: 'Manali',
@@ -207,7 +207,7 @@ const MOCK_PAYMENT_DETAILS: readonly CustomerPaymentDetail[] = [
   {
     id: asPaymentId('pay_00076_1'),
     quotationId: asQuotationId('q_10198'),
-    quotationNumber: 'QU10198',
+    quotationNumber: 'QU-2026-375620',
     status: 'paid',
     from: 'Bengaluru',
     to: 'Chennai',

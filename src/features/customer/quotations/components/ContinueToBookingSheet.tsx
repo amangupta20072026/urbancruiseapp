@@ -19,7 +19,7 @@
  *   │      to booking.                                       │
  *   ├────────────────────────────────────────────────────────┤
  *   │ ┌ Summary ─────────────────────────────── (tinted) ─┐  │
- *   │ │ 📄 Quotation ID          QU10257                 │  │
+ *   │ │ 📄 Quotation ID   QU-2026-482913                  │  │
  *   │ │ 📅 Travel Date           12 Aug 2026 – 15 Aug 2026│  │
  *   │ │                              (3 Nights / 4 Days) │  │
  *   │ │ 👥 Passengers            2 Adults, 1 Child       │  │

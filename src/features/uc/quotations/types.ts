@@ -77,7 +77,7 @@ export const UC_TRIP_TYPE_LABEL: Readonly<Record<UcTripType, string>> = {
 
 export type UcQuotationListItem = {
   id: QuotationId;
-  /** Human-facing number, e.g. "Q-2025-00128". Rendered with a leading "#". */
+  /** Human-facing number, e.g. "QU-2026-482913". Rendered with a leading "#". */
   quotationNumber: string;
   status: UcQuotationStatus;
 
