@@ -71,11 +71,16 @@ import {
   PenSquare,
   Phone,
   RotateCw,
+  ShieldCheck,
   Star,
+  UserCheck,
   Users,
   X,
   XCircle,
+  User,
 } from 'lucide-react-native';
+
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
@@ -1069,42 +1074,48 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
           }
         />
 
-        {/* ── Vehicle + Driver — side-by-side cards ── */}
-        <View style={styles.sideBySideRow}>
-          <View style={[styles.card, styles.sideBySideCard]}>
+        {/* ── Vehicle + Driver — stacked full-width cards ── */}
+        <View style={styles.detailStack}>
+          <View style={styles.card}>
             <View style={styles.sectionHeadingRow}>
               <View style={styles.sectionIconTile}>
-                <CarFront size={16} color={Colors.primary} strokeWidth={2.25} />
+                <CarFront size={18} color={Colors.primary} strokeWidth={2.25} />
               </View>
-              <Text style={styles.sideBySideHeading}>Vehicle Details</Text>
+              <Text style={styles.sectionHeadingText}>Vehicle Details</Text>
             </View>
-            <View style={styles.vehiclePhotoTileWide}>
-              <Bus size={32} color={Colors.primary} strokeWidth={1.75} />
-            </View>
-            <Text style={styles.vehicleName}>
-              {detail.vehicleModel ?? detail.vehicleType}
-            </Text>
-            <View style={styles.vehicleAttrList}>
-              {[
-                detail.seater ? `${detail.seater} Seater` : detail.vehicleType,
-                detail.hasAC ? 'AC' : null,
-                detail.vehicleFuel,
-              ]
-                .filter(Boolean)
-                .map(attr => (
-                  <Text key={attr} style={styles.vehicleAttrItem}>
-                    {attr}
-                  </Text>
-                ))}
+            <View style={styles.vehicleRowFull}>
+              <View style={styles.vehicleTileSquare}>
+                <Bus size={30} color={Colors.primary} strokeWidth={1.75} />
+              </View>
+              <View style={styles.vehicleInfoCol}>
+                <Text style={styles.vehicleName} numberOfLines={1}>
+                  {detail.vehicleModel ?? detail.vehicleType}
+                </Text>
+                <View style={styles.vehicleChipRow}>
+                  {[
+                    detail.seater
+                      ? `${detail.seater} Seater`
+                      : detail.vehicleType,
+                    detail.hasAC ? 'AC' : null,
+                    detail.vehicleFuel,
+                  ]
+                    .filter(Boolean)
+                    .map(attr => (
+                      <View key={attr} style={styles.vehicleChip}>
+                        <Text style={styles.vehicleChipText}>{attr}</Text>
+                      </View>
+                    ))}
+                </View>
+              </View>
             </View>
           </View>
 
-          <View style={[styles.card, styles.sideBySideCard]}>
+          <View style={styles.card}>
             <View style={styles.sectionHeadingRow}>
               <View style={styles.sectionIconTile}>
-                <Users size={16} color={Colors.primary} strokeWidth={2.25} />
+                <User size={18} color={Colors.primary} strokeWidth={2.25} />
               </View>
-              <Text style={styles.sideBySideHeading}>Driver Details</Text>
+              <Text style={styles.sectionHeadingText}>Driver Details</Text>
             </View>
             {detail.driver ? (
               <>
@@ -1150,21 +1161,28 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
                       </View>
                     ) : null}
                   </View>
+                  {/* Compact filled Call Driver, on the name row. */}
+                  <Pressable
+                    onPress={() => callDriver(detail.driver?.phoneE164)}
+                    disabled={!detail.driver.phoneE164}
+                    hitSlop={6}
+                    style={({ pressed }) => [
+                      styles.callDriverChip,
+                      pressed && styles.pressed,
+                      !detail.driver?.phoneE164 && styles.disabled,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Call driver"
+                  >
+                    <Phone
+                      size={13}
+                      color={Colors.textOnPrimary}
+                      strokeWidth={2.5}
+                    />
+                    <Text style={styles.callDriverChipText}>Call Driver</Text>
+                  </Pressable>
                 </View>
-                <Pressable
-                  onPress={() => callDriver(detail.driver?.phoneE164)}
-                  disabled={!detail.driver.phoneE164}
-                  style={({ pressed }) => [
-                    styles.callDriverBtn,
-                    pressed && styles.pressed,
-                    !detail.driver?.phoneE164 && styles.disabled,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Call driver"
-                >
-                  <Phone size={14} color={Colors.primary} strokeWidth={2.5} />
-                  <Text style={styles.callDriverBtnText}>Call Driver</Text>
-                </Pressable>
+                <DriverBadges />
               </>
             ) : (
               <Text style={styles.driverPendingText}>
@@ -1463,33 +1481,39 @@ const OngoingDetail: React.FC<OngoingProps> = ({
           </View>
         ) : null}
 
-        {/* ── Vehicle + Driver — side-by-side cards (reused shell) ── */}
-        <View style={styles.sideBySideRow}>
-          <View style={[styles.card, styles.sideBySideCard]}>
+        {/* ── Vehicle + Driver — stacked full-width cards (reused shell) ── */}
+        <View style={styles.detailStack}>
+          <View style={styles.card}>
             <View style={styles.sectionHeadingRow}>
               <View style={styles.sectionIconTile}>
-                <CarFront size={16} color={Colors.primary} strokeWidth={2.25} />
+                <CarFront size={18} color={Colors.primary} strokeWidth={2.25} />
               </View>
-              <Text style={styles.sideBySideHeading}>Vehicle Details</Text>
+              <Text style={styles.sectionHeadingText}>Vehicle Details</Text>
             </View>
-            <View style={styles.vehiclePhotoTileWide}>
-              <Bus size={32} color={Colors.primary} strokeWidth={1.75} />
-            </View>
-            <Text style={styles.vehicleName}>
-              {detail.vehicleModel ?? detail.vehicleType}
-            </Text>
-            <View style={styles.vehicleAttrList}>
-              {[
-                detail.seater ? `${detail.seater} Seater` : detail.vehicleType,
-                detail.hasAC ? 'AC' : null,
-                detail.vehicleFuel,
-              ]
-                .filter(Boolean)
-                .map(attr => (
-                  <Text key={attr} style={styles.vehicleAttrItem}>
-                    {attr}
-                  </Text>
-                ))}
+            <View style={styles.vehicleRowFull}>
+              <View style={styles.vehicleTileSquare}>
+                <Bus size={30} color={Colors.primary} strokeWidth={1.75} />
+              </View>
+              <View style={styles.vehicleInfoCol}>
+                <Text style={styles.vehicleName} numberOfLines={1}>
+                  {detail.vehicleModel ?? detail.vehicleType}
+                </Text>
+                <View style={styles.vehicleChipRow}>
+                  {[
+                    detail.seater
+                      ? `${detail.seater} Seater`
+                      : detail.vehicleType,
+                    detail.hasAC ? 'AC' : null,
+                    detail.vehicleFuel,
+                  ]
+                    .filter(Boolean)
+                    .map(attr => (
+                      <View key={attr} style={styles.vehicleChip}>
+                        <Text style={styles.vehicleChipText}>{attr}</Text>
+                      </View>
+                    ))}
+                </View>
+              </View>
             </View>
             {detail.vehiclePlate ? (
               <View style={styles.vehiclePlateChip}>
@@ -1500,12 +1524,12 @@ const OngoingDetail: React.FC<OngoingProps> = ({
             ) : null}
           </View>
 
-          <View style={[styles.card, styles.sideBySideCard]}>
+          <View style={styles.card}>
             <View style={styles.sectionHeadingRow}>
               <View style={styles.sectionIconTile}>
-                <Users size={16} color={Colors.primary} strokeWidth={2.25} />
+                <Users size={18} color={Colors.primary} strokeWidth={2.25} />
               </View>
-              <Text style={styles.sideBySideHeading}>Driver Details</Text>
+              <Text style={styles.sectionHeadingText}>Driver Details</Text>
             </View>
             {detail.driver ? (
               <>
@@ -1551,21 +1575,28 @@ const OngoingDetail: React.FC<OngoingProps> = ({
                       </View>
                     ) : null}
                   </View>
+                  {/* Compact filled Call Driver, on the name row. */}
+                  <Pressable
+                    onPress={() => callDriver(detail.driver?.phoneE164)}
+                    disabled={!detail.driver.phoneE164}
+                    hitSlop={6}
+                    style={({ pressed }) => [
+                      styles.callDriverChip,
+                      pressed && styles.pressed,
+                      !detail.driver?.phoneE164 && styles.disabled,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Call driver"
+                  >
+                    <Phone
+                      size={13}
+                      color={Colors.textOnPrimary}
+                      strokeWidth={2.5}
+                    />
+                    <Text style={styles.callDriverChipText}>Call Driver</Text>
+                  </Pressable>
                 </View>
-                <Pressable
-                  onPress={() => callDriver(detail.driver?.phoneE164)}
-                  disabled={!detail.driver.phoneE164}
-                  style={({ pressed }) => [
-                    styles.callDriverBtn,
-                    pressed && styles.pressed,
-                    !detail.driver?.phoneE164 && styles.disabled,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Call driver"
-                >
-                  <Phone size={14} color={Colors.primary} strokeWidth={2.5} />
-                  <Text style={styles.callDriverBtnText}>Call Driver</Text>
-                </Pressable>
+                <DriverBadges />
               </>
             ) : (
               <Text style={styles.driverPendingText}>
@@ -1756,6 +1787,76 @@ const GenericDetail: React.FC<GenericProps> = ({ detail, onBack }) => {
 /* ================================================================
  * Local reusable sub-components
  * ================================================================ */
+
+/** Steering-wheel glyph — lucide has none, so it's drawn with the
+ *  same react-native-svg primitives and stroke style as lucide icons. */
+const SteeringWheel: React.FC<{ size?: number; color?: string }> = ({
+  size = 18,
+  color = Colors.primary,
+}) => (
+  <Svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <Circle cx={12} cy={12} r={10} />
+    <Circle cx={12} cy={12} r={2} />
+    <Path d="M2 12h8" />
+    <Path d="M14 12h8" />
+    <Path d="M12 14v8" />
+  </Svg>
+);
+
+/**
+ * Three trust badges on the Driver Details card (Upcoming + Ongoing):
+ * icon in a soft green circle over a centred two-line label, columns
+ * split by thin vertical dividers. Sits between the driver's
+ * name/rating row and the Call Driver button.
+ *
+ *   ( 🛞 )      |    ( 🛡 )       |    ( 👤 )
+ *  Experienced  |    Verified     |   Polite &
+ *    Driver     | by Urban Cruise |  Professional
+ */
+const DRIVER_BADGES: readonly { key: string; label: string }[] = [
+  { key: 'experienced', label: 'Experienced\nDriver' },
+  { key: 'verified', label: 'Verified\nby Urban Cruise' },
+  { key: 'polite', label: 'Polite &\nProfessional' },
+];
+
+const DriverBadgeIcon: React.FC<{ badge: string }> = ({ badge }) => {
+  if (badge === 'experienced') {
+    return <SteeringWheel size={22} color={Colors.primary} />;
+  }
+  if (badge === 'verified') {
+    return <ShieldCheck size={22} color={Colors.primary} strokeWidth={2} />;
+  }
+  return <UserCheck size={22} color={Colors.primary} strokeWidth={2} />;
+};
+
+const DriverBadges: React.FC = () => (
+  <View style={styles.driverBadgeRow}>
+    {DRIVER_BADGES.map((b, i) => (
+      <React.Fragment key={b.key}>
+        {i > 0 ? <View style={styles.driverBadgeDivider} /> : null}
+        <View
+          style={styles.driverBadge}
+          accessible
+          accessibilityLabel={b.label.replace('\n', ' ')}
+        >
+          <View style={styles.driverBadgeIcon}>
+            <DriverBadgeIcon badge={b.key} />
+          </View>
+          <Text style={styles.driverBadgeText}>{b.label}</Text>
+        </View>
+      </React.Fragment>
+    ))}
+  </View>
+);
 
 const ContactPillButton: React.FC<{
   Icon: IconComp;
@@ -2448,34 +2549,43 @@ const styles = StyleSheet.create({
   },
 
   /* ── Vehicle + Driver side-by-side cards ── */
-  sideBySideRow: {
-    flexDirection: 'row',
+  /* Vehicle + Driver: two full-width cards stacked vertically
+     (they were side by side, which squeezed the driver badges). */
+  detailStack: {
     gap: Spacing.md,
-    alignItems: 'stretch',
   },
-  sideBySideCard: {
-    flex: 1,
+  vehicleRowFull: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
   },
-  sideBySideHeading: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-    flexShrink: 1,
-  },
-  vehiclePhotoTileWide: {
+  vehicleTileSquare: {
+    width: 64,
     height: 64,
     borderRadius: Radius.md,
     backgroundColor: Colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  vehicleAttrList: {
-    gap: 3,
+  vehicleInfoCol: {
+    flex: 1,
+    gap: 6,
   },
-  vehicleAttrItem: {
+  vehicleChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  vehicleChip: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.backgroundTertiary,
+  },
+  vehicleChipText: {
     ...Typography.caption,
     color: Colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   driverRowCompact: {
     flexDirection: 'row',
@@ -2498,22 +2608,53 @@ const styles = StyleSheet.create({
     color: Colors.warning,
     fontWeight: '800',
   },
-  callDriverBtn: {
+  driverBadgeRow: {
     flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  driverBadge: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: 4,
+  },
+  driverBadgeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    height: 36,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surface,
   },
-  callDriverBtnText: {
+  driverBadgeDivider: {
+    width: 1,
+    marginVertical: 4,
+    backgroundColor: Colors.border,
+  },
+  driverBadgeText: {
     ...Typography.caption,
-    color: Colors.primary,
-    fontWeight: '800',
-    includeFontPadding: false,
+    lineHeight: 16,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  /* Small filled Call Driver button on the driver's name row. */
+  callDriverChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 32,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primaryDark,
+  },
+  callDriverChipText: {
+    ...Typography.caption,
+    color: Colors.textOnPrimary,
+    fontWeight: '700',
   },
   driverPendingText: {
     ...Typography.caption,
