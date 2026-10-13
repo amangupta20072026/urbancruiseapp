@@ -15,6 +15,7 @@ import type { BookingId } from '@app-types/ids';
 import type {
   BookingCharge,
   BookingProgressTimeline,
+  BookingVehicleOption,
   CustomerBookingDetail,
   CustomerBookingListItem,
 } from './types';
@@ -169,6 +170,7 @@ type DetailOverride = {
   endDate: CustomerBookingDetail['endDate'];
   itinerary: CustomerBookingDetail['itinerary'];
   returnPickupTime: CustomerBookingDetail['returnPickupTime'];
+  vehicleOption: CustomerBookingDetail['vehicleOption'];
   fareBreakdown: CustomerBookingDetail['fareBreakdown'];
   liveTracking: CustomerBookingDetail['liveTracking'];
 };
@@ -204,6 +206,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       { city: 'Mumbai', place: 'Chhatrapati Shivaji Maharaj Intl Airport' },
     ],
     returnPickupTime: null,
+    vehicleOption: { number: 6, tier: 'Royal VIP' },
     fareBreakdown: {
       advancePaid: 7_500,
       advancePercent: 25,
@@ -239,6 +242,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       },
     ],
     returnPickupTime: '04:00 PM',
+    vehicleOption: { number: 2, tier: 'Premium' },
     fareBreakdown: {
       advancePaid: 1_625,
       advancePercent: 25,
@@ -273,6 +277,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       { city: 'Jaipur', place: 'Jaipur Railway Station, Jaipur' },
     ],
     returnPickupTime: null,
+    vehicleOption: { number: 4, tier: 'Royal' },
     fareBreakdown: {
       advancePaid: 4_625,
       advancePercent: 25,
@@ -307,6 +312,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       { city: 'Gurugram', place: 'Sector 29, Gurugram' },
     ],
     returnPickupTime: null,
+    vehicleOption: { number: 1, tier: 'Economy' },
     fareBreakdown: null,
     liveTracking: {
       etaLabel: '12:45 PM',
@@ -341,6 +347,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       { city: 'Mumbai', place: 'Bandra Kurla Complex, Mumbai' },
     ],
     returnPickupTime: null,
+    vehicleOption: { number: 3, tier: 'Royal' },
     fareBreakdown: null,
     liveTracking: null,
   },
@@ -366,6 +373,7 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       { city: 'Noida', place: 'Sector 62, Noida' },
     ],
     returnPickupTime: '05:00 PM',
+    vehicleOption: { number: 5, tier: 'Royal VIP' },
     fareBreakdown: null,
     liveTracking: null,
   },
@@ -395,30 +403,28 @@ const STANDARD_OTHER_CHARGES: readonly BookingCharge[] = [
     status: 'included',
     detail: 'Already included in the cost.',
     rates: [],
+    forVehicle: null,
   },
   {
     label: 'State Tax (Karnataka)',
     status: 'not_included',
     detail: 'Client will pay to driver.',
     rates: [],
+    forVehicle: null,
   },
   {
     label: 'Parking & Police Entry',
     status: 'not_included',
     detail: 'Client will pay to driver.',
     rates: [],
-  },
-  {
-    label: 'Extra Charge above 1800 km',
-    status: 'extra',
-    detail: null,
-    rates: ['₹20/km (Option 1–3)', '₹26/km (Option 4)', '₹40/km (Option 5)'],
+    forVehicle: null,
   },
   {
     label: 'Extra Charge (Local)',
     status: 'extra',
     detail: null,
     rates: ['₹20/km', '₹150/hr'],
+    forVehicle: null,
   },
   {
     label: 'Driver Night Charge',
@@ -429,8 +435,53 @@ const STANDARD_OTHER_CHARGES: readonly BookingCharge[] = [
       'After 1 AM: ₹500/hr',
       'After 3 AM: next day charge',
     ],
+    forVehicle: null,
   },
 ];
+
+/**
+ * Extra charge above 1800 km, per vehicle option, from the quotation
+ * sheet ("Rs. 20/km (1-3) | Rs. 26/km (4) | Rs. 40/km (5)"). Options
+ * without an entry (6 and 7 aren't priced on the sheet yet) get no
+ * extra-km row at all, rather than a guessed price.
+ * TODO(api): the backend sends this row already narrowed to the
+ * booked vehicle.
+ */
+const EXTRA_KM_RATE_BY_OPTION: Readonly<Record<number, string>> = {
+  1: '₹20/km',
+  2: '₹20/km',
+  3: '₹20/km',
+  4: '₹26/km',
+  5: '₹40/km',
+};
+
+/** Standard charges, plus the extra-km row for the booked vehicle
+ *  option (inserted after Parking, where the sheet lists it). */
+function otherChargesFor(
+  base: CustomerBookingListItem,
+  option: BookingVehicleOption | null,
+): readonly BookingCharge[] {
+  const rate = option ? EXTRA_KM_RATE_BY_OPTION[option.number] : undefined;
+  if (!option || !rate) return STANDARD_OTHER_CHARGES;
+  const vehicle = `${base.seater ? `${base.seater} Seat ` : ''}${
+    base.vehicleType
+  }`;
+  const extraKm: BookingCharge = {
+    label: 'Extra Charge above 1800 km',
+    status: 'extra',
+    detail: null,
+    rates: [rate],
+    forVehicle: `Option ${option.number} · ${option.tier} · ${vehicle}`,
+  };
+  const at = STANDARD_OTHER_CHARGES.findIndex(
+    c => c.label === 'Parking & Police Entry',
+  );
+  return [
+    ...STANDARD_OTHER_CHARGES.slice(0, at + 1),
+    extraKm,
+    ...STANDARD_OTHER_CHARGES.slice(at + 1),
+  ];
+}
 
 /**
  * O(1) detail lookup by id. Returns `null` when the id isn't in the
@@ -459,13 +510,14 @@ export function getCustomerBookingDetail(
       { city: base.to, place: null },
     ],
     returnPickupTime: null,
+    vehicleOption: null,
     fareBreakdown: null,
     liveTracking: null,
   };
   return {
     ...base,
     notes: STANDARD_NOTES,
-    otherCharges: STANDARD_OTHER_CHARGES,
     ...extra,
+    otherCharges: otherChargesFor(base, extra.vehicleOption),
   };
 }

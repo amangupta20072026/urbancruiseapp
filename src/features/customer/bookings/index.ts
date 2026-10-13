@@ -6,6 +6,7 @@ export { BookingProgressTracker } from './components/BookingProgressTracker';
 export { getCustomerBookingDetail } from './mocks';
 export type {
   BookingStatus,
+  BookingVehicleOption,
   BookingFilter,
   BookingProgressStep,
   BookingProgressTimeline,

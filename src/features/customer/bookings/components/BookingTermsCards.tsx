@@ -17,7 +17,8 @@
  *   │ Already included in the cost.                       │
  *   │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄ │
  *   │ Extra Charge above 1800 km                [Extra]   │
- *   │ (₹20/km (Option 1–3)) (₹26/km (Option 4)) …         │
+ *   │ [ ₹26/km ]  For your vehicle                        │
+ *   │             Option 4 · Royal · 17 Seat Tempo Trav…  │
  *   └─────────────────────────────────────────────────────┘
  *
  * Each charge carries a status chip so the customer can tell at a
@@ -25,6 +26,10 @@
  *   Included      → green   (part of the quoted fare)
  *   Not included  → red     (pay the driver directly)
  *   Extra         → amber   (only if the trip goes beyond plan)
+ *
+ * Vehicle-specific charges (`forVehicle` set, e.g. extra km above
+ * 1800) show ONLY the booked vehicle option's rate, as one large
+ * chip, with the option named beside it.
  * ------------------------------------------------------------------
  */
 
@@ -128,7 +133,19 @@ const ChargeRow: React.FC<{ charge: BookingCharge; isFirst: boolean }> = ({
       {charge.detail ? (
         <Text style={styles.chargeDetail}>{charge.detail}</Text>
       ) : null}
-      {charge.rates.length > 0 ? (
+      {charge.forVehicle && charge.rates[0] ? (
+        <View style={styles.vehicleRateRow}>
+          <View style={styles.vehicleRateChip}>
+            <Text style={styles.vehicleRateText}>{charge.rates[0]}</Text>
+          </View>
+          <View style={styles.vehicleRateInfo}>
+            <Text style={styles.vehicleRateCaption}>For your vehicle</Text>
+            <Text style={styles.vehicleRateName} numberOfLines={2}>
+              {charge.forVehicle}
+            </Text>
+          </View>
+        </View>
+      ) : charge.rates.length > 0 ? (
         <View style={styles.rateList}>
           {charge.rates.map(rate => (
             <View key={rate} style={styles.rateChip}>
@@ -287,6 +304,39 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: CHARGES_BORDER,
+  },
+  vehicleRateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  vehicleRateChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: '#FDBA74',
+  },
+  vehicleRateText: {
+    ...Typography.body,
+    fontSize: 16,
+    fontWeight: '800',
+    color: CHARGES_FG,
+  },
+  vehicleRateInfo: {
+    flex: 1,
+    gap: 1,
+  },
+  vehicleRateCaption: {
+    ...Typography.caption,
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  vehicleRateName: {
+    ...Typography.caption,
+    fontWeight: '700',
+    color: Colors.textPrimary,
   },
   rateChipText: {
     ...Typography.caption,

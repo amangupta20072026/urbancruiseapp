@@ -244,8 +244,23 @@ export type BookingCharge = {
   status: BookingChargeStatus;
   /** One-line explanation, e.g. "Client will pay to driver". */
   detail: string | null;
-  /** Rate lines rendered as small chips, e.g. ["₹20/km (1–3)"]. */
+  /** Rate lines rendered as small chips, e.g. ["₹20/km", "₹150/hr"]. */
   rates: readonly string[];
+  /** Set when the rate depends on the vehicle option the customer
+   *  booked (e.g. extra km above 1800): names that vehicle, e.g.
+   *  "Option 4 · Royal · 17 Seat Tempo Traveller". The row then shows
+   *  only `rates[0]` as one large chip beside "For your vehicle".
+   *  Null for charges that are the same for every vehicle. */
+  forVehicle: string | null;
+};
+
+/** The vehicle option the customer picked from the quotation's
+ *  "Vehicle Options & Pricing" table (#1 Economy … #7 Royal VIP). */
+export type BookingVehicleOption = {
+  /** Row number in the quotation table, 1-based. */
+  number: number;
+  /** Tier name, e.g. "Economy", "Premium", "Royal", "Royal VIP". */
+  tier: string;
 };
 
 /** One stop on a booking's travel itinerary. */
@@ -311,13 +326,18 @@ export type CustomerBookingDetail = CustomerBookingListItem & {
    *  Null when the booking is pre-payment (e.g. cancelled before
    *  charge). */
   payment: BookingPaymentSummary | null;
+  /** Vehicle option chosen from the quotation. Drives vehicle-
+   *  specific charges such as the extra-km rate. Null when unknown. */
+  vehicleOption: BookingVehicleOption | null;
   /** "Notes" card bullets — what the fare covers and trip rules
    *  (km counting, A/C on hills, restricted places…). Comes from the
    *  backend per booking; static for now (see mocks). */
   notes: readonly string[];
   /** "Other Charges (if applicable)" card rows — tolls, state tax,
    *  parking, extra km, driver night charges. Comes from the backend
-   *  per booking; static for now (see mocks). */
+   *  per booking, with vehicle-specific rows (extra km) already
+   *  narrowed to the booked vehicle option; static for now (see
+   *  mocks). */
   otherCharges: readonly BookingCharge[];
   /** Live tracking snapshot for the ongoing-booking Live Location
    *  card. Null unless the booking is currently rolling and a feed
