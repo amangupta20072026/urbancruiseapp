@@ -8,11 +8,10 @@
  * TWO RENDER PATHS
  * ------------------------------------------------------------------
  * `detail.status === 'completed'` → `CompletedDetail` — the rich
- * post-trip surface (see mock in the ticket): trip-completed banner,
- * booking-info card with inline Book Again, tracker-in-a-card, the
- * shared Vehicle Details + Driver Details cards (no Call Driver), a
- * two-column Rate/Invoice row, and a sticky "Book Again for This
- * Route" CTA.
+ * post-trip surface (see mock in the ticket): trip-completed banner
+ * with the Rate Your Trip card right under it, booking-info card with inline Book Again, tracker-in-a-card, the
+ * shared Vehicle Details + Driver Details cards (no Call Driver),
+ * and a sticky "Book Again for This Route" CTA. No Invoice card.
  *
  * Any other status → `GenericDetail` — the simpler status-agnostic
  * view (summary card with tracker inside, then the shared Vehicle
@@ -102,13 +101,13 @@ type Route = RouteProp<CustomerStackParamList, 'BookingDetail'>;
 /* ================================================================
  * Local palette extras
  * ================================================================
- * The Rate-Your-Trip tile is soft purple, the Invoice tile is soft
- * blue. Neither tone exists in @theme/colors today, and they only
+ * PURPLE_FG is the Rate Your Trip star; the soft blue is the Rate
+ * Your Trip and Need Help card backgrounds. Neither tone exists in
+ * @theme/colors today, and they only
  * live on this screen — hard-coded here with the same escape hatch
  * QuotationDetailScreen uses. Hoist into the palette if a second
  * consumer appears.
  * ================================================================ */
-const PURPLE_TINT = '#F3EEFF';
 const PURPLE_FG = '#7C3AED';
 const BLUE_TINT = '#EFF6FF';
 const BLUE_FG = '#2563EB';
@@ -217,12 +216,6 @@ function formatDateTime(iso: string): string {
   return `${datePart}, ${timePart}`;
 }
 
-const PAYMENT_STATUS_COLOR: Record<BookingPaymentStatus, string> = {
-  paid: Colors.primary,
-  partial: Colors.warning,
-  unpaid: Colors.error,
-};
-
 const PAYMENT_STATUS_LABEL: Record<BookingPaymentStatus, string> = {
   paid: 'Paid',
   partial: 'Partial',
@@ -257,11 +250,6 @@ const BookingDetailScreen: React.FC = () => {
     navigation.navigate('Feedback', { bookingId: detail.id });
   }, [navigation, detail]);
 
-  const handleViewInvoice = useCallback(() => {
-    if (!detail) return;
-    navigation.navigate('GstInvoice', { bookingId: detail.id });
-  }, [navigation, detail]);
-
   /* -------- Not-found guard -------- */
   if (!detail) {
     return (
@@ -286,7 +274,6 @@ const BookingDetailScreen: React.FC = () => {
         onBack={handleBack}
         onBookAgain={handleBookAgain}
         onGiveFeedback={handleGiveFeedback}
-        onViewInvoice={handleViewInvoice}
       />
     );
   }
@@ -323,7 +310,6 @@ type CompletedProps = {
   onBack: () => void;
   onBookAgain: () => void;
   onGiveFeedback: () => void;
-  onViewInvoice: () => void;
 };
 
 const CompletedDetail: React.FC<CompletedProps> = ({
@@ -331,7 +317,6 @@ const CompletedDetail: React.FC<CompletedProps> = ({
   onBack,
   onBookAgain,
   onGiveFeedback,
-  onViewInvoice,
 }) => {
   const status = STATUS_VISUAL.completed;
 
@@ -391,6 +376,30 @@ const CompletedDetail: React.FC<CompletedProps> = ({
           </View>
         </View>
 
+        {/* ── Rate Your Trip — right under the Trip Completed banner,
+            when the user is most likely to rate. Full-width row: icon,
+            text, Give Feedback button. Soft blue background. ── */}
+        <View style={styles.rateCard}>
+          <View style={styles.rateIconTile}>
+            <Star size={20} color={PURPLE_FG} strokeWidth={2.25} />
+          </View>
+          <View style={styles.rateTextCol}>
+            <Text style={styles.rateTitle}>Rate Your Trip</Text>
+            <Text style={styles.rateBody}>
+              Share your experience and help us serve you better.
+            </Text>
+          </View>
+          <Pressable
+            onPress={onGiveFeedback}
+            hitSlop={4}
+            style={({ pressed }) => [styles.rateBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Give feedback"
+          >
+            <Text style={styles.rateBtnText}>Give Feedback</Text>
+          </Pressable>
+        </View>
+
         {/* ── Trip Details card (shared TripDetailsCard) ──
             The tracker shows the past-tense "Trip Started" label; Book
             Again lives only in the sticky bar at the bottom. */}
@@ -412,97 +421,6 @@ const CompletedDetail: React.FC<CompletedProps> = ({
           {detail.driver ? (
             <DriverDetailsCard driver={detail.driver} showCall={false} />
           ) : null}
-        </View>
-
-        {/* ── Rate + Invoice — two-column row ──
-            Both cards stretch to equal height via alignItems:
-            'stretch' on the row and flex:1 on each cell. */}
-        <View style={styles.dualRow}>
-          <View style={[styles.dualCard, { backgroundColor: PURPLE_TINT }]}>
-            <View style={styles.dualHeadRow}>
-              <View
-                style={[
-                  styles.dualIconTile,
-                  { backgroundColor: Colors.surface },
-                ]}
-              >
-                <Star size={16} color={PURPLE_FG} strokeWidth={2.25} />
-              </View>
-              <Text style={styles.dualTitle}>Rate Your Trip</Text>
-            </View>
-            <Text style={styles.dualBody}>
-              Share your experience and help us serve you better.
-            </Text>
-            <View style={styles.dualSpacer} />
-            <Pressable
-              onPress={onGiveFeedback}
-              style={({ pressed }) => [
-                styles.dualOutlineBtn,
-                { borderColor: Colors.primary },
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Give feedback"
-            >
-              <Text
-                style={[styles.dualOutlineBtnText, { color: Colors.primary }]}
-              >
-                Give Feedback
-              </Text>
-            </Pressable>
-          </View>
-
-          <View style={[styles.dualCard, { backgroundColor: BLUE_TINT }]}>
-            <View style={styles.dualHeadRow}>
-              <View
-                style={[
-                  styles.dualIconTile,
-                  { backgroundColor: Colors.surface },
-                ]}
-              >
-                <FileText size={16} color={BLUE_FG} strokeWidth={2.25} />
-              </View>
-              <Text style={styles.dualTitle}>Invoice &amp; Payment</Text>
-            </View>
-            <InvoiceRow
-              label="Total Amount"
-              value={formatRupees(detail.totalAmount)}
-              valueBold
-            />
-            <InvoiceRow
-              label="Payment Status"
-              value={
-                detail.payment
-                  ? PAYMENT_STATUS_LABEL[detail.payment.status]
-                  : '—'
-              }
-              valueColor={
-                detail.payment
-                  ? PAYMENT_STATUS_COLOR[detail.payment.status]
-                  : Colors.textSecondary
-              }
-            />
-            <InvoiceRow
-              label="Payment Method"
-              value={detail.payment?.method ?? '—'}
-            />
-            <View style={styles.dualSpacer} />
-            <Pressable
-              onPress={onViewInvoice}
-              style={({ pressed }) => [
-                styles.dualOutlineBtn,
-                { borderColor: BLUE_FG },
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="View invoice"
-            >
-              <FileText size={14} color={BLUE_FG} strokeWidth={2.5} />
-              <Text style={[styles.dualOutlineBtnText, { color: BLUE_FG }]}>
-                View Invoice
-              </Text>
-            </Pressable>
-          </View>
         </View>
 
         {/* ── Notes + Other Charges (from the booking; static for now) ── */}
@@ -572,8 +490,7 @@ const CompletedDetail: React.FC<CompletedProps> = ({
  * "Booking Cancelled" banner instead of the green celebratory one, a
  * dedicated cancelled-flavoured tracker (Booked → Cancelled → Trip
  * Starts → Completed, with the back half greyed out), a Cancellation
- * Details card, and a Need Help support card in place of the
- * Rate/Invoice row. The shared Vehicle Details / Driver Details
+ * Details card, and a Need Help support card. The shared Vehicle Details / Driver Details
  * cards show only if they were assigned before cancelling (vehicle
  * = a plate is set), without the Call Driver button. The sticky Book Again CTA is
  * kept — cancelling doesn't end the relationship, it's the fastest
@@ -1353,30 +1270,6 @@ const GenericDetail: React.FC<GenericProps> = ({ detail, onBack }) => {
 };
 
 /* ================================================================
- * Local reusable sub-components
- * ================================================================ */
-
-const InvoiceRow: React.FC<{
-  label: string;
-  value: string;
-  valueBold?: boolean;
-  valueColor?: string;
-}> = ({ label, value, valueBold, valueColor }) => (
-  <View style={styles.invoiceRow}>
-    <Text style={styles.invoiceLabel}>{label}</Text>
-    <Text
-      style={[
-        styles.invoiceValue,
-        valueBold && styles.invoiceValueBold,
-        valueColor ? { color: valueColor } : null,
-      ]}
-    >
-      {value}
-    </Text>
-  </View>
-);
-
-/* ================================================================
  * Styles
  * ================================================================ */
 
@@ -1553,82 +1446,53 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  /* ── Rate + Invoice dual row ── */
-  dualRow: {
+  /* ── Rate Your Trip (completed) ── */
+  rateCard: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.md,
-    alignItems: 'stretch',
-  },
-  dualCard: {
-    flex: 1,
     padding: Spacing.md,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    gap: 6,
+    backgroundColor: BLUE_TINT,
   },
-  dualHeadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: 2,
-  },
-  dualIconTile: {
-    width: 28,
-    height: 28,
-    borderRadius: Radius.sm,
+  rateIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dualTitle: {
+  rateTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  rateTitle: {
     ...Typography.bodySmall,
     color: Colors.textPrimary,
     fontWeight: '800',
-    flexShrink: 1,
   },
-  dualBody: {
+  rateBody: {
     ...Typography.caption,
     color: Colors.textSecondary,
     lineHeight: 16,
   },
-  dualSpacer: {
-    flex: 1,
-    minHeight: Spacing.sm,
-  },
-  dualOutlineBtn: {
-    height: 38,
-    borderRadius: Radius.md,
+  rateBtn: {
+    height: 40,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.pill,
     borderWidth: 1.5,
+    borderColor: Colors.primary,
     backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
   },
-  dualOutlineBtnText: {
+  rateBtnText: {
     ...Typography.caption,
-    fontWeight: '800',
-  },
-
-  /* Invoice rows */
-  invoiceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  invoiceLabel: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  invoiceValue: {
-    ...Typography.caption,
-    color: Colors.textPrimary,
+    color: Colors.primaryDark,
     fontWeight: '700',
-  },
-  invoiceValueBold: {
-    ...Typography.bodySmall,
-    fontWeight: '800',
   },
 
   /* ── Sticky bottom bar ── */
