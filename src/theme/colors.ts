@@ -76,6 +76,9 @@ export const Colors = {
    * ------------------------------------------------------------
    */
   pending: '#F59E0B',
+  /** Darker amber for pending TEXT (amounts, labels) — #F59E0B is
+   *  too light to read on white. */
+  pendingDark: '#B45309',
   confirmed: '#16A34A',
   cancelled: '#DC2626',
   completed: '#2563EB',
