@@ -2,38 +2,33 @@
  * ------------------------------------------------------------------
  * QuotationCard
  * ------------------------------------------------------------------
- * One row in the Customer Quotations list. Composition:
+ * One row in the Customer Quotations list. Built to match BookingCard
+ * (same header, route, meta row and paired outline buttons):
  *
- *   ┌──────────────────────────────────────────────────────────────┐
- *   │ ┌─────┐  Quotation ID                ┌──────────────────┐    │
- *   │ │     │  QU-2026-482913 📋           │                   │   │
- *   │ │ 📄 │  📍 Delhi → Agra → Jaipur → Delhi│ ✓ Accepted    │   │
- *   │ └─────┘  📅 12 Aug – 15 Aug 2026     │                   │   │
- *   │          👥 3 Passengers            │ [ 👁 View ]       │   │
- *   │          Created on 10 Aug 2026      └───────────────────┘   │
- *   └──────────────────────────────────────────────────────────────┘
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │ [✓ Accepted] [🔁 Round Trip]               Quotation ID  │
+ *   │                                     QU-2026-482913  📋   │
+ *   │ Delhi → Jaipur                                           │
+ *   │ 📅 12 Aug – 15 Aug 2026   🕒 4 Days   👥 3 Passengers     │
+ *   │ [ 👁 View Details ]        [ 📅 Book Now ]               │
+ *   └──────────────────────────────────────────────────────────┘
  *
- * The status drives THREE things:
- *   1. leading document icon glyph + colour   (KIND_STYLE map)
- *   2. status pill copy + icon + colour       (PILL_STYLE map)
- *   3. the "View" button is always present    (unlike the older
- *      request card where it was gated on ready) — every quotation
- *      in the list is inspectable regardless of state.
+ * ROUTE SUMMARY:
+ *   Only source → destination is shown; the full itinerary lives on
+ *   QuotationDetail. For a trip that ends where it started
+ *   (Delhi → Agra → Jaipur → Delhi), the destination is the last
+ *   place visited before returning, so the card reads Delhi → Jaipur
+ *   rather than Delhi → Delhi. The accessibility label still reads
+ *   every stop. Long city names wrap instead of truncating.
  *
- * Kept as its own file (rather than inline in the screen) because
- * QuotationDetail and any future "recent quotations" home widget
- * will want to reuse the same visual — the card is the atomic unit,
- * the screen is the composition.
+ * STATUS drives the pill and the second button:
+ *   accepted → Book Now      (green)  → onBookNow
+ *   pending  → Need Changes  (blue)   → onNeedChanges
+ *   expired  → Request Again (red)    → onRequestAgain
+ * View Details (gold) is always present.
  *
- * WHY THE THREE-COLUMN LAYOUT:
- *   The prior design stacked route / meta / footer vertically and
- *   pushed price + status onto separate rows. Product wanted the
- *   status visible without any scanning, which is why
- *   they now live in a dedicated right rail that stays with the
- *   card even when the middle column wraps. The right rail is
- *   FIXED WIDTH — the middle column takes the rest with `flex: 1`
- *   so long route strings truncate rather than pushing the rail
- *   off-screen on narrow devices.
+ * STATUS also tints the whole card (PILL_STYLE.cardBg / cardBorder):
+ * green wash for accepted, amber for pending, red for expired.
  * ------------------------------------------------------------------
  */
 
@@ -48,18 +43,20 @@ import {
 import {
   ArrowRight,
   Calendar,
+  CalendarCheck,
   Check,
   Clock,
   Copy,
   Eye,
-  FileText,
-  MapPin,
+  PencilLine,
+  RotateCw,
   Users,
   XCircle,
 } from 'lucide-react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
+import { getTripTypeOption } from '../tripTypeOptions';
 import type { CustomerQuotationListItem, QuotationStatus } from '../types';
 
 /* ================================================================
@@ -78,6 +75,13 @@ type PillStyle = {
   Icon: IconComp;
   fg: string;
   bg: string;
+  /**
+   * Whole-card wash + border. Deliberately lighter than the pill's
+   * `bg` so the pill still stands out, and light enough that the
+   * white outline buttons and trip tag read as raised on top.
+   */
+  cardBg: string;
+  cardBorder: string;
 };
 
 const PILL_STYLE: Record<QuotationStatus, PillStyle> = {
@@ -86,40 +90,101 @@ const PILL_STYLE: Record<QuotationStatus, PillStyle> = {
     Icon: Clock,
     fg: Colors.warning,
     bg: Colors.warningTint,
+    cardBg: '#FFFBEB', // amber wash
+    cardBorder: '#FDE9B0',
   },
   accepted: {
     label: 'Accepted',
     Icon: Check,
     fg: Colors.success,
     bg: Colors.successTint,
+    cardBg: '#F0FAF3', // green wash
+    cardBorder: '#CFEEDB',
   },
   expired: {
     label: 'Expired',
     Icon: XCircle,
     fg: Colors.error,
     bg: Colors.errorTint,
+    cardBg: '#FEF6F6', // red wash
+    cardBorder: '#FAD5D5',
   },
 };
+
+type ActionKey = 'bookNow' | 'needChanges' | 'requestAgain';
+
+type SecondaryAction = {
+  key: ActionKey;
+  label: string;
+  Icon: IconComp;
+  color: string;
+};
+
+/** Second button per status. Same outline paint as BookingCard. */
+const SECONDARY_ACTION: Record<QuotationStatus, SecondaryAction> = {
+  accepted: {
+    key: 'bookNow',
+    label: 'Book Now',
+    Icon: CalendarCheck,
+    color: Colors.primary,
+  },
+  pending: {
+    key: 'needChanges',
+    label: 'Need Changes',
+    Icon: PencilLine,
+    color: Colors.info,
+  },
+  expired: {
+    key: 'requestAgain',
+    label: 'Request Again',
+    Icon: RotateCw,
+    color: Colors.error,
+  },
+};
+
+/* ================================================================
+ * Route summary
+ * ================================================================ */
+
+/**
+ * Source → destination for the card. If the trip returns to its
+ * start, the destination is the last stop before the return.
+ * `stops` has length ≥ 2 (see CustomerQuotationListItem).
+ */
+export function summariseRoute(stops: readonly string[]): {
+  from: string;
+  to: string;
+} {
+  const from = stops[0] ?? '';
+  const lastIdx = stops.length - 1;
+  const returnsToStart =
+    lastIdx >= 2 &&
+    stops[lastIdx]?.trim().toLowerCase() === from.trim().toLowerCase();
+  const destIdx = returnsToStart ? lastIdx - 1 : lastIdx;
+  return { from, to: stops[destIdx] ?? from };
+}
 
 /* ================================================================
  * Formatting helpers
  * ================================================================ */
 
 function formatDateShort(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-IN', {
+  return new Date(iso).toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
   });
 }
 
 function formatDateFull(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-IN', {
+  return new Date(iso).toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   });
+}
+
+function formatDays(days: number): string {
+  return `${days} ${days === 1 ? 'Day' : 'Days'}`;
 }
 
 function formatPassengers(adults: number, children: number): string {
@@ -135,18 +200,42 @@ type Props = {
   item: CustomerQuotationListItem;
   onPress: () => void;
   onView: () => void;
+  /** Accepted quotations. */
+  onBookNow: () => void;
+  /** Pending quotations. */
+  onNeedChanges: () => void;
+  /** Expired quotations. */
+  onRequestAgain: () => void;
 };
 
-export const QuotationCard: React.FC<Props> = ({ item, onPress, onView }) => {
+export const QuotationCard: React.FC<Props> = ({
+  item,
+  onPress,
+  onView,
+  onBookNow,
+  onNeedChanges,
+  onRequestAgain,
+}) => {
   const pill = PILL_STYLE[item.status];
   const { Icon: PillIcon } = pill;
 
+  const tripType = getTripTypeOption(item.tripType);
+  const TripIcon = tripType.Icon;
+
+  const route = summariseRoute(item.stops);
+
+  const secondary = SECONDARY_ACTION[item.status];
+  const onSecondary: Record<ActionKey, () => void> = {
+    bookNow: onBookNow,
+    needChanges: onNeedChanges,
+    requestAgain: onRequestAgain,
+  };
+
   /* -------- Copy Quotation ID -------- *
    *
-   * Mirrors the Clipboard + toast + flash-checkmark pattern used in
-   * PaymentDetailSheet. `e.stopPropagation()` is required because the
-   * whole card is itself a Pressable (onPress) that navigates to the
-   * detail screen — without it, tapping copy would also fire onPress. */
+   * Clipboard + flash-checkmark pattern shared with BookingCard.
+   * `e.stopPropagation()` stops the tap also firing the card's
+   * onPress (which navigates to the detail screen). */
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -171,21 +260,39 @@ export const QuotationCard: React.FC<Props> = ({ item, onPress, onView }) => {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: pill.cardBg, borderColor: pill.cardBorder },
+        pressed && styles.pressed,
+      ]}
       accessibilityRole="button"
-      accessibilityLabel={`Quotation ${item.quotationNumber}, ${pill.label}`}
+      accessibilityLabel={`Quotation ${item.quotationNumber}, ${pill.label}, ${
+        tripType.label
+      }, ${item.stops.join(' to ')}`}
     >
-      <View style={styles.iconTile}>
-        <FileText size={22} color={Colors.primary} strokeWidth={2} />
-      </View>
+      {/* Row 1 — status pill + trip type (left), quotation id (right) */}
+      <View style={styles.headerRow}>
+        <View style={styles.tagsRow}>
+          <View style={[styles.pill, { backgroundColor: pill.bg }]}>
+            <PillIcon size={12} color={pill.fg} strokeWidth={2.5} />
+            <Text style={[styles.pillText, { color: pill.fg }]}>
+              {pill.label}
+            </Text>
+          </View>
+          <View style={styles.tripTag}>
+            <TripIcon
+              size={12}
+              color={Colors.textSecondary}
+              strokeWidth={2.5}
+            />
+            <Text style={styles.tripTagText}>{tripType.label}</Text>
+          </View>
+        </View>
 
-      <View style={styles.body}>
         <View style={styles.idBlock}>
           <Text style={styles.idLabel}>Quotation ID</Text>
-          <View style={styles.titleRow}>
-            <Text style={styles.title} numberOfLines={1}>
-              {item.quotationNumber}
-            </Text>
+          <View style={styles.idRow}>
+            <Text style={styles.idValue}>{item.quotationNumber}</Text>
             <Pressable
               onPress={onCopyId}
               hitSlop={8}
@@ -204,104 +311,144 @@ export const QuotationCard: React.FC<Props> = ({ item, onPress, onView }) => {
             </Pressable>
           </View>
         </View>
+      </View>
 
-        <View style={styles.metaLine}>
-          <MapPin size={14} color={Colors.textSecondary} strokeWidth={2} />
-          <View style={styles.routeRow}>
-            {item.stops.map((stop, i) => (
-              <React.Fragment key={`${stop}-${i}`}>
-                {i > 0 ? (
-                  <ArrowRight
-                    size={12}
-                    color={Colors.textTertiary}
-                    strokeWidth={2.5}
-                  />
-                ) : null}
-                <Text style={styles.routeText} numberOfLines={1}>
-                  {stop}
-                </Text>
-              </React.Fragment>
-            ))}
-          </View>
-        </View>
+      {/* Row 2 — source → destination */}
+      <View style={styles.routeRow}>
+        <Text style={styles.routeText}>{route.from}</Text>
+        <ArrowRight size={18} color={Colors.textSecondary} strokeWidth={2.5} />
+        <Text style={styles.routeText}>{route.to}</Text>
+      </View>
 
-        <View style={styles.metaLine}>
+      {/* Row 3 — dates · days · passengers */}
+      <View style={styles.metaRow}>
+        <View style={styles.metaItem}>
           <Calendar size={14} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.metaText} numberOfLines={1}>
+          <Text style={styles.metaText}>
             {formatDateShort(item.travelDateStart)} –{' '}
             {formatDateFull(item.travelDateEnd)}
           </Text>
         </View>
-
-        <View style={styles.metaLine}>
+        <View style={styles.metaItem}>
+          <Clock size={14} color={Colors.textSecondary} strokeWidth={2} />
+          <Text style={styles.metaText}>{formatDays(item.days)}</Text>
+        </View>
+        <View style={styles.metaItem}>
           <Users size={14} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.metaText} numberOfLines={1}>
+          <Text style={styles.metaText}>
             {formatPassengers(item.adults, item.children)}
           </Text>
         </View>
-
-        <Text style={styles.createdOn}>
-          Created on {formatDateFull(item.createdAt)}
-        </Text>
       </View>
 
-      <View style={styles.rightRail}>
-        <View style={[styles.pill, { backgroundColor: pill.bg }]}>
-          <PillIcon size={12} color={pill.fg} strokeWidth={2.5} />
-          <Text style={[styles.pillText, { color: pill.fg }]}>
-            {pill.label}
-          </Text>
-        </View>
-
-        <Pressable
+      {/* Row 4 — actions */}
+      <View style={styles.actionsRow}>
+        <ActionButton
+          label="View Details"
+          Icon={Eye}
+          color={Colors.secondaryDark}
           onPress={onView}
-          style={({ pressed }) => [styles.viewBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel={`View quotation ${item.quotationNumber}`}
-          hitSlop={6}
-        >
-          <Eye size={14} color={Colors.textPrimary} strokeWidth={2} />
-          <Text style={styles.viewBtnText}>View</Text>
-        </Pressable>
+          accessibilityLabel={`View details of quotation ${item.quotationNumber}`}
+        />
+        <ActionButton
+          label={secondary.label}
+          Icon={secondary.Icon}
+          color={secondary.color}
+          onPress={onSecondary[secondary.key]}
+          accessibilityLabel={`${secondary.label}, quotation ${item.quotationNumber}`}
+        />
       </View>
     </Pressable>
   );
 };
 
 /* ================================================================
- * Styles
+ * ActionButton — outline button (white bg, coloured border + text)
  * ================================================================ */
 
-const RIGHT_RAIL_WIDTH = 108;
+const ActionButton: React.FC<{
+  label: string;
+  Icon: IconComp;
+  color: string;
+  onPress: () => void;
+  accessibilityLabel: string;
+}> = ({ label, Icon, color, onPress, accessibilityLabel }) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [
+      styles.actionBtn,
+      { borderColor: color },
+      pressed && styles.pressed,
+    ]}
+    accessibilityRole="button"
+    accessibilityLabel={accessibilityLabel}
+  >
+    <Icon size={14} color={color} strokeWidth={2.5} />
+    <Text style={[styles.actionBtnText, { color }]}>{label}</Text>
+  </Pressable>
+);
+
+/* ================================================================
+ * Styles — values mirror BookingCard so the two lists match
+ * ================================================================ */
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
     padding: Spacing.md,
     borderRadius: Radius.lg,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.borderLight,
+    gap: 6,
     ...Shadows.xs,
   },
 
-  iconTile: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
+  /* Row 1 — tags + quotation id */
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
   },
-
-  body: {
+  tagsRow: {
     flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 6,
-    minWidth: 0,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+  },
+  pillText: {
+    ...Typography.caption,
+    fontWeight: '700',
+    includeFontPadding: false,
+  },
+  tripTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  tripTagText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    includeFontPadding: false,
   },
   idBlock: {
+    alignItems: 'flex-end',
     gap: 1,
   },
   idLabel: {
@@ -310,87 +457,76 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     includeFontPadding: false,
   },
-  titleRow: {
+  idRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  title: {
-    flexShrink: 1,
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-    letterSpacing: 0.2,
   },
   copyBtn: {
     padding: 2,
   },
-  routeRow: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  routeText: {
+  idValue: {
     ...Typography.caption,
     color: Colors.textPrimary,
-    fontWeight: '600',
-    includeFontPadding: false,
-  },
-  metaLine: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-  },
-  metaText: {
-    ...Typography.caption,
-    color: Colors.textPrimary,
-    fontWeight: '500',
-    flexShrink: 1,
-  },
-  createdOn: {
-    ...Typography.caption,
-    color: Colors.textTertiary,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-
-  rightRail: {
-    width: RIGHT_RAIL_WIDTH,
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-    alignSelf: 'stretch',
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 5,
-    borderRadius: Radius.pill,
-  },
-  pillText: {
-    ...Typography.caption,
     fontWeight: '700',
     includeFontPadding: false,
   },
-  viewBtn: {
+
+  /* Row 2 — route */
+  routeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: 8,
+    rowGap: 2,
+  },
+  routeText: {
+    ...Typography.subtitle,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+    fontSize: 20,
+    lineHeight: 24,
+    flexShrink: 1,
+  },
+
+  /* Row 3 — meta */
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: Spacing.md,
+    rowGap: 4,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  metaText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    includeFontPadding: false,
+  },
+
+  /* Row 4 — actions */
+  actionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: 2,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    backgroundColor: Colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    alignSelf: 'stretch',
-    height: 36,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.secondary,
   },
-  viewBtnText: {
-    ...Typography.caption,
-    color: Colors.textPrimary,
+  actionBtnText: {
+    ...Typography.bodySmall,
     fontWeight: '700',
   },
 

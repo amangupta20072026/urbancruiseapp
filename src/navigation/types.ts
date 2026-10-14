@@ -80,6 +80,12 @@ export type CustomerStackParamList = {
      * (undefined / false) = normal open, no sheet.
      */
     openContinueSheet?: boolean;
+    /**
+     * When true, QuotationDetail auto-presents its NeedChangesSheet on
+     * landing. Used by the Quotations list's "Need Changes" button on
+     * pending cards. Default (undefined / false) = normal open.
+     */
+    openNeedChangesSheet?: boolean;
   };
   BookingDetail: { bookingId: BookingId };
   PassengerList: { bookingId: BookingId };

@@ -47,6 +47,7 @@ import {
   Check,
   Clock,
   Copy,
+  Eye,
   Navigation,
   RotateCw,
   Users,
@@ -73,8 +74,13 @@ type StatusStyle = {
   Icon: IconComp | null; // null → pill text only, no glyph
   fg: string;
   bg: string;
-  /** Outer card background tint (upcoming = green hero look). */
+  /**
+   * Whole-card wash + border, one per status (same approach as
+   * QuotationCard). Lighter than the pill's `bg` so the pill still
+   * stands out and the white outline buttons read as raised.
+   */
   cardBg: string;
+  cardBorder: string;
 };
 
 const STATUS_STYLE: Record<BookingStatus, StatusStyle> = {
@@ -83,28 +89,34 @@ const STATUS_STYLE: Record<BookingStatus, StatusStyle> = {
     Icon: CalendarClock,
     fg: Colors.textOnPrimary,
     bg: Colors.primaryDark,
-    cardBg: '#EAF7EE', // slightly deeper than primaryTint — matches mockup hero
+    cardBg: '#EAF7EE', // green hero (unchanged)
+    cardBorder: '#C8EBD3',
   },
   ongoing: {
     label: 'Ongoing',
     Icon: Car,
     fg: Colors.info,
     bg: Colors.infoTint,
-    cardBg: Colors.surface,
+    cardBg: '#F0F8FE', // blue wash
+    cardBorder: '#CBE6F7',
   },
   completed: {
     label: 'Completed',
     Icon: Check,
     fg: Colors.primary,
     bg: Colors.primaryTint,
-    cardBg: Colors.surface,
+    // Neutral slate rather than green: Upcoming already owns the green
+    // wash, and two green cards side by side are hard to tell apart.
+    cardBg: '#F6F7F9',
+    cardBorder: '#E1E4E9',
   },
   cancelled: {
     label: 'Cancelled',
     Icon: Clock,
     fg: Colors.error,
     bg: Colors.errorTint,
-    cardBg: Colors.surface,
+    cardBg: '#FEF6F6', // red wash (same as expired quotations)
+    cardBorder: '#FAD5D5',
   },
 };
 
@@ -181,7 +193,7 @@ export const BookingCard: React.FC<Props> = ({
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: style.cardBg },
+        { backgroundColor: style.cardBg, borderColor: style.cardBorder },
         pressed && styles.pressed,
       ]}
       accessibilityRole="button"
@@ -318,6 +330,7 @@ function renderActions(a: {
         <ActionButton
           label="View Details"
           variant="outline"
+          LeadingIcon={Eye}
           onPress={a.onViewDetails}
         />
       );
@@ -332,7 +345,8 @@ function renderActions(a: {
           />
           <ActionButton
             label="View Details"
-            variant="outlineNeutral"
+            variant="secondary"
+            LeadingIcon={Eye}
             onPress={a.onViewDetails}
           />
         </>
@@ -342,12 +356,13 @@ function renderActions(a: {
         <>
           <ActionButton
             label="View Details"
-            variant="outlineNeutral"
+            variant="secondary"
+            LeadingIcon={Eye}
             onPress={a.onViewDetails}
           />
           <ActionButton
             label="Book Again"
-            variant="successSoft"
+            variant="successOutline"
             LeadingIcon={RotateCw}
             onPress={a.onBookAgain}
           />
@@ -358,12 +373,13 @@ function renderActions(a: {
         <>
           <ActionButton
             label="View Details"
-            variant="outlineNeutral"
+            variant="secondary"
+            LeadingIcon={Eye}
             onPress={a.onViewDetails}
           />
           <ActionButton
             label="Book Again"
-            variant="dangerSoft"
+            variant="dangerOutline"
             LeadingIcon={RotateCw}
             onPress={a.onBookAgain}
           />
@@ -382,10 +398,11 @@ function renderActions(a: {
 type ActionVariant =
   | 'primary' // solid green (Modify Booking)
   | 'outline' // white with green border (View Details on Upcoming)
-  | 'outlineNeutral' // white with grey border (View Details elsewhere)
+  | 'outlineNeutral' // white with grey border
+  | 'secondary' // white with gold border + text (View Details on Ongoing / Completed / Cancelled)
   | 'info' // white with blue border, blue text (Track Vehicle)
-  | 'successSoft' // green tint bg with green text (Book Again, Completed)
-  | 'dangerSoft'; // red tint bg with red text (Book Again, Cancelled)
+  | 'successOutline' // white with green border + text (Book Again, Completed)
+  | 'dangerOutline'; // white with red border + text (Book Again, Cancelled)
 
 const ActionButton: React.FC<{
   label: string;
@@ -434,19 +451,26 @@ const VARIANT: Record<
     border: Colors.border,
     text: Colors.textPrimary,
   },
+  // secondaryDark (not secondary) for both border and text: the lighter
+  // gold is too faint as text on white.
+  secondary: {
+    bg: Colors.surface,
+    border: Colors.secondaryDark,
+    text: Colors.secondaryDark,
+  },
   info: {
     bg: Colors.surface,
     border: Colors.info,
     text: Colors.info,
   },
-  successSoft: {
-    bg: Colors.primaryTint,
-    border: Colors.primaryTint,
+  successOutline: {
+    bg: Colors.surface,
+    border: Colors.primary,
     text: Colors.primary,
   },
-  dangerSoft: {
-    bg: Colors.errorTint,
-    border: Colors.errorTint,
+  dangerOutline: {
+    bg: Colors.surface,
+    border: Colors.error,
     text: Colors.error,
   },
 };

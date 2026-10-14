@@ -13,7 +13,10 @@
  *
  * NAVIGATION INTENTS:
  *   - Header CTA (+ Request a Quotation) → RequestQuotation flow
- *   - Card tap / View button             → QuotationDetail
+ *   - Card tap / View Details            → QuotationDetail
+ *   - Book Now (accepted)                → QuotationDetail + ContinueToBookingSheet
+ *   - Need Changes (pending)             → QuotationDetail + NeedChangesSheet
+ *   - Request Again (expired)            → RequestQuotation flow
  *   - Sliders button                     → TODO(nav): filter sheet
  *
  * WHAT CHANGED FROM THE PRIOR REQUEST-CENTRIC SCREEN:
@@ -205,6 +208,29 @@ const QuotationsScreen: React.FC = () => {
     [navigation],
   );
 
+  /* Card secondary actions. Book Now and Need Changes land on the
+   * detail screen with the matching sheet already open, so both flows
+   * keep a single owner (QuotationDetail). */
+  const onBookNow = useCallback(
+    (item: CustomerQuotationListItem) => {
+      navigation.navigate('QuotationDetail', {
+        quotationId: item.id,
+        openContinueSheet: true,
+      });
+    },
+    [navigation],
+  );
+
+  const onNeedChanges = useCallback(
+    (item: CustomerQuotationListItem) => {
+      navigation.navigate('QuotationDetail', {
+        quotationId: item.id,
+        openNeedChangesSheet: true,
+      });
+    },
+    [navigation],
+  );
+
   const onFilterSheetOpen = useCallback(() => {
     // TODO(nav): open a filter-refinement bottom sheet (date range,
     // amount range, passenger buckets). Kept as an affordance next
@@ -327,6 +353,9 @@ const QuotationsScreen: React.FC = () => {
               item={item}
               onPress={() => goToQuotationDetail(item)}
               onView={() => goToQuotationDetail(item)}
+              onBookNow={() => onBookNow(item)}
+              onNeedChanges={() => onNeedChanges(item)}
+              onRequestAgain={goToRequestQuotation}
             />
           ))
         )}

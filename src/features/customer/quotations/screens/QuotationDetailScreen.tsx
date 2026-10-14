@@ -338,6 +338,19 @@ const QuotationDetailScreen: React.FC = () => {
     return () => cancelAnimationFrame(handle);
   }, [openContinueSheet, detail]);
 
+  /* -------- Auto-open NeedChangesSheet on landing -------- *
+   *
+   * Same one-shot pattern as above, for the Quotations list's
+   * "Need Changes" button on pending cards. */
+  const openNeedChangesSheet = route.params.openNeedChangesSheet;
+  useEffect(() => {
+    if (!openNeedChangesSheet || !detail) return;
+    const handle = requestAnimationFrame(() => {
+      needChangesRef.current?.present();
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [openNeedChangesSheet, detail]);
+
   /* -------- Selection state --------
    *
    * Which vehicle tier the customer has committed to in the pending
