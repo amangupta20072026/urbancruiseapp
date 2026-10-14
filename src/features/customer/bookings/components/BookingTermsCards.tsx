@@ -45,9 +45,9 @@ import type { BookingCharge, BookingChargeStatus } from '../types';
  * Palette — two soft, distinct card surfaces
  * ================================================================ */
 
-/** Notes: soft green. */
-const NOTES_BG = '#F3FAF4';
-const NOTES_BORDER = '#DCEFE0';
+/** Notes: soft purple — same as the Rate Your Trip card (PURPLE_TINT in
+ *  BookingDetailScreen). */
+const NOTES_BG = '#F3EEFF';
 
 /** Other Charges: warm amber / cream. */
 const CHARGES_BG = '#FFF8EC';
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   /* Notes */
   notesCard: {
     backgroundColor: NOTES_BG,
-    borderColor: NOTES_BORDER,
+    borderColor: Colors.borderLight,
   },
   notesIconTile: {
     backgroundColor: Colors.surface,
