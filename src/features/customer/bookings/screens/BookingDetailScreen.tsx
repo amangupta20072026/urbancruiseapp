@@ -57,11 +57,9 @@ import {
   CheckCircle2,
   CircleDot,
   Clock,
-  FileText,
   Headphones,
   Lock,
   IndianRupee,
-  Info,
   MapPin,
   Navigation,
   PenSquare,
@@ -80,11 +78,7 @@ import {
   STANDARD_EXECUTIVE,
 } from '@features/customer/quotations';
 
-import type {
-  BookingPaymentStatus,
-  BookingStatus,
-  CustomerBookingDetail,
-} from '../types';
+import type { BookingStatus, CustomerBookingDetail } from '../types';
 import { getCustomerBookingDetail } from '../mocks';
 import { BookingProgressTracker } from '../components/BookingProgressTracker';
 import { VehicleDetailsCard } from '../components/VehicleDetailsCard';
@@ -187,8 +181,6 @@ function formatRupees(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
-/** ISO timestamp → "12 Aug 2026, 02:15 PM" — used by the Cancellation
- *  Details card. */
 /** Tracker sub-label: "12 Aug 2026\n02:15 PM" (date over time). */
 function formatTrackerDateTime(iso: string): string {
   const time = new Date(iso)
@@ -200,27 +192,6 @@ function formatTrackerDateTime(iso: string): string {
     .toUpperCase();
   return `${formatLongDate(iso)}\n${time}`;
 }
-
-function formatDateTime(iso: string): string {
-  const date = new Date(iso);
-  const datePart = date.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-  const timePart = date.toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-  return `${datePart}, ${timePart}`;
-}
-
-const PAYMENT_STATUS_LABEL: Record<BookingPaymentStatus, string> = {
-  paid: 'Paid',
-  partial: 'Partial',
-  unpaid: 'Unpaid',
-};
 
 /* ================================================================
  * Screen
@@ -489,8 +460,9 @@ const CompletedDetail: React.FC<CompletedProps> = ({
  * card → details card → CTA) but in the cancelled palette: a red
  * "Booking Cancelled" banner instead of the green celebratory one, a
  * dedicated cancelled-flavoured tracker (Booked → Cancelled → Trip
- * Starts → Completed, with the back half greyed out), a Cancellation
- * Details card, and a Need Help support card. The shared Vehicle Details / Driver Details
+ * Starts → Completed, with the back half greyed out) and a Need Help
+ * support card — no Cancellation Details card (the banner already
+ * says when and why). The shared Vehicle Details / Driver Details
  * cards show only if they were assigned before cancelling (vehicle
  * = a plate is set), without the Call Driver button. The sticky Book Again CTA is
  * kept — cancelling doesn't end the relationship, it's the fastest
@@ -598,45 +570,6 @@ const CancelledDetail: React.FC<CancelledProps> = ({
           </View>
         ) : null}
 
-        {/* ── Cancellation Details card ── */}
-        {cancellation ? (
-          <View style={styles.cancelDetailsCard}>
-            <View style={styles.sectionHeadingRow}>
-              <View style={styles.cancelIconTile}>
-                <FileText size={18} color={Colors.error} strokeWidth={2.25} />
-              </View>
-              <Text
-                style={[styles.sectionHeadingText, { color: Colors.error }]}
-              >
-                Cancellation Details
-              </Text>
-            </View>
-
-            <CancelDetailRow
-              label="Cancelled On"
-              value={formatDateTime(cancellation.cancelledAt)}
-            />
-            <CancelDetailRow label="Reason" value={cancellation.reason} />
-            <CancelDetailRow
-              label="Cancelled By"
-              value={cancellation.cancelledBy}
-            />
-            <CancelDetailRow
-              label="Refund Amount"
-              value={formatRupees(cancellation.refundAmount)}
-              note={cancellation.refundNote}
-            />
-            <CancelDetailRow
-              label="Payment Status"
-              value={
-                detail.payment
-                  ? PAYMENT_STATUS_LABEL[detail.payment.status]
-                  : '—'
-              }
-            />
-          </View>
-        ) : null}
-
         {/* ── Need Help support card ── */}
         <View style={styles.helpCard}>
           <View style={styles.helpIconTile}>
@@ -740,25 +673,6 @@ const CancelledProgressTracker: React.FC<{
       <View style={styles.dotPending} />
       <Text style={[styles.label, styles.labelPending]}>Completed</Text>
       <Text style={[styles.sub, styles.subPending]}>-</Text>
-    </View>
-  </View>
-);
-
-const CancelDetailRow: React.FC<{
-  label: string;
-  value: string;
-  note?: string | null;
-}> = ({ label, value, note }) => (
-  <View style={styles.cancelDetailRow}>
-    <Text style={styles.cancelDetailLabel}>{label}</Text>
-    <View style={styles.cancelDetailValueCol}>
-      <Text style={styles.cancelDetailValue}>{value}</Text>
-      {note ? (
-        <View style={styles.cancelDetailNoteRow}>
-          <Info size={12} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.cancelDetailNote}>{note}</Text>
-        </View>
-      ) : null}
     </View>
   </View>
 );
@@ -1647,54 +1561,6 @@ const styles = StyleSheet.create({
   },
   subPending: {
     color: Colors.textTertiary,
-  },
-
-  /* ── Cancellation Details card ── */
-  cancelDetailsCard: {
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.errorTint,
-    gap: Spacing.sm,
-  },
-  cancelIconTile: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelDetailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-  },
-  cancelDetailLabel: {
-    ...Typography.bodySmall,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  cancelDetailValueCol: {
-    alignItems: 'flex-end',
-    gap: 2,
-    flexShrink: 1,
-  },
-  cancelDetailValue: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '700',
-    textAlign: 'right',
-  },
-  cancelDetailNoteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  cancelDetailNote: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
   },
 
   /* ── Need Help support card ── */

@@ -30,8 +30,9 @@
  *
  * Pickup & Drop trips are two one-way legs booked together — X → Z,
  * the customer stays at Z without the vehicle, then Z → X on
- * `endDate`. The stay stop gets a 🛏 "N nights" stay tag, the onward
- * time shows under "Trip Starts" in the tracker, and the return time
+ * `endDate`. The stay stop shows like any other stop (no "N nights"
+ * tag), the onward time shows under "Trip Starts" in the tracker,
+ * and the return time
  * (`returnPickupTime`) shows under the End date.
  *
  * Each itinerary stop shows only its city name; the stop's `place`
@@ -54,14 +55,7 @@ import {
   View,
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
-import {
-  BedDouble,
-  Check,
-  Copy,
-  MapPin,
-  Route,
-  Users,
-} from 'lucide-react-native';
+import { Check, Copy, MapPin, Route, Users } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { getTripTypeOption } from '@features/customer/quotations';
@@ -88,14 +82,6 @@ function formatTripDate(iso: string): string {
     year: 'numeric',
     timeZone: 'UTC',
   });
-}
-
-/** Nights between two ISO days: 24 → 26 Oct is 2. */
-function nightsBetween(startIso: string, endIso: string): number {
-  return Math.max(
-    0,
-    Math.round((isoDayToUtc(endIso) - isoDayToUtc(startIso)) / DAY_MS),
-  );
 }
 
 /** Inclusive day count: 15 → 17 Sept is "3 Days", same day is "1 Day". */
@@ -192,7 +178,6 @@ export const TripDetailsCard: React.FC<Props> = ({ detail, tracker }) => {
   );
   const stops = detail.itinerary;
   const lastIndex = stops.length - 1;
-  const stayNights = nightsBetween(detail.travelDate, detail.endDate);
 
   /* Stop column width comes from the scroller's measured width, never
      from the text inside it, so a long city can't stretch its column.
@@ -309,7 +294,7 @@ export const TripDetailsCard: React.FC<Props> = ({ detail, tracker }) => {
                 accessible
                 accessibilityLabel={`Stop ${i + 1}: ${stop.city}${
                   stop.place ? `, ${stop.place}` : ''
-                }${stop.stay ? `, stay ${stayNights} nights` : ''}`}
+                }`}
               >
                 <View style={styles.stopDotRow}>
                   <View
@@ -331,19 +316,6 @@ export const TripDetailsCard: React.FC<Props> = ({ detail, tracker }) => {
                 >
                   {stop.city}
                 </Text>
-                {stop.stay && stayNights > 0 ? (
-                  <View style={styles.stayTag}>
-                    <BedDouble
-                      size={12}
-                      color={STAY_FG}
-                      strokeWidth={2.25}
-                      accessibilityLabel="Stay"
-                    />
-                    <Text style={styles.stayTagText} numberOfLines={1}>
-                      {stayNights} {stayNights === 1 ? 'night' : 'nights'}
-                    </Text>
-                  </View>
-                ) : null}
               </View>
             );
           })}
@@ -365,9 +337,6 @@ const HALO = 20;
 /** Narrowest a stop column gets (very small screens). */
 const MIN_STOP_WIDTH = 88;
 const DOT = 12;
-/** Stay tag colours — blue, so it reads apart from the green route. */
-const STAY_BG = '#EFF6FF';
-const STAY_FG = '#1D4ED8';
 
 const styles = StyleSheet.create({
   card: {
@@ -630,21 +599,5 @@ const styles = StyleSheet.create({
   },
   stopCityLast: {
     color: Colors.error,
-  },
-  stayTag: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: Radius.pill,
-    backgroundColor: STAY_BG,
-  },
-  stayTagText: {
-    ...Typography.caption,
-    fontSize: 11,
-    fontWeight: '700',
-    color: STAY_FG,
   },
 });
