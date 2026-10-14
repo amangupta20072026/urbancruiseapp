@@ -20,13 +20,31 @@
  * The card shows the Quotation ID (not a payment ID): that's the
  * number customers know from their quotation and can search by.
  *
+ * City names are never truncated. The card measures the route's
+ * natural width; when it can't fit beside the Quotation ID, the
+ * header switches to a stacked layout:
+ *
+ *   │ ┌────┐ Bengaluru → Chennai                                 │
+ *   │ │ ₹  │ 📅 20 Jul 2026 · 05:45 AM     Quotation ID      ›   │
+ *   │ └────┘ 👥 Mini Bus · 10 Passengers   QU-2026-375620        │
+ *
+ * i.e. the route takes the full top row and the Quotation ID keeps
+ * its right-hand column, shifted down one row beside the meta lines,
+ * and a route still too long for the full width wraps instead.
+ *
  * Receipt download lives inside PaymentDetailSheet (opened by
  * tapping the card).
  * ------------------------------------------------------------------
  */
 
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import {
   ArrowRight,
   Calendar,
@@ -115,6 +133,57 @@ function formatRupees(amount: number): string {
 }
 
 /* ================================================================
+ * Header pieces
+ * ================================================================ */
+
+const TOP_ROW_GAP = Spacing.sm;
+
+type RouteLineProps = {
+  from: string;
+  to: string;
+  /** Stacked layout: let a very long route wrap rather than clip. */
+  wrap?: boolean;
+  /** Measurer only: size to content, no flex. */
+  natural?: boolean;
+};
+
+const RouteLine: React.FC<RouteLineProps> = ({ from, to, wrap, natural }) => (
+  <View
+    style={[
+      styles.routeRow,
+      wrap && styles.routeRowWrap,
+      natural && styles.routeRowNatural,
+    ]}
+  >
+    <Text
+      style={[styles.routeText, natural && styles.routeTextNatural]}
+      numberOfLines={wrap ? undefined : 1}
+    >
+      {from}
+    </Text>
+    <ArrowRight size={16} color={Colors.textSecondary} strokeWidth={2.5} />
+    <Text
+      style={[styles.routeText, natural && styles.routeTextNatural]}
+      numberOfLines={wrap ? undefined : 1}
+    >
+      {to}
+    </Text>
+  </View>
+);
+
+const QuotationIdBlock: React.FC<{ quotationNumber: string }> = ({
+  quotationNumber,
+}) => (
+  <View style={styles.idRow}>
+    <View style={styles.idBlock}>
+      <Text style={styles.idLabel}>Quotation ID</Text>
+      <Text style={styles.idValue}>{quotationNumber}</Text>
+    </View>
+    <ChevronRight size={18} color={Colors.textTertiary} strokeWidth={2} />
+  </View>
+);
+
+/* ================================================================
  * Card
  * ================================================================ */
 
@@ -125,6 +194,41 @@ type Props = {
 
 export const PaymentCard: React.FC<Props> = ({ item, onPress }) => {
   const style = STATUS_STYLE[item.status];
+
+  // Natural (unwrapped) widths from the hidden measurer, plus the
+  // width actually available in the card body. 0 = not measured yet.
+  const [bodyWidth, setBodyWidth] = useState(0);
+  const [routeWidth, setRouteWidth] = useState(0);
+  const [idWidth, setIdWidth] = useState(0);
+
+  const measured = bodyWidth > 0 && routeWidth > 0 && idWidth > 0;
+  // +1 absorbs sub-pixel rounding so an exact fit doesn't flip-flop.
+  const stacked =
+    measured && routeWidth + TOP_ROW_GAP + idWidth > bodyWidth + 1;
+
+  const metaLines = (
+    <>
+      {/* Date · time */}
+      <View style={styles.metaLine}>
+        <Calendar size={13} color={Colors.textSecondary} strokeWidth={2} />
+        <Text style={styles.metaText}>
+          {formatDate(item.travelDate)} · {item.pickupTime}
+        </Text>
+      </View>
+
+      {/* Vehicle · passengers */}
+      <View style={styles.metaLine}>
+        <Users size={13} color={Colors.textSecondary} strokeWidth={2} />
+        <Text style={styles.metaText} numberOfLines={1}>
+          {item.vehicleType} · {item.passengers}{' '}
+          {item.passengers === 1 ? 'Passenger' : 'Passengers'}
+        </Text>
+      </View>
+    </>
+  );
+
+  const onWidth = (set: (w: number) => void) => (e: LayoutChangeEvent) =>
+    set(e.nativeEvent.layout.width);
 
   return (
     <Pressable
@@ -140,51 +244,45 @@ export const PaymentCard: React.FC<Props> = ({ item, onPress }) => {
         <ReceiptIndianRupee size={24} color={style.fg} strokeWidth={2} />
       </View>
 
-      <View style={styles.body}>
-        {/* Route + Quotation ID */}
-        <View style={styles.topRow}>
-          <View style={styles.routeRow}>
-            <Text style={styles.routeText} numberOfLines={1}>
-              {item.from}
-            </Text>
-            <ArrowRight
-              size={16}
-              color={Colors.textSecondary}
-              strokeWidth={2.5}
-            />
-            <Text style={styles.routeText} numberOfLines={1}>
-              {item.to}
-            </Text>
+      <View style={styles.body} onLayout={onWidth(setBodyWidth)}>
+        {/* Invisible measurer: renders the route and the ID block
+            unconstrained so we know their natural widths. */}
+        <View
+          style={styles.measurer}
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <View style={styles.measureItem} onLayout={onWidth(setRouteWidth)}>
+            <RouteLine from={item.from} to={item.to} natural />
           </View>
-          <View style={styles.idRow}>
-            <View style={styles.idBlock}>
-              <Text style={styles.idLabel}>Quotation ID</Text>
-              <Text style={styles.idValue}>{item.quotationNumber}</Text>
+          <View style={styles.measureItem} onLayout={onWidth(setIdWidth)}>
+            <QuotationIdBlock quotationNumber={item.quotationNumber} />
+          </View>
+        </View>
+
+        {stacked ? (
+          <>
+            {/* Route gets the full width */}
+            <RouteLine from={item.from} to={item.to} wrap />
+
+            {/* Meta lines left, Quotation ID one row down in the same
+                right column */}
+            <View style={styles.topRow}>
+              <View style={styles.metaColumn}>{metaLines}</View>
+              <QuotationIdBlock quotationNumber={item.quotationNumber} />
             </View>
-            <ChevronRight
-              size={18}
-              color={Colors.textTertiary}
-              strokeWidth={2}
-            />
-          </View>
-        </View>
-
-        {/* Date · time */}
-        <View style={styles.metaLine}>
-          <Calendar size={13} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.metaText}>
-            {formatDate(item.travelDate)} · {item.pickupTime}
-          </Text>
-        </View>
-
-        {/* Vehicle · passengers */}
-        <View style={styles.metaLine}>
-          <Users size={13} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.metaText} numberOfLines={1}>
-            {item.vehicleType} · {item.passengers}{' '}
-            {item.passengers === 1 ? 'Passenger' : 'Passengers'}
-          </Text>
-        </View>
+          </>
+        ) : (
+          <>
+            {/* Route + Quotation ID side by side */}
+            <View style={styles.topRow}>
+              <RouteLine from={item.from} to={item.to} />
+              <QuotationIdBlock quotationNumber={item.quotationNumber} />
+            </View>
+            {metaLines}
+          </>
+        )}
 
         <View style={styles.divider} />
 
@@ -243,7 +341,7 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.sm,
+    gap: TOP_ROW_GAP,
   },
   routeRow: {
     flex: 1,
@@ -251,6 +349,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     minHeight: 24,
+  },
+  routeRowWrap: {
+    flexWrap: 'wrap',
+  },
+  routeRowNatural: {
+    flex: 0,
+    alignSelf: 'flex-start',
+  },
+  routeTextNatural: {
+    flexShrink: 0,
   },
   routeText: {
     ...Typography.subtitle,
@@ -283,7 +391,23 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
+  /* Hidden measurer: very wide so nothing inside wraps or clips. */
+  measurer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 10000,
+    opacity: 0,
+  },
+  measureItem: {
+    alignSelf: 'flex-start',
+  },
+
   /* Meta lines */
+  metaColumn: {
+    flex: 1,
+    gap: 5,
+  },
   metaLine: {
     flexDirection: 'row',
     alignItems: 'center',
