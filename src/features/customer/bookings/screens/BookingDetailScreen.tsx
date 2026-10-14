@@ -9,14 +9,14 @@
  * ------------------------------------------------------------------
  * `detail.status === 'completed'` → `CompletedDetail` — the rich
  * post-trip surface (see mock in the ticket): trip-completed banner,
- * booking-info card with inline Book Again, tracker-in-a-card, a
- * combined Vehicle+Driver card with Call/Message affordances, a
+ * booking-info card with inline Book Again, tracker-in-a-card, the
+ * shared Vehicle Details + Driver Details cards (no Call Driver), a
  * two-column Rate/Invoice row, and a sticky "Book Again for This
  * Route" CTA.
  *
  * Any other status → `GenericDetail` — the simpler status-agnostic
- * view (summary card with tracker inside, then Vehicle and Driver
- * sections). This exists so a stale deep-link into 'upcoming' /
+ * view (summary card with tracker inside, then the shared Vehicle
+ * Details + Driver Details cards). This exists so a stale deep-link into 'upcoming' /
  * 'ongoing' / 'cancelled' still renders something coherent even
  * though those flows are not the primary spec.
  *
@@ -26,6 +26,13 @@
  * into one branchy component would make the file painful to change
  * later. Shared bits (data hydration, formatting, contact actions)
  * live in the outer component and its helper functions.
+ *
+ * SHARED CARDS
+ * ------------------------------------------------------------------
+ * Every status uses the same `VehicleDetailsCard` and
+ * `DriverDetailsCard` (in `../components`). Upcoming / Ongoing show
+ * the Call Driver button; Completed / Cancelled pass
+ * `showCall={false}`.
  *
  * WHY subcomponents are LOCAL to this file
  * ------------------------------------------------------------------
@@ -38,24 +45,15 @@
  */
 
 import React, { useCallback, useMemo, useRef } from 'react';
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
-  Bus,
   CalendarClock,
   CalendarX,
   Car,
-  CarFront,
   Check,
   CheckCircle2,
   CircleDot,
@@ -66,25 +64,16 @@ import {
   IndianRupee,
   Info,
   MapPin,
-  MessageSquare,
   Navigation,
   PenSquare,
-  Phone,
   RotateCw,
-  ShieldCheck,
   Star,
-  UserCheck,
-  Users,
   X,
   XCircle,
-  User,
 } from 'lucide-react-native';
-
-import Svg, { Circle, Path } from 'react-native-svg';
 
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
-import { makePhoneCall, openWhatsApp } from '@services/contact';
 import type { CustomerStackParamList } from '@navigation/types';
 import {
   NeedChangesSheet,
@@ -100,6 +89,7 @@ import type {
 import { getCustomerBookingDetail } from '../mocks';
 import { BookingProgressTracker } from '../components/BookingProgressTracker';
 import { VehicleDetailsCard } from '../components/VehicleDetailsCard';
+import { DriverDetailsCard } from '../components/DriverDetailsCard';
 import { TripDetailsCard } from '../components/TripDetailsCard';
 import {
   BookingNotesCard,
@@ -227,14 +217,6 @@ function formatDateTime(iso: string): string {
   return `${datePart}, ${timePart}`;
 }
 
-/** Two-letter initials for the driver avatar fallback. */
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] ?? '';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
-  return (first + last).toUpperCase() || '?';
-}
-
 const PAYMENT_STATUS_COLOR: Record<BookingPaymentStatus, string> = {
   paid: Colors.primary,
   partial: Colors.warning,
@@ -246,28 +228,6 @@ const PAYMENT_STATUS_LABEL: Record<BookingPaymentStatus, string> = {
   partial: 'Partial',
   unpaid: 'Unpaid',
 };
-
-/* ================================================================
- * Contact-action wiring
- * ================================================================
- * Fire-and-forget: the contact service surfaces its own toasts on
- * failure. We swallow the rejection so React doesn't log an
- * unhandled-promise warning. */
-function callDriver(phone: string | null | undefined): void {
-  if (!phone) return;
-  makePhoneCall(phone).catch(() => {
-    /* contactService already toasted */
-  });
-}
-
-function messageDriver(phone: string | null | undefined): void {
-  if (!phone) return;
-  // "Message" wires to WhatsApp — the app's messaging surface. If a
-  // dedicated in-app chat lands later, swap this call site only.
-  openWhatsApp(phone).catch(() => {
-    /* contactService already toasted */
-  });
-}
 
 /* ================================================================
  * Screen
@@ -445,106 +405,12 @@ const CompletedDetail: React.FC<CompletedProps> = ({
           }
         />
 
-        {/* ── Vehicle & Driver combined card ── */}
-        <View style={styles.card}>
-          <View style={styles.sectionHeadingRow}>
-            <View style={styles.sectionIconTile}>
-              <CarFront size={18} color={Colors.primary} strokeWidth={2.25} />
-            </View>
-            <Text style={styles.sectionHeadingText}>Vehicle &amp; Driver</Text>
-          </View>
-
-          {/* Vehicle row — image tile + name/attrs/plate. Image is
-              a lucide glyph until real vehicle photos ship (see the
-              same note on BookingCard's vehicle tile). */}
-          <View style={styles.vehicleRow}>
-            <View style={styles.vehiclePhotoTile}>
-              <Bus size={36} color={Colors.primary} strokeWidth={1.75} />
-            </View>
-            <View style={styles.vehicleBody}>
-              <Text style={styles.vehicleName}>
-                {detail.vehicleModel ?? detail.vehicleType}
-              </Text>
-              <Text style={styles.vehicleSub}>
-                {[
-                  detail.seater
-                    ? `${detail.seater} Seater`
-                    : detail.vehicleType,
-                  detail.hasAC ? 'AC' : null,
-                  detail.vehicleFuel,
-                ]
-                  .filter(Boolean)
-                  .join(' | ')}
-              </Text>
-              {detail.vehiclePlate ? (
-                <View style={styles.plateRow}>
-                  <View style={styles.plateChip}>
-                    <View style={styles.plateChipInner} />
-                  </View>
-                  <Text style={styles.vehiclePlate}>{detail.vehiclePlate}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Driver row — only when assigned. Divider above is only
-              painted when there's a driver row to separate. */}
+        {/* ── Vehicle + Driver — same cards as every status. The trip
+            is over, so no Call Driver button. ── */}
+        <View style={styles.detailStack}>
+          <VehicleDetailsCard detail={detail} />
           {detail.driver ? (
-            <>
-              <View style={styles.divider} />
-              <View style={styles.driverRow}>
-                {detail.driver.avatarUrl ? (
-                  <Image
-                    source={{ uri: detail.driver.avatarUrl }}
-                    style={styles.driverAvatar}
-                  />
-                ) : (
-                  <View
-                    style={[styles.driverAvatar, styles.driverAvatarFallback]}
-                  >
-                    <Text style={styles.driverInitials}>
-                      {initialsOf(detail.driver.name)}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.driverBody}>
-                  <Text style={styles.driverName}>{detail.driver.name}</Text>
-                  {detail.driver.rating !== null ? (
-                    <View style={styles.ratingRow}>
-                      <Star
-                        size={14}
-                        color={Colors.warning}
-                        fill={Colors.warning}
-                        strokeWidth={2}
-                      />
-                      <Text style={styles.ratingText}>
-                        {detail.driver.rating.toFixed(1)}
-                        {detail.driver.tripsCompleted !== null ? (
-                          <Text style={styles.ratingMuted}>
-                            {' '}
-                            ({detail.driver.tripsCompleted} trips)
-                          </Text>
-                        ) : null}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-                <View style={styles.driverActions}>
-                  <ContactPillButton
-                    Icon={Phone}
-                    label="Call"
-                    onPress={() => callDriver(detail.driver?.phoneE164)}
-                    disabled={!detail.driver.phoneE164}
-                  />
-                  <ContactPillButton
-                    Icon={MessageSquare}
-                    label="Message"
-                    onPress={() => messageDriver(detail.driver?.phoneE164)}
-                    disabled={!detail.driver.phoneE164}
-                  />
-                </View>
-              </View>
-            </>
+            <DriverDetailsCard driver={detail.driver} showCall={false} />
           ) : null}
         </View>
 
@@ -706,8 +572,10 @@ const CompletedDetail: React.FC<CompletedProps> = ({
  * "Booking Cancelled" banner instead of the green celebratory one, a
  * dedicated cancelled-flavoured tracker (Booked → Cancelled → Trip
  * Starts → Completed, with the back half greyed out), a Cancellation
- * Details card in place of Vehicle & Driver, and a Need Help support
- * card in place of the Rate/Invoice row. The sticky Book Again CTA is
+ * Details card, and a Need Help support card in place of the
+ * Rate/Invoice row. The shared Vehicle Details / Driver Details
+ * cards show only if they were assigned before cancelling (vehicle
+ * = a plate is set), without the Call Driver button. The sticky Book Again CTA is
  * kept — cancelling doesn't end the relationship, it's the fastest
  * way back into a fresh booking for the same route.
  * ================================================================ */
@@ -798,6 +666,20 @@ const CancelledDetail: React.FC<CancelledProps> = ({
             />
           }
         />
+
+        {/* ── Vehicle + Driver — only what was assigned before the
+            cancellation (a plate means a specific vehicle was). No
+            Call Driver: the trip won't happen. ── */}
+        {detail.vehiclePlate || detail.driver ? (
+          <View style={styles.detailStack}>
+            {detail.vehiclePlate ? (
+              <VehicleDetailsCard detail={detail} />
+            ) : null}
+            {detail.driver ? (
+              <DriverDetailsCard driver={detail.driver} showCall={false} />
+            ) : null}
+          </View>
+        ) : null}
 
         {/* ── Cancellation Details card ── */}
         {cancellation ? (
@@ -1068,86 +950,10 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
         <View style={styles.detailStack}>
           <VehicleDetailsCard detail={detail} />
 
-          <View style={styles.card}>
-            <View style={styles.sectionHeadingRow}>
-              <View style={styles.sectionIconTile}>
-                <User size={18} color={Colors.primary} strokeWidth={2.25} />
-              </View>
-              <Text style={styles.sectionHeadingText}>Driver Details</Text>
-            </View>
-            {detail.driver ? (
-              <>
-                <View style={styles.driverRowCompact}>
-                  {detail.driver.avatarUrl ? (
-                    <Image
-                      source={{ uri: detail.driver.avatarUrl }}
-                      style={styles.driverAvatarSmall}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.driverAvatarSmall,
-                        styles.driverAvatarFallback,
-                      ]}
-                    >
-                      <Text style={styles.driverInitials}>
-                        {initialsOf(detail.driver.name)}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.driverBody}>
-                    <Text style={styles.driverNameSmall} numberOfLines={1}>
-                      {detail.driver.name}
-                    </Text>
-                    {detail.driver.rating !== null ? (
-                      <View style={styles.ratingRow}>
-                        <Star
-                          size={12}
-                          color={Colors.warning}
-                          fill={Colors.warning}
-                          strokeWidth={2}
-                        />
-                        <Text style={styles.ratingTextSmall}>
-                          {detail.driver.rating.toFixed(1)}
-                          {detail.driver.tripsCompleted !== null ? (
-                            <Text style={styles.ratingMuted}>
-                              {' '}
-                              ({detail.driver.tripsCompleted} trips)
-                            </Text>
-                          ) : null}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  {/* Compact filled Call Driver, on the name row. */}
-                  <Pressable
-                    onPress={() => callDriver(detail.driver?.phoneE164)}
-                    disabled={!detail.driver.phoneE164}
-                    hitSlop={6}
-                    style={({ pressed }) => [
-                      styles.callDriverChip,
-                      pressed && styles.pressed,
-                      !detail.driver?.phoneE164 && styles.disabled,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Call driver"
-                  >
-                    <Phone
-                      size={13}
-                      color={Colors.textOnPrimary}
-                      strokeWidth={2.5}
-                    />
-                    <Text style={styles.callDriverChipText}>Call Driver</Text>
-                  </Pressable>
-                </View>
-                <DriverBadges />
-              </>
-            ) : (
-              <Text style={styles.driverPendingText}>
-                Driver will be assigned closer to your trip date.
-              </Text>
-            )}
-          </View>
+          <DriverDetailsCard
+            driver={detail.driver}
+            pendingText="Driver will be assigned closer to your trip date."
+          />
         </View>
 
         {/* ── Fare Details card ── */}
@@ -1442,86 +1248,10 @@ const OngoingDetail: React.FC<OngoingProps> = ({ detail, onBack }) => {
         <View style={styles.detailStack}>
           <VehicleDetailsCard detail={detail} />
 
-          <View style={styles.card}>
-            <View style={styles.sectionHeadingRow}>
-              <View style={styles.sectionIconTile}>
-                <Users size={18} color={Colors.primary} strokeWidth={2.25} />
-              </View>
-              <Text style={styles.sectionHeadingText}>Driver Details</Text>
-            </View>
-            {detail.driver ? (
-              <>
-                <View style={styles.driverRowCompact}>
-                  {detail.driver.avatarUrl ? (
-                    <Image
-                      source={{ uri: detail.driver.avatarUrl }}
-                      style={styles.driverAvatarSmall}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.driverAvatarSmall,
-                        styles.driverAvatarFallback,
-                      ]}
-                    >
-                      <Text style={styles.driverInitials}>
-                        {initialsOf(detail.driver.name)}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.driverBody}>
-                    <Text style={styles.driverNameSmall} numberOfLines={1}>
-                      {detail.driver.name}
-                    </Text>
-                    {detail.driver.rating !== null ? (
-                      <View style={styles.ratingRow}>
-                        <Star
-                          size={12}
-                          color={Colors.warning}
-                          fill={Colors.warning}
-                          strokeWidth={2}
-                        />
-                        <Text style={styles.ratingTextSmall}>
-                          {detail.driver.rating.toFixed(1)}
-                          {detail.driver.tripsCompleted !== null ? (
-                            <Text style={styles.ratingMuted}>
-                              {' '}
-                              ({detail.driver.tripsCompleted} trips)
-                            </Text>
-                          ) : null}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  {/* Compact filled Call Driver, on the name row. */}
-                  <Pressable
-                    onPress={() => callDriver(detail.driver?.phoneE164)}
-                    disabled={!detail.driver.phoneE164}
-                    hitSlop={6}
-                    style={({ pressed }) => [
-                      styles.callDriverChip,
-                      pressed && styles.pressed,
-                      !detail.driver?.phoneE164 && styles.disabled,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Call driver"
-                  >
-                    <Phone
-                      size={13}
-                      color={Colors.textOnPrimary}
-                      strokeWidth={2.5}
-                    />
-                    <Text style={styles.callDriverChipText}>Call Driver</Text>
-                  </Pressable>
-                </View>
-                <DriverBadges />
-              </>
-            ) : (
-              <Text style={styles.driverPendingText}>
-                Driver assignment pending.
-              </Text>
-            )}
-          </View>
+          <DriverDetailsCard
+            driver={detail.driver}
+            pendingText="Driver assignment pending."
+          />
         </View>
 
         {/* ── Notes + Other Charges (from the booking; static for now) ── */}
@@ -1613,73 +1343,10 @@ const GenericDetail: React.FC<GenericProps> = ({ detail, onBack }) => {
           }
         />
 
-        <Text style={styles.plainSectionHeading}>Vehicle</Text>
-        <View style={styles.card}>
-          <View style={styles.vehicleRow}>
-            <View style={styles.vehiclePhotoTile}>
-              <Bus size={30} color={Colors.primary} strokeWidth={2} />
-            </View>
-            <View style={styles.vehicleBody}>
-              <Text style={styles.vehicleName}>
-                {detail.vehicleModel ?? detail.vehicleType}
-              </Text>
-              <Text style={styles.vehicleSub}>
-                {[
-                  detail.seater
-                    ? `${detail.seater} Seater`
-                    : detail.vehicleType,
-                  detail.hasAC ? 'AC' : null,
-                  detail.vehicleFuel,
-                ]
-                  .filter(Boolean)
-                  .join(' | ')}
-              </Text>
-              {detail.vehiclePlate ? (
-                <Text style={styles.vehiclePlate}>{detail.vehiclePlate}</Text>
-              ) : null}
-            </View>
-          </View>
+        <View style={styles.detailStack}>
+          <VehicleDetailsCard detail={detail} />
+          <DriverDetailsCard driver={detail.driver} />
         </View>
-
-        {detail.driver ? (
-          <>
-            <Text style={styles.plainSectionHeading}>Driver</Text>
-            <View style={styles.card}>
-              <View style={styles.driverRow}>
-                {detail.driver.avatarUrl ? (
-                  <Image
-                    source={{ uri: detail.driver.avatarUrl }}
-                    style={styles.driverAvatar}
-                  />
-                ) : (
-                  <View
-                    style={[styles.driverAvatar, styles.driverAvatarFallback]}
-                  >
-                    <Text style={styles.driverInitials}>
-                      {initialsOf(detail.driver.name)}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.driverBody}>
-                  <Text style={styles.driverName}>{detail.driver.name}</Text>
-                  {detail.driver.rating !== null ? (
-                    <View style={styles.ratingRow}>
-                      <Star
-                        size={14}
-                        color={Colors.warning}
-                        fill={Colors.warning}
-                        strokeWidth={2}
-                      />
-                      <Text style={styles.ratingText}>
-                        {detail.driver.rating.toFixed(1)}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-            </View>
-          </>
-        ) : null}
       </ScrollView>
     </SafeScreen>
   );
@@ -1688,101 +1355,6 @@ const GenericDetail: React.FC<GenericProps> = ({ detail, onBack }) => {
 /* ================================================================
  * Local reusable sub-components
  * ================================================================ */
-
-/** Steering-wheel glyph — lucide has none, so it's drawn with the
- *  same react-native-svg primitives and stroke style as lucide icons. */
-const SteeringWheel: React.FC<{ size?: number; color?: string }> = ({
-  size = 18,
-  color = Colors.primary,
-}) => (
-  <Svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <Circle cx={12} cy={12} r={10} />
-    <Circle cx={12} cy={12} r={2} />
-    <Path d="M2 12h8" />
-    <Path d="M14 12h8" />
-    <Path d="M12 14v8" />
-  </Svg>
-);
-
-/**
- * Three trust badges on the Driver Details card (Upcoming + Ongoing):
- * icon in a soft green circle over a centred two-line label, columns
- * split by thin vertical dividers. Sits between the driver's
- * name/rating row and the Call Driver button.
- *
- *   ( 🛞 )      |    ( 🛡 )       |    ( 👤 )
- *  Experienced  |    Verified     |   Polite &
- *    Driver     | by Urban Cruise |  Professional
- */
-const DRIVER_BADGES: readonly { key: string; label: string }[] = [
-  { key: 'experienced', label: 'Experienced\nDriver' },
-  { key: 'verified', label: 'Verified\nby Urban Cruise' },
-  { key: 'polite', label: 'Polite &\nProfessional' },
-];
-
-const DriverBadgeIcon: React.FC<{ badge: string }> = ({ badge }) => {
-  if (badge === 'experienced') {
-    return <SteeringWheel size={22} color={Colors.primary} />;
-  }
-  if (badge === 'verified') {
-    return <ShieldCheck size={22} color={Colors.primary} strokeWidth={2} />;
-  }
-  return <UserCheck size={22} color={Colors.primary} strokeWidth={2} />;
-};
-
-const DriverBadges: React.FC = () => (
-  <View style={styles.driverBadgeRow}>
-    {DRIVER_BADGES.map((b, i) => (
-      <React.Fragment key={b.key}>
-        {i > 0 ? <View style={styles.driverBadgeDivider} /> : null}
-        <View
-          style={styles.driverBadge}
-          accessible
-          accessibilityLabel={b.label.replace('\n', ' ')}
-        >
-          <View style={styles.driverBadgeIcon}>
-            <DriverBadgeIcon badge={b.key} />
-          </View>
-          <Text style={styles.driverBadgeText}>{b.label}</Text>
-        </View>
-      </React.Fragment>
-    ))}
-  </View>
-);
-
-const ContactPillButton: React.FC<{
-  Icon: IconComp;
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-}> = ({ Icon, label, onPress, disabled }) => (
-  <Pressable
-    onPress={onPress}
-    disabled={disabled}
-    style={({ pressed }) => [
-      styles.contactBtnCol,
-      pressed && !disabled && styles.pressed,
-      disabled && styles.disabled,
-    ]}
-    accessibilityRole="button"
-    accessibilityLabel={label}
-    accessibilityState={{ disabled: !!disabled }}
-  >
-    <View style={styles.contactBtnTile}>
-      <Icon size={18} color={Colors.primary} strokeWidth={2.25} />
-    </View>
-    <Text style={styles.contactBtnLabel}>{label}</Text>
-  </Pressable>
-);
 
 const InvoiceRow: React.FC<{
   label: string;
@@ -1959,7 +1531,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* ── Vehicle & Driver section heading ── */
+  /* ── Section heading (icon tile + title) ── */
   sectionHeadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1979,143 +1551,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 16,
     lineHeight: 20,
-  },
-
-  /* Generic: plain accent heading between cards */
-  plainSectionHeading: {
-    ...Typography.subtitle,
-    color: Colors.info,
-    fontWeight: '800',
-    marginTop: Spacing.sm,
-  },
-
-  /* ── Vehicle row ── */
-  vehicleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  vehiclePhotoTile: {
-    width: 96,
-    height: 72,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vehicleBody: {
-    flex: 1,
-    gap: 3,
-  },
-  vehicleName: {
-    ...Typography.subtitle,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  vehicleSub: {
-    ...Typography.bodySmall,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  plateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  plateChip: {
-    width: 16,
-    height: 12,
-    borderRadius: 2,
-    borderWidth: 1.5,
-    borderColor: Colors.textSecondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  plateChipInner: {
-    width: 8,
-    height: 1.5,
-    backgroundColor: Colors.textSecondary,
-  },
-  vehiclePlate: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-
-  /* ── Driver row ── */
-  driverRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  driverAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: Radius.circle,
-    backgroundColor: Colors.surfaceMuted,
-  },
-  driverAvatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  driverInitials: {
-    ...Typography.subtitle,
-    color: Colors.textSecondary,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  driverBody: {
-    flex: 1,
-    gap: 2,
-  },
-  driverName: {
-    ...Typography.subtitle,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-    fontSize: 17,
-    lineHeight: 22,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  ratingText: {
-    ...Typography.bodySmall,
-    color: Colors.warning,
-    fontWeight: '800',
-  },
-  ratingMuted: {
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-
-  /* Driver contact actions */
-  driverActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  contactBtnCol: {
-    alignItems: 'center',
-    gap: 3,
-  },
-  contactBtnTile: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.circle,
-    backgroundColor: Colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contactBtnLabel: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    includeFontPadding: false,
   },
 
   /* ── Rate + Invoice dual row ── */
@@ -2244,9 +1679,6 @@ const styles = StyleSheet.create({
   /* Interaction states */
   pressed: {
     opacity: 0.85,
-  },
-  disabled: {
-    opacity: 0.4,
   },
 
   /* ── Cancelled banner ── */
@@ -2449,85 +1881,10 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  /* ── Vehicle + Driver side-by-side cards ── */
   /* Vehicle + Driver: two full-width cards stacked vertically
      (they were side by side, which squeezed the driver badges). */
   detailStack: {
     gap: Spacing.md,
-  },
-  driverRowCompact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  driverAvatarSmall: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.circle,
-    backgroundColor: Colors.surfaceMuted,
-  },
-  driverNameSmall: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-  },
-  ratingTextSmall: {
-    ...Typography.caption,
-    color: Colors.warning,
-    fontWeight: '800',
-  },
-  driverBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-  },
-  driverBadge: {
-    flex: 1,
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: 4,
-  },
-  driverBadgeIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.circle,
-    backgroundColor: Colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  driverBadgeDivider: {
-    width: 1,
-    marginVertical: 4,
-    backgroundColor: Colors.border,
-  },
-  driverBadgeText: {
-    ...Typography.caption,
-    lineHeight: 16,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  /* Small filled Call Driver button on the driver's name row. */
-  callDriverChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 32,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.primaryDark,
-  },
-  callDriverChipText: {
-    ...Typography.caption,
-    color: Colors.textOnPrimary,
-    fontWeight: '700',
-  },
-  driverPendingText: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    lineHeight: 16,
   },
 
   /* ── Fare Details card ── */
@@ -2565,45 +1922,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: BLUE_FG,
     fontWeight: '700',
-    includeFontPadding: false,
-  },
-
-  /* ── Upcoming sticky bar: Book Again (primary, full-width) ── */
-  stickyRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    alignItems: 'stretch',
-  },
-  ctaHeadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  bookAgainWide: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primary,
-    gap: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bookAgainWideTitle: {
-    ...Typography.bodySmall,
-    color: Colors.textOnPrimary,
-    fontWeight: '800',
-    fontSize: 14,
-    lineHeight: 18,
-    includeFontPadding: false,
-  },
-  bookAgainWideSubtitle: {
-    ...Typography.caption,
-    color: Colors.textOnPrimary,
-    fontWeight: '500',
-    fontSize: 11,
-    lineHeight: 14,
-    opacity: 0.9,
     includeFontPadding: false,
   },
 

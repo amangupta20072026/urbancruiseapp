@@ -8,7 +8,7 @@
  *   │                                                          │
  *   │ Force Urbania                     ┌──────────────────┐   │
  *   │ [ROYAL]                           │   vehicle photo  │   │
- *   │ [DL 3C AB 7788]  (once assigned)  └──────────────────┘   │
+ *   │                                   └──────────────────┘   │
  *   │ ┌──────────────────────────────────────────────────────┐ │
  *   │ │   (💺)        │     (❄)        │      (⛽)          │ │
  *   │ │ 17 Seater     │     AC         │     Diesel         │ │
@@ -20,8 +20,8 @@
  *
  * - Tier badge comes from `vehicleOption.tier` and is hidden when
  *   the option is unknown.
- * - Registration plate shows only once a specific vehicle is
- *   assigned (`vehiclePlate` is null while upcoming).
+ * - The registration plate is NOT shown, so the card looks the same
+ *   for every status (upcoming has no plate yet).
  * - Spec cells drop out when their value is unknown (no seater /
  *   no fuel); AC always shows, as "AC" or "Non-AC".
  * - The chevron (and press feedback) appears only when `onPress` is
@@ -93,7 +93,6 @@ type VehicleDetailsCardProps = {
     | 'seater'
     | 'hasAC'
     | 'vehicleFuel'
-    | 'vehiclePlate'
     | 'vehicleOption'
   >;
   /** Vehicle photo. Defaults to the placeholder image. */
@@ -161,7 +160,7 @@ export const VehicleDetailsCard: React.FC<VehicleDetailsCardProps> = ({
         ) : null}
       </View>
 
-      {/* ── Name / tier / plate + photo ── */}
+      {/* ── Name / tier + photo ── */}
       <View style={styles.heroRow}>
         <View style={styles.heroTextCol}>
           <Text style={styles.vehicleName} numberOfLines={2}>
@@ -174,11 +173,6 @@ export const VehicleDetailsCard: React.FC<VehicleDetailsCardProps> = ({
               <Text style={[styles.tierBadgeText, { color: tierColors.fg }]}>
                 {tier.toUpperCase()}
               </Text>
-            </View>
-          ) : null}
-          {detail.vehiclePlate ? (
-            <View style={styles.plateChip}>
-              <Text style={styles.plateChipText}>{detail.vehiclePlate}</Text>
             </View>
           ) : null}
         </View>
@@ -305,21 +299,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontWeight: '800',
     letterSpacing: 0.6,
-    includeFontPadding: false,
-  },
-  plateChip: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.background,
-  },
-  plateChipText: {
-    ...Typography.caption,
-    color: Colors.textPrimary,
-    fontWeight: '700',
-    letterSpacing: 0.5,
     includeFontPadding: false,
   },
   vehicleImage: {
