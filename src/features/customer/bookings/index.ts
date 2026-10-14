@@ -3,6 +3,7 @@ export { default as BookingDetailScreen } from './screens/BookingDetailScreen';
 
 export { BookingCard } from './components/BookingCard';
 export { BookingProgressTracker } from './components/BookingProgressTracker';
+export { VehicleDetailsCard } from './components/VehicleDetailsCard';
 export { getCustomerBookingDetail } from './mocks';
 export type {
   BookingStatus,

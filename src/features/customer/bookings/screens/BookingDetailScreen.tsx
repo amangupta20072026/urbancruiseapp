@@ -85,7 +85,6 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { makePhoneCall, openWhatsApp } from '@services/contact';
-import { toast } from '@services/toast';
 import type { CustomerStackParamList } from '@navigation/types';
 import {
   NeedChangesSheet,
@@ -100,6 +99,7 @@ import type {
 } from '../types';
 import { getCustomerBookingDetail } from '../mocks';
 import { BookingProgressTracker } from '../components/BookingProgressTracker';
+import { VehicleDetailsCard } from '../components/VehicleDetailsCard';
 import { TripDetailsCard } from '../components/TripDetailsCard';
 import {
   BookingNotesCard,
@@ -302,19 +302,6 @@ const BookingDetailScreen: React.FC = () => {
     navigation.navigate('GstInvoice', { bookingId: detail.id });
   }, [navigation, detail]);
 
-  const handleTrackVehicle = useCallback(() => {
-    // Live tracking screen is a ghost destination today. Rather
-    // than leaving Track Vehicle as a silent no-op (which feels
-    // broken to the user), surface a "coming soon" toast so the
-    // tap has feedback. Replace this with
-    // `navigation.navigate('TripLive', { tripId: tripIdFrom(detail.id, '01') })`
-    // once the TripLive route lands — same TODO as onTrackVehicle
-    // in BookingsScreen.tsx.
-    toast.info('Live tracking coming soon', {
-      description: "We're rolling this out shortly.",
-    });
-  }, []);
-
   /* -------- Not-found guard -------- */
   if (!detail) {
     return (
@@ -359,13 +346,7 @@ const BookingDetailScreen: React.FC = () => {
   }
 
   if (detail.status === 'ongoing') {
-    return (
-      <OngoingDetail
-        detail={detail}
-        onBack={handleBack}
-        onTrackVehicle={handleTrackVehicle}
-      />
-    );
+    return <OngoingDetail detail={detail} onBack={handleBack} />;
   }
 
   return <GenericDetail detail={detail} onBack={handleBack} />;
@@ -1085,39 +1066,7 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
 
         {/* ── Vehicle + Driver — stacked full-width cards ── */}
         <View style={styles.detailStack}>
-          <View style={styles.card}>
-            <View style={styles.sectionHeadingRow}>
-              <View style={styles.sectionIconTile}>
-                <CarFront size={18} color={Colors.primary} strokeWidth={2.25} />
-              </View>
-              <Text style={styles.sectionHeadingText}>Vehicle Details</Text>
-            </View>
-            <View style={styles.vehicleRowFull}>
-              <View style={styles.vehicleTileSquare}>
-                <Bus size={30} color={Colors.primary} strokeWidth={1.75} />
-              </View>
-              <View style={styles.vehicleInfoCol}>
-                <Text style={styles.vehicleName} numberOfLines={1}>
-                  {detail.vehicleModel ?? detail.vehicleType}
-                </Text>
-                <View style={styles.vehicleChipRow}>
-                  {[
-                    detail.seater
-                      ? `${detail.seater} Seater`
-                      : detail.vehicleType,
-                    detail.hasAC ? 'AC' : null,
-                    detail.vehicleFuel,
-                  ]
-                    .filter(Boolean)
-                    .map(attr => (
-                      <View key={attr} style={styles.vehicleChip}>
-                        <Text style={styles.vehicleChipText}>{attr}</Text>
-                      </View>
-                    ))}
-                </View>
-              </View>
-            </View>
-          </View>
+          <VehicleDetailsCard detail={detail} />
 
           <View style={styles.card}>
             <View style={styles.sectionHeadingRow}>
@@ -1348,7 +1297,6 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
  *   Vehicle + Driver side-by-side            [reused from upcoming]
  *   Notes + Other Charges                    [shared BookingTermsCards]
  *   Need Help support card (green variant)   [ongoing-only]
- *   Sticky "Track Vehicle" primary CTA       [ongoing-only]
  *
  * The Fare Details block from UpcomingDetail is intentionally
  * dropped: the balance question is either already settled by the
@@ -1366,14 +1314,9 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
 type OngoingProps = {
   detail: CustomerBookingDetail;
   onBack: () => void;
-  onTrackVehicle: () => void;
 };
 
-const OngoingDetail: React.FC<OngoingProps> = ({
-  detail,
-  onBack,
-  onTrackVehicle,
-}) => {
+const OngoingDetail: React.FC<OngoingProps> = ({ detail, onBack }) => {
   const status = STATUS_VISUAL.ongoing;
   const live = detail.liveTracking;
 
@@ -1497,46 +1440,7 @@ const OngoingDetail: React.FC<OngoingProps> = ({
 
         {/* ── Vehicle + Driver — stacked full-width cards (reused shell) ── */}
         <View style={styles.detailStack}>
-          <View style={styles.card}>
-            <View style={styles.sectionHeadingRow}>
-              <View style={styles.sectionIconTile}>
-                <CarFront size={18} color={Colors.primary} strokeWidth={2.25} />
-              </View>
-              <Text style={styles.sectionHeadingText}>Vehicle Details</Text>
-            </View>
-            <View style={styles.vehicleRowFull}>
-              <View style={styles.vehicleTileSquare}>
-                <Bus size={30} color={Colors.primary} strokeWidth={1.75} />
-              </View>
-              <View style={styles.vehicleInfoCol}>
-                <Text style={styles.vehicleName} numberOfLines={1}>
-                  {detail.vehicleModel ?? detail.vehicleType}
-                </Text>
-                <View style={styles.vehicleChipRow}>
-                  {[
-                    detail.seater
-                      ? `${detail.seater} Seater`
-                      : detail.vehicleType,
-                    detail.hasAC ? 'AC' : null,
-                    detail.vehicleFuel,
-                  ]
-                    .filter(Boolean)
-                    .map(attr => (
-                      <View key={attr} style={styles.vehicleChip}>
-                        <Text style={styles.vehicleChipText}>{attr}</Text>
-                      </View>
-                    ))}
-                </View>
-              </View>
-            </View>
-            {detail.vehiclePlate ? (
-              <View style={styles.vehiclePlateChip}>
-                <Text style={styles.vehiclePlateChipText}>
-                  {detail.vehiclePlate}
-                </Text>
-              </View>
-            ) : null}
-          </View>
+          <VehicleDetailsCard detail={detail} />
 
           <View style={styles.card}>
             <View style={styles.sectionHeadingRow}>
@@ -1649,31 +1553,10 @@ const OngoingDetail: React.FC<OngoingProps> = ({
         </View>
       </ScrollView>
 
-      {/* ── Sticky bottom CTA bar: Track Vehicle (primary, full-width) ── */}
-      <View style={styles.stickyBar}>
-        <Pressable
-          onPress={onTrackVehicle}
-          style={({ pressed }) => [
-            styles.primaryCta,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Track vehicle"
-        >
-          <Navigation
-            size={18}
-            color={Colors.textOnPrimary}
-            strokeWidth={2.5}
-          />
-          <Text style={styles.primaryCtaText}>Track Vehicle</Text>
-        </Pressable>
-      </View>
-
       {/* Need Help bottom sheet — mounted once, presented imperatively
           via `needHelpRef` from the Need Help card's Contact Support
           button. Portaled to the app-root BottomSheetModalProvider
-          (App.tsx), so it sits above the sticky bar without extra
-          z-index plumbing. */}
+          (App.tsx). */}
       <NeedHelpSheet
         ref={needHelpRef}
         executive={STANDARD_EXECUTIVE}
@@ -2572,39 +2455,6 @@ const styles = StyleSheet.create({
   detailStack: {
     gap: Spacing.md,
   },
-  vehicleRowFull: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  vehicleTileSquare: {
-    width: 64,
-    height: 64,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vehicleInfoCol: {
-    flex: 1,
-    gap: 6,
-  },
-  vehicleChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  vehicleChip: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.backgroundTertiary,
-  },
-  vehicleChipText: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
   driverRowCompact: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2916,24 +2766,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 10,
     lineHeight: 12,
-    includeFontPadding: false,
-  },
-
-  /* ── Vehicle plate chip (bottom of the vehicle card) ── */
-  vehiclePlateChip: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.background,
-  },
-  vehiclePlateChipText: {
-    ...Typography.caption,
-    color: Colors.textPrimary,
-    fontWeight: '700',
-    letterSpacing: 0.5,
     includeFontPadding: false,
   },
 });

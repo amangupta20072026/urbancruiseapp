@@ -23,6 +23,8 @@ export const Colors = {
   secondaryLight: '#FFD54F',
 
   accent: '#FF6F00',
+  /** Royal vehicle tier badge (purple). */
+  royal: '#7E22CE',
   textOnPrimary: '#FFFFFF',
 
   /**
@@ -146,6 +148,7 @@ export const Colors = {
   completedTint: '#DBEAFE', // pairs with completed (indigo blue)
   secondaryTint: '#FEF9C3', // pairs with secondary (gold)
   accentTint: '#FFE4CC', // pairs with accent (deep orange)
+  royalTint: '#F3E8FF', // pairs with royal (purple)
 
   /**
    * ------------------------------------------------------------
