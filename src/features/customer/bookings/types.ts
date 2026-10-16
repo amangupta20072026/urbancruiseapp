@@ -57,7 +57,18 @@ export type CustomerBookingListItem = {
   tripNumber: string;
   status: BookingStatus;
 
-  /* Journey */
+  /** Service category — One Way / Round Trip / Pickup & Drop. Shares
+   *  the `TripType` vocabulary (and icon/label metadata) with
+   *  Quotations so the badge reads identically on the booking card,
+   *  the Trip Details card header and the quotation card. Always
+   *  populated: every booking originates from an accepted quotation,
+   *  which always carries a trip type. */
+  tripType: TripType;
+
+  /* Journey — what the card shows as "from → to": the first and the
+   * last stop of the itinerary. Round trips and pickup & drop trips
+   * bring the customer home, so for them `to` equals `from`
+   * (e.g. Mumbai → Mumbai), matching the quotation card. */
   from: string;
   to: string;
   /** ISO date of travel. */
@@ -277,13 +288,6 @@ export type BookingItineraryStop = {
 };
 
 export type CustomerBookingDetail = CustomerBookingListItem & {
-  /** Service category — One Way / Round Trip / Pickup & Drop. Shares
-   *  the `TripType` vocabulary (and icon/label metadata) with
-   *  Quotations so the badge on the Trip Details card header reads
-   *  identically wherever it appears. Always populated: every
-   *  booking originates from an accepted quotation, which always
-   *  carries a trip type. */
-  tripType: TripType;
   /** Populated only for cancelled bookings; null otherwise. */
   cancellation: BookingCancellation | null;
   /** Last day of the trip (ISO date, "2026-09-17"). Equals

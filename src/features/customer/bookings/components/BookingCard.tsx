@@ -5,7 +5,7 @@
  * One row in the Customer Bookings list. Composition:
  *
  *   ┌───────────────────────────────────────────────────────┐
- *   │ [status pill]                              Booking ID │
+ *   │ [status pill] [trip type]                  Booking ID │
  *   │ ┌────────┐ Delhi  →  Jaipur         BK-2026-001234 📋 │
  *   │ │  🚌   │  📅 15 Sep  🕐 09:00 AM  👥 20 Passengers  │
  *   │ │ image │  Tempo Traveller               ₹18,500      │
@@ -14,6 +14,11 @@
  *   │  (upcoming only) BookingProgressTracker              │
  *   │ [           View Details           ]                 │
  *   └───────────────────────────────────────────────────────┘
+ *
+ * Trip type badge — the same One Way / Round Trip / Pickup & Drop
+ * tag as QuotationCard (icon + label from `getTripTypeOption`), shown
+ * next to the status pill. Round trips and pickup & drop trips read
+ * "X → X" in the route row, also matching QuotationCard.
  *
  * Status drives:
  *   1. status pill (colour + label + optional icon)
@@ -55,6 +60,7 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
+import { getTripTypeOption } from '@features/customer/quotations';
 import type { BookingStatus, CustomerBookingListItem } from '../types';
 import { BookingProgressTracker } from './BookingProgressTracker';
 
@@ -160,6 +166,9 @@ export const BookingCard: React.FC<Props> = ({
   onBookAgain,
 }) => {
   const style = STATUS_STYLE[item.status];
+
+  const tripType = getTripTypeOption(item.tripType);
+  const TripIcon = tripType.Icon;
   const isUpcoming = item.status === 'upcoming';
 
   /* -------- Copy Booking ID -------- *
@@ -197,17 +206,27 @@ export const BookingCard: React.FC<Props> = ({
         pressed && styles.pressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Booking ${item.bookingNumber}, ${style.label}`}
+      accessibilityLabel={`Booking ${item.bookingNumber}, ${style.label}, ${tripType.label}, ${item.from} to ${item.to}`}
     >
-      {/* Row 1 — status pill (left) + booking id block (right) */}
+      {/* Row 1 — status pill + trip type (left), booking id (right) */}
       <View style={styles.headerRow}>
-        <View style={[styles.pill, { backgroundColor: style.bg }]}>
-          {style.Icon ? (
-            <style.Icon size={12} color={style.fg} strokeWidth={2.5} />
-          ) : null}
-          <Text style={[styles.pillText, { color: style.fg }]}>
-            {style.label}
-          </Text>
+        <View style={styles.tagsRow}>
+          <View style={[styles.pill, { backgroundColor: style.bg }]}>
+            {style.Icon ? (
+              <style.Icon size={12} color={style.fg} strokeWidth={2.5} />
+            ) : null}
+            <Text style={[styles.pillText, { color: style.fg }]}>
+              {style.label}
+            </Text>
+          </View>
+          <View style={styles.tripTag}>
+            <TripIcon
+              size={12}
+              color={Colors.textSecondary}
+              strokeWidth={2.5}
+            />
+            <Text style={styles.tripTagText}>{tripType.label}</Text>
+          </View>
         </View>
         <View style={styles.idBlock}>
           <Text style={styles.idLabel}>Booking ID</Text>
@@ -507,6 +526,33 @@ const styles = StyleSheet.create({
   pillText: {
     ...Typography.caption,
     fontWeight: '700',
+    includeFontPadding: false,
+  },
+  /* Status pill + trip type tag. flex: 1 lets the pair wrap onto a
+   * second line on narrow phones instead of squeezing the booking id.
+   * Tag styles mirror QuotationCard so the two badges look identical. */
+  tagsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tripTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  tripTagText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '600',
     includeFontPadding: false,
   },
   idBlock: {
