@@ -15,11 +15,17 @@
  *
  * ROUTE SUMMARY:
  *   Only source → destination is shown; the full itinerary lives on
- *   QuotationDetail. For a trip that ends where it started
- *   (Delhi → Agra → Jaipur → Delhi), the destination is the last
- *   place visited before returning, so the card reads Delhi → Jaipur
- *   rather than Delhi → Delhi. The accessibility label still reads
- *   every stop. Long city names wrap instead of truncating.
+ *   QuotationDetail. The card shows the first and last stop as-is:
+ *     one way      Bangalore → Ooty
+ *     round trip   Delhi → Delhi      (via Agra, Jaipur)
+ *     pickup/drop  Pune → Pune        (via Mumbai)
+ *   The accessibility label still reads every stop. Long city names
+ *   wrap instead of truncating.
+ *
+ * DAYS:
+ *   The Days chip shows billed days. Pickup & drop trips also show a
+ *   Rest Days chip for the days spent at the destination between
+ *   the drop and the pickup (see utils/duration.ts).
  *
  * STATUS drives the pill and the second button:
  *   accepted → Book Now      (green)  → onBookNow
@@ -42,6 +48,7 @@ import {
 } from 'react-native';
 import {
   ArrowRight,
+  BedDouble,
   Calendar,
   CalendarCheck,
   Check,
@@ -57,6 +64,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { getTripTypeOption } from '../tripTypeOptions';
+import { formatDays, formatRestDays, hasRestDays } from '../utils/duration';
 import type { CustomerQuotationListItem, QuotationStatus } from '../types';
 
 /* ================================================================
@@ -147,21 +155,17 @@ const SECONDARY_ACTION: Record<QuotationStatus, SecondaryAction> = {
  * ================================================================ */
 
 /**
- * Source → destination for the card. If the trip returns to its
- * start, the destination is the last stop before the return.
- * `stops` has length ≥ 2 (see CustomerQuotationListItem).
+ * Source → destination for the card: the first and last stop.
+ * Round trips and pickup & drop trips end where they started, so
+ * they read "X → X". `stops` has length ≥ 2 (see
+ * CustomerQuotationListItem).
  */
 export function summariseRoute(stops: readonly string[]): {
   from: string;
   to: string;
 } {
   const from = stops[0] ?? '';
-  const lastIdx = stops.length - 1;
-  const returnsToStart =
-    lastIdx >= 2 &&
-    stops[lastIdx]?.trim().toLowerCase() === from.trim().toLowerCase();
-  const destIdx = returnsToStart ? lastIdx - 1 : lastIdx;
-  return { from, to: stops[destIdx] ?? from };
+  return { from, to: stops[stops.length - 1] ?? from };
 }
 
 /* ================================================================
@@ -181,10 +185,6 @@ function formatDateFull(iso: string): string {
     month: 'short',
     year: 'numeric',
   });
-}
-
-function formatDays(days: number): string {
-  return `${days} ${days === 1 ? 'Day' : 'Days'}`;
 }
 
 function formatPassengers(adults: number, children: number): string {
@@ -333,6 +333,12 @@ export const QuotationCard: React.FC<Props> = ({
           <Clock size={14} color={Colors.textSecondary} strokeWidth={2} />
           <Text style={styles.metaText}>{formatDays(item.days)}</Text>
         </View>
+        {hasRestDays(item.restDays) && (
+          <View style={styles.metaItem}>
+            <BedDouble size={14} color={Colors.textSecondary} strokeWidth={2} />
+            <Text style={styles.metaText}>{formatRestDays(item.restDays)}</Text>
+          </View>
+        )}
         <View style={styles.metaItem}>
           <Users size={14} color={Colors.textSecondary} strokeWidth={2} />
           <Text style={styles.metaText}>

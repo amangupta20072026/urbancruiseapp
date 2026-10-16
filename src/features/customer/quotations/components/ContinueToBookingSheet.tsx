@@ -124,6 +124,7 @@ import {
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { toast } from '@services/toast';
+import { formatDurationBreakdown } from '../utils/duration';
 
 /* ================================================================
  * Types + Props
@@ -141,6 +142,8 @@ export type ConfirmSummary = {
   travelDateEnd: string; // ISO
   nights: number;
   days: number;
+  /** Pickup & drop only: days at the destination, not counted in `days`. */
+  restDays?: number;
   adults: number;
   children: number;
   /** Total amount in INR (whole rupees). */
@@ -315,13 +318,17 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
       [summary.travelDateStart, summary.travelDateEnd],
     );
 
-    const durationLabel = useMemo(() => {
-      const n = `${summary.nights} ${
-        summary.nights === 1 ? 'Night' : 'Nights'
-      }`;
-      const d = `${summary.days} ${summary.days === 1 ? 'Day' : 'Days'}`;
-      return `(${n} / ${d})`;
-    }, [summary.nights, summary.days]);
+    const durationLabel = useMemo(
+      () =>
+        formatDurationBreakdown({
+          nights: summary.nights,
+          days: summary.days,
+          ...(summary.restDays !== undefined
+            ? { restDays: summary.restDays }
+            : {}),
+        }),
+      [summary.nights, summary.days, summary.restDays],
+    );
 
     const passengerLine = useMemo(
       () => formatPassengers(summary.adults, summary.children),

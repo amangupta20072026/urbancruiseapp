@@ -80,8 +80,9 @@ export type CustomerQuotationListItem = {
 
   /**
    * Ordered list of cities on the itinerary. First entry is the
-   * origin; last entry is the final drop-off (which may equal the
-   * origin for round trips). Modelled as `readonly string[]` for
+   * origin; last entry is the final drop-off. For `round_trip` and
+   * `pickup_drop` the last entry equals the origin (the customer is
+   * brought back home). Modelled as `readonly string[]` for
    * flexibility with future intermediate stops; the card renders
    * them joined with arrows.
    *
@@ -102,7 +103,20 @@ export type CustomerQuotationListItem = {
    * naïve `dateDiff / 24h` calculation would miscount.
    */
   nights: number;
+  /**
+   * Days the vehicle is with the customer (billed days). For
+   * `pickup_drop` this is the drop day + the pickup day only — rest
+   * days at the destination are excluded (see `restDays`).
+   */
   days: number;
+
+  /**
+   * `pickup_drop` only: days the customer stays at the destination
+   * between the drop and the pickup. Not counted in `days`. The
+   * travel window (`travelDateStart` → `travelDateEnd`) spans
+   * `days + restDays` calendar days. Omitted for other trip types.
+   */
+  restDays?: number;
 
   /** Adult passenger count. */
   adults: number;

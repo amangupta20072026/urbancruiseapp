@@ -180,6 +180,7 @@ import type {
   QuotationStatus,
   TripType,
 } from '../types';
+import { formatDurationBreakdown } from '../utils/duration';
 import { getCustomerQuotationDetail } from '../mocks';
 import { getTripTypeOption } from '../tripTypeOptions';
 import {
@@ -511,6 +512,9 @@ const QuotationDetailScreen: React.FC = () => {
           travelDateEnd: detail.travelDateEnd,
           nights: detail.nights,
           days: detail.days,
+          ...(detail.restDays !== undefined
+            ? { restDays: detail.restDays }
+            : {}),
           adults: detail.adults,
           children: detail.children,
           amount: detail.amount,
@@ -704,8 +708,7 @@ const TripCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
               {formatDate(detail.travelDateEnd)}
             </Text>
             <Text style={styles.factSubtle}>
-              ({detail.nights} {detail.nights === 1 ? 'Night' : 'Nights'} /{' '}
-              {detail.days} {detail.days === 1 ? 'Day' : 'Days'})
+              {formatDurationBreakdown(detail)}
             </Text>
           </View>
         </View>
