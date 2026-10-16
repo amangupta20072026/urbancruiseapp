@@ -8,7 +8,11 @@
  *   ┌──────────────────────────────────────────────────────────┐
  *   │ [📍] Trip Details                          [✈ One Way]   │
  *   │ Passengers                                               │
- *   │ 👥 3 Passengers                                          │
+ *   │ 👥 2 Passengers                                          │
+ *   │ Trip starts                                  Trip ends   │
+ *   │ 5 Oct 2026 · 09:00 AM            7 Oct 2026 · 08:30 PM   │
+ *   │ 📍 Rajiv Gandhi                  📍 Rajiv Gandhi          │
+ *   │    International Airport      International Airport   │
  *   │ ──────────────────────────────────────────────────────── │
  *   │ TRAVEL DATES                                             │
  *   │ ┌ Start ─────────── ┄┄ [5 Days] ┄┄ ─────────── End ┐     │
@@ -24,6 +28,12 @@
  * Differences from the booking card:
  *   - No Trip ID — a quotation has no trip yet. Passengers take that
  *     row, shown as a total only (no adult / child split).
+ *   - Under the passengers count, a start / end row: when + where
+ *     the trip starts (left, brand green) and ends (right, red —
+ *     the same colours as the first and last itinerary dots). The
+ *     place is the first / last stop's address, always shown in
+ *     full — it wraps onto as many lines as it needs. The two halves
+ *     stay equal width; a longer address just makes its side taller.
  *   - No progress tracker — that is booking-only.
  *   - The day pill shows the quoted `days` (billed days). For pickup
  *     & drop that excludes rest days, which show as a small note
@@ -97,6 +107,50 @@ const DashedLine: React.FC<{ color: string }> = ({ color }) => (
 );
 
 /* ================================================================
+ * TripPoint — one half of the start / end row
+ * ================================================================
+ * Caption, then date · time in the accent colour, then a pin + the
+ * full place name, wrapping onto extra lines when needed (the pin
+ * stays on the first line). Each half takes an equal share of the
+ * row, so a long address on one side never squeezes the other.
+ */
+const TripPoint: React.FC<{
+  caption: string;
+  when: string;
+  place: string;
+  color: string;
+  alignEnd?: boolean;
+  accessibilityLabel: string;
+}> = ({ caption, when, place, color, alignEnd, accessibilityLabel }) => (
+  <View
+    style={[styles.tripPoint, alignEnd && styles.tripPointEnd]}
+    accessible
+    accessibilityLabel={accessibilityLabel}
+  >
+    <Text style={styles.smallLabel}>{caption}</Text>
+    {/* Shrinks slightly rather than cut the time off on narrow phones. */}
+    <Text
+      style={[styles.tripPointWhen, { color }]}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.85}
+    >
+      {when}
+    </Text>
+    <View style={styles.tripPointPlaceRow}>
+      <View style={styles.tripPointPin}>
+        <MapPin size={12} color={Colors.textSecondary} strokeWidth={2} />
+      </View>
+      <Text
+        style={[styles.tripPointPlace, alignEnd && styles.tripPointPlaceEnd]}
+      >
+        {place}
+      </Text>
+    </View>
+  </View>
+);
+
+/* ================================================================
  * QuotationTripCard
  * ================================================================ */
 
@@ -111,6 +165,14 @@ export const QuotationTripCard: React.FC<Props> = ({ detail }) => {
   const stops = detail.stopDetails;
   const lastIndex = stops.length - 1;
   const passengerTotal = formatPassengerTotal(detail.adults, detail.children);
+  const pickupWhen = `${formatTripDate(detail.travelDateStart)} · ${
+    detail.pickupTime
+  }`;
+  const pickupPlace = stops[0]?.address ?? '';
+  const dropWhen = `${formatTripDate(detail.travelDateEnd)} · ${
+    detail.dropTime
+  }`;
+  const dropPlace = stops[lastIndex]?.address ?? '';
 
   /* Stop column width comes from the scroller's measured width, never
      from the text inside it, so a long city can't stretch its column.
@@ -148,14 +210,34 @@ export const QuotationTripCard: React.FC<Props> = ({ detail }) => {
         </View>
       </View>
 
-      {/* ── Passengers (total only) ── */}
-      <View style={styles.passengersBlock} accessible>
-        <Text style={styles.smallLabel}>Passengers</Text>
-        <View style={styles.passengersRow}>
-          <Users size={16} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.passengersText} numberOfLines={1}>
-            {passengerTotal}
-          </Text>
+      {/* ── Passengers, then trip start (left) · trip end (right) ── */}
+      <View style={styles.peopleAndTimes}>
+        <View style={styles.passengersBlock} accessible>
+          <Text style={styles.smallLabel}>Passengers</Text>
+          <View style={styles.passengersRow}>
+            <Users size={16} color={Colors.textSecondary} strokeWidth={2} />
+            <Text style={styles.passengersText} numberOfLines={1}>
+              {passengerTotal}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.startEndRow}>
+          <TripPoint
+            caption="Trip starts"
+            when={pickupWhen}
+            place={pickupPlace}
+            color={Colors.primaryDark}
+            accessibilityLabel={`Trip starts ${pickupWhen}, ${pickupPlace}`}
+          />
+          <TripPoint
+            caption="Trip ends"
+            when={dropWhen}
+            place={dropPlace}
+            color={Colors.error}
+            alignEnd
+            accessibilityLabel={`Trip ends ${dropWhen}, ${dropPlace}`}
+          />
         </View>
       </View>
 
@@ -325,7 +407,10 @@ const styles = StyleSheet.create({
     color: Colors.primaryDark,
   },
 
-  /* Passengers */
+  /* Passengers + start / end */
+  peopleAndTimes: {
+    gap: 10,
+  },
   passengersBlock: {
     gap: 2,
   },
@@ -335,6 +420,43 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     includeFontPadding: false,
   },
+  startEndRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  tripPoint: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  tripPointEnd: {
+    alignItems: 'flex-end',
+  },
+  tripPointWhen: {
+    ...Typography.bodySmall,
+    fontWeight: '800',
+  },
+  tripPointPlaceRow: {
+    flexDirection: 'row',
+    // Pin sits on the first line of a wrapped address.
+    alignItems: 'flex-start',
+    gap: 3,
+    maxWidth: '100%',
+  },
+  tripPointPlace: {
+    flexShrink: 1,
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  tripPointPlaceEnd: {
+    textAlign: 'right',
+  },
+  tripPointPin: {
+    // Centre the 12 px pin on the first text line.
+    marginTop: 2,
+  },
+
   passengersRow: {
     flexDirection: 'row',
     alignItems: 'center',

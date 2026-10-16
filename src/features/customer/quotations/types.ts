@@ -347,6 +347,22 @@ export type CustomerQuotationDetail = CustomerQuotationListItem & {
   travelExecutive: TravelExecutive;
 
   /**
+   * Pickup wall-clock time on the start date, e.g. "06:30 AM". Kept
+   * as a display string (same as bookings' `pickupTime`) so the trip
+   * card doesn't parse it back into a Date. The pickup place is the
+   * first `stopDetails` entry's address.
+   */
+  pickupTime: string;
+
+  /**
+   * Drop wall-clock time on the end date, e.g. "08:30 PM" — when the
+   * customer is dropped at the final stop. Same display-string format
+   * as `pickupTime`. The drop place is the last `stopDetails` entry's
+   * address.
+   */
+  dropTime: string;
+
+  /**
    * Booking-advance amount in INR (whole rupees). Shown on the
    * "Ready to Book" sheet as the deposit required to lock the
    * vehicle. Stored on the record (not derived from `amount`) so
