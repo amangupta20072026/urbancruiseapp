@@ -1,108 +1,171 @@
 /**
  * ------------------------------------------------------------------
- * Vehicle tier options — "Choose Your Vehicle" (pending quotations)
+ * Vehicle options — "Choose Your Vehicle" (pending quotations)
  * ------------------------------------------------------------------
  * While a quotation is `pending`, the vehicle ops proposed isn't
- * locked in yet, so the detail screen offers a tier picker instead
- * of the plain read-only Vehicle Details card (that card is still
- * used once the quotation is `accepted` / `expired`, when the
- * vehicle IS locked in).
+ * locked in yet, so the detail screen offers a vehicle picker
+ * instead of the plain read-only Vehicle Details card (that card is
+ * still used once the quotation is `accepted` / `expired`).
  *
- * Mock-only for now — no `tripId`/`quotationId` scoping, since the
- * tier list is the same catalogue regardless of route. When a real
- * "change vehicle tier" endpoint lands, this becomes the response
- * shape and `price` moves from a flat mock number to a per-route
- * quote.
+ * TIER vs OPTION:
+ *   A tier (Economy / Premium / Royal / Royal VIP) is a comfort
+ *   class. An option is one concrete vehicle offered at that tier.
+ *   One tier can have several options — e.g. Royal VIP is offered
+ *   as both a Force Traveller and a Force Urbania — so every option
+ *   carries its own `id`, and selection is keyed on `id`, never on
+ *   `tier`.
+ *
+ * QUANTITY:
+ *   Large groups may need more than one vehicle. The customer picks
+ *   ONE option and a quantity (1..maxQuantity). `pricePerVehicle`
+ *   is per unit; the total is `pricePerVehicle × quantity`.
+ *
+ * Mock-only for now. When the "quotation vehicle options" endpoint
+ * lands, this becomes the response shape and prices become a
+ * per-route quote.
  * ------------------------------------------------------------------ */
 
 export type VehicleTierKey = 'economy' | 'premium' | 'royal' | 'royal_vip';
 
-export type VehicleTierOption = {
-  key: VehicleTierKey;
-  name: string;
-  seater: number;
-  /** Chassis/type line, e.g. "Force Traveller", "Force Urbania (2x1)". */
-  type: string;
-  price: number;
-  /** Shows a "MOST POPULAR" badge on the card when true. */
-  popular?: boolean;
-  /** Shown as a checklist once the card is expanded. */
-  features: readonly string[];
+/** Display label for each tier's pill. */
+export const VEHICLE_TIER_LABELS: Readonly<Record<VehicleTierKey, string>> = {
+  economy: 'ECONOMY',
+  premium: 'PREMIUM',
+  royal: 'ROYAL',
+  royal_vip: 'ROYAL VIP',
+};
+
+/**
+ * Amenity kinds the card knows how to draw an icon for. `label` on
+ * each amenity is free text, so ops can say "BT Music" vs "Music
+ * System" without a new kind.
+ */
+export type VehicleAmenityKind =
+  | 'ac'
+  | 'music'
+  | 'charging'
+  | 'sofa_bed'
+  | 'tv'
+  | 'panoramic';
+
+export type VehicleAmenity = {
+  kind: VehicleAmenityKind;
+  label: string;
+};
+
+export type VehicleOption = {
+  /** Unique per option. Selection is keyed on this. */
+  id: string;
+  tier: VehicleTierKey;
+  /** Vehicle model, e.g. "Force Traveller". Card title. */
+  model: string;
+  /** One-line spec summary under the title. */
+  description: string;
+  seats: number;
   /**
-   * Thumbnail image shown in the tier card's header (52×52). Kept
-   * optional so a tier can ship without an image and gracefully
-   * fall back to the Bus icon chip.
-   *
-   * All four tiers currently point at the same placeholder — same
-   * convention as `PLACEHOLDER_VEHICLE_IMG` in
-   * `features/customer/quotations/mocks.ts`. Swap for per-tier
-   * assets (e.g. `@assets/images/vehicle-tier-royal.png`) when the
-   * tier-image set lands.
+   * Highlight chips in the spec row, after Seats. The card shows at
+   * most 3 so the row stays on one line on a 360dp phone; put the
+   * most distinctive amenities first.
    */
+  amenities: readonly VehicleAmenity[];
+  pricePerVehicle: number;
+  /** Shows a "Most popular" badge on the card when true. */
+  popular?: boolean;
+  /** Upper bound for the quantity stepper. Defaults to 10. */
+  maxQuantity?: number;
+  /** Thumbnail. Optional — the card falls back to a bus icon. */
   image?: number;
 };
 
-// Placeholder image shared by every tier for now — see the field
-// comment on `image` above. When per-tier images ship, replace
-// each entry's `image` inline and this const can go.
-const PLACEHOLDER_TIER_IMG = require('@assets/images/service-car.png');
+/** What the screen holds once the customer commits to a vehicle. */
+export type VehicleSelection = {
+  optionId: string;
+  quantity: number;
+};
 
-export const VEHICLE_TIER_OPTIONS: readonly VehicleTierOption[] = [
+export const DEFAULT_MAX_VEHICLE_QUANTITY = 10;
+
+// Placeholder image shared by every option until per-model assets
+// land (same convention as PLACEHOLDER_VEHICLE_IMG in mocks.ts).
+const PLACEHOLDER_IMG = require('@assets/images/service-car.png');
+
+export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
   {
-    key: 'economy',
-    name: 'Economy',
-    seater: 16,
-    type: 'Force Traveller',
-    price: 40000,
-    features: ['Basic AC', 'Non-Recline Seat', 'Basic Music System'],
-    image: PLACEHOLDER_TIER_IMG,
-  },
-  {
-    key: 'premium',
-    name: 'Premium',
-    seater: 16,
-    type: 'Force Traveller',
-    price: 44000,
-    features: [
-      'AC',
-      'Recline Seat',
-      'Charging Point',
-      'Music System + Speaker',
+    id: 'economy-traveller',
+    tier: 'economy',
+    model: 'Force Traveller',
+    description: 'Basic A/C, Non-Recline Seat, Basic music',
+    seats: 13,
+    amenities: [
+      { kind: 'ac', label: 'A/C' },
+      { kind: 'music', label: 'Basic' },
     ],
-    image: PLACEHOLDER_TIER_IMG,
+    pricePerVehicle: 15800,
+    image: PLACEHOLDER_IMG,
   },
   {
-    key: 'royal',
-    name: 'Royal',
-    seater: 16,
-    type: 'Force Traveller',
-    price: 45000,
+    id: 'premium-traveller',
+    tier: 'premium',
+    model: 'Force Traveller',
+    description:
+      '2018–20 Model, A/c, Recline Seat, Charging Point, Music System + Speaker',
+    seats: 13,
+    amenities: [
+      { kind: 'ac', label: 'A/C' },
+      { kind: 'music', label: 'Music' },
+      { kind: 'charging', label: 'Charging' },
+    ],
+    pricePerVehicle: 16400,
+    image: PLACEHOLDER_IMG,
+  },
+  {
+    id: 'royal-traveller',
+    tier: 'royal',
+    model: 'Force Traveller',
+    description:
+      '2021–23 Model, Modified Veh., Good A/c, Recline Seat, Charging Point, BT Music + Speaker, Sofa/Bed',
+    seats: 13,
+    amenities: [
+      { kind: 'ac', label: 'A/C' },
+      { kind: 'music', label: 'BT Music' },
+      { kind: 'sofa_bed', label: 'Sofa/Bed' },
+    ],
+    pricePerVehicle: 17000,
     popular: true,
-    features: [
-      'Modified Vehicle',
-      'Good AC',
-      'Recline Seat',
-      'Charging Point',
-      'BT Music + Speaker',
-      'Sofa / Bed',
-    ],
-    image: PLACEHOLDER_TIER_IMG,
+    image: PLACEHOLDER_IMG,
   },
   {
-    key: 'royal_vip',
-    name: 'Royal VIP',
-    seater: 16,
-    type: 'Force Urbania (2x1)',
-    price: 56000,
-    features: [
-      'Powerful AC',
-      '2x1 Recline Seat',
-      'Panoramic Windows',
-      'Charging Points',
-      'Personal AC Vents',
-      'BT Music + Speaker',
-      'Comfort & Silent Ride',
+    id: 'royal-vip-traveller',
+    tier: 'royal_vip',
+    model: 'Force Traveller',
+    description:
+      'A/c, 1x1 VIP Maharaja Seat, More Legroom, Custom Designed Veh., Charging Points, Personal A/c Vents, BT Touch Music + Good Speaker, HD TV',
+    seats: 12,
+    amenities: [
+      { kind: 'ac', label: 'A/C' },
+      { kind: 'music', label: 'BT Music' },
+      { kind: 'tv', label: 'HD TV' },
     ],
-    image: PLACEHOLDER_TIER_IMG,
+    pricePerVehicle: 21200,
+    image: PLACEHOLDER_IMG,
+  },
+  {
+    id: 'royal-vip-urbania',
+    tier: 'royal_vip',
+    model: 'Force Urbania',
+    description:
+      'A/c, 1x1 Recline Seat (15), Comfortable & Silent Cabin, Panoramic Window, Charging Points, Personal A/c Vents, BT Music + Speaker',
+    seats: 15,
+    amenities: [
+      { kind: 'ac', label: 'A/C' },
+      { kind: 'music', label: 'BT Music' },
+      { kind: 'panoramic', label: 'Panoramic' },
+    ],
+    pricePerVehicle: 30000,
+    image: PLACEHOLDER_IMG,
   },
 ];
+
+export function findVehicleOption(id: string): VehicleOption | undefined {
+  return VEHICLE_OPTIONS.find(o => o.id === id);
+}

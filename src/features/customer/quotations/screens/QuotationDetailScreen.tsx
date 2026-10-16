@@ -152,6 +152,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Bus,
   Calendar,
+  CarFront,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -178,11 +179,8 @@ import type { CustomerStackParamList } from '@navigation/types';
 import type { CustomerQuotationDetail, QuotationStatus } from '../types';
 import { getCustomerQuotationDetail } from '../mocks';
 import { QuotationTripCard } from '../components/QuotationTripCard';
-import {
-  VEHICLE_TIER_OPTIONS,
-  type VehicleTierKey,
-  type VehicleTierOption,
-} from '../vehicleTierOptions';
+import { VEHICLE_OPTIONS, type VehicleSelection } from '../vehicleTierOptions';
+import { VehicleOptionCard } from '../components/VehicleOptionCard';
 import { NeedChangesSheet } from '../components/NeedChangesSheet';
 import { ContinueToBookingSheet } from '../components/ContinueToBookingSheet';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -331,7 +329,7 @@ const QuotationDetailScreen: React.FC = () => {
 
   /* -------- Selection state --------
    *
-   * Which vehicle tier the customer has committed to in the pending
+   * Which vehicle option (+ quantity) the customer has committed to in the pending
    * picker. Held HERE (not inside `ChooseVehicleSection`) so the
    * sticky `BottomBar` can gate its "Accept & Continue" CTA on it —
    * a customer shouldn't be able to accept a quotation before they
@@ -340,9 +338,8 @@ const QuotationDetailScreen: React.FC = () => {
    * Ignored for `accepted` / `expired` quotations, which don't
    * render the picker at all (the vehicle is already locked in
    * server-side). */
-  const [selectedTierKey, setSelectedTierKey] = useState<VehicleTierKey | null>(
-    null,
-  );
+  const [vehicleSelection, setVehicleSelection] =
+    useState<VehicleSelection | null>(null);
 
   /* -------- Local status (SSoT while accept API is not wired) --------
    *
@@ -364,7 +361,7 @@ const QuotationDetailScreen: React.FC = () => {
     detail?.status ?? 'pending',
   );
 
-  const acceptDisabled = status === 'pending' && selectedTierKey === null;
+  const acceptDisabled = status === 'pending' && vehicleSelection === null;
 
   /* -------- Handlers -------- */
 
@@ -438,8 +435,8 @@ const QuotationDetailScreen: React.FC = () => {
         <QuotationTripCard detail={detail} />
         {status === 'pending' ? (
           <ChooseVehicleSection
-            selectedKey={selectedTierKey}
-            onSelect={setSelectedTierKey}
+            selection={vehicleSelection}
+            onChangeSelection={setVehicleSelection}
           />
         ) : (
           <VehicleCard detail={detail} />
@@ -772,169 +769,80 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
 };
 
 /* ================================================================
- * ChooseVehicleSection  — "Choose Your Vehicle" accordion, shown
- *                         instead of the plain VehicleCard while a
- *                         quotation is `pending` (the vehicle isn't
- *                         locked in yet). Behaves like an FAQ list:
- *                         each tier's feature checklist is hidden
- *                         by default; tapping a tier's header
- *                         expands it and collapses whichever other
- *                         tier was open, via a single `expandedKey`
- *                         state held here (not per-card), which is
- *                         what makes it "only one open at a time"
- *                         instead of independent toggles.
+ * ChooseVehicleSection  — vehicle picker, shown instead of the plain
+ *                         VehicleCard while a quotation is `pending`
+ *                         (the vehicle isn't locked in yet).
  *
- *                         `selectedKey` is separate from
- *                         `expandedKey` on purpose — expanding a
- *                         tier to read its features shouldn't
- *                         silently select it; the customer commits
- *                         via the "Select" button.
+ * STATE:
+ *   `selection` ({ optionId, quantity } | null) is lifted to the
+ *   screen so the sticky BottomBar can gate "Accept & Continue".
+ *
+ *   `quantities` is local: every card has its own stepper, and the
+ *   customer can set a count BEFORE tapping Select. Tapping Select
+ *   commits that card's count. Changing the stepper on the
+ *   already-selected card updates the selection live; changing it on
+ *   any other card does NOT steal the selection — only Select does.
+ *   Tapping Select on the selected card again deselects it.
  * ================================================================ */
 
 const ChooseVehicleSection: React.FC<{
-  selectedKey: VehicleTierKey | null;
-  onSelect: (key: VehicleTierKey) => void;
-}> = ({ selectedKey, onSelect }) => {
-  // `expandedKey` remains local — only the section cares which card
-  // is open. `selectedKey` is lifted to the screen so the sticky
-  // BottomBar can disable the "Accept & Continue" CTA until the
-  // customer commits to a vehicle. See `acceptDisabled` in
-  // QuotationDetailScreen.
-  const [expandedKey, setExpandedKey] = useState<VehicleTierKey | null>(null);
+  selection: VehicleSelection | null;
+  onChangeSelection: (next: VehicleSelection | null) => void;
+}> = ({ selection, onChangeSelection }) => {
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  const onToggle = useCallback((key: VehicleTierKey) => {
-    setExpandedKey(prev => (prev === key ? null : key));
-  }, []);
-
-  return (
-    <View style={styles.card}>
-      <SectionHeader
-        icon={<Bus size={18} color={Colors.primary} strokeWidth={2} />}
-        iconBg={Colors.primaryTint}
-        title="Choose Your Vehicle"
-      />
-      <Text style={styles.chooseVehicleSubtitle}>
-        Select the vehicle that best suits your journey
-      </Text>
-
-      <View style={styles.tierList}>
-        {VEHICLE_TIER_OPTIONS.map(option => (
-          <VehicleTierCard
-            key={option.key}
-            option={option}
-            expanded={expandedKey === option.key}
-            selected={selectedKey === option.key}
-            onToggle={() => onToggle(option.key)}
-            onSelect={() => onSelect(option.key)}
-          />
-        ))}
-      </View>
-    </View>
+  const qtyFor = useCallback(
+    (id: string): number =>
+      quantities[id] ?? (selection?.optionId === id ? selection.quantity : 1),
+    [quantities, selection],
   );
-};
 
-const VehicleTierCard: React.FC<{
-  option: VehicleTierOption;
-  expanded: boolean;
-  selected: boolean;
-  onToggle: () => void;
-  onSelect: () => void;
-}> = ({ option, expanded, selected, onToggle, onSelect }) => {
+  const onChangeQuantity = useCallback(
+    (id: string, next: number) => {
+      setQuantities(prev => ({ ...prev, [id]: next }));
+      if (selection?.optionId === id) {
+        onChangeSelection({ optionId: id, quantity: next });
+      }
+    },
+    [selection, onChangeSelection],
+  );
+
+  const onSelect = useCallback(
+    (id: string) => {
+      onChangeSelection(
+        selection?.optionId === id
+          ? null
+          : { optionId: id, quantity: qtyFor(id) },
+      );
+    },
+    [selection, onChangeSelection, qtyFor],
+  );
+
   return (
-    <View style={[styles.tierCard, selected && styles.tierCardSelected]}>
-      {option.popular ? (
-        <View style={styles.tierPopularBadge}>
-          <Text style={styles.tierPopularText}>MOST POPULAR</Text>
+    <View style={styles.chooseVehicleBlock}>
+      <View style={styles.chooseVehicleHeader}>
+        <View style={styles.chooseVehicleIcon}>
+          <CarFront size={22} color={Colors.primaryDark} strokeWidth={2} />
         </View>
-      ) : null}
-
-      {/* Header — the only always-visible part; tapping it toggles
-          the feature checklist below (FAQ-style, one open at a
-          time — see ChooseVehicleSection).
-
-          The bus chip on the left mirrors VehicleCard's collapsed
-          header, so the pending Choose-Your-Vehicle list and the
-          accepted/expired locked-in card read as one design system
-          rather than two unrelated components. */}
-      <Pressable
-        onPress={onToggle}
-        style={({ pressed }) => [styles.tierHeader, pressed && styles.pressed]}
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-        accessibilityLabel={`${option.name}, ${
-          expanded ? 'collapse' : 'expand'
-        } features`}
-      >
-        {option.image ? (
-          <Image
-            source={option.image}
-            style={styles.tierThumb}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={styles.tierIconChip}>
-            <Bus size={18} color={Colors.primary} strokeWidth={2} />
-          </View>
-        )}
-        <View style={styles.tierHeaderText}>
-          <Text style={styles.tierName}>{option.name}</Text>
-          <Text style={styles.tierMeta} numberOfLines={1}>
-            {option.seater} Seat · {option.type}
+        <View style={styles.chooseVehicleHeaderText}>
+          <Text style={styles.sectionTitle}>Choose Your Vehicle</Text>
+          <Text style={styles.chooseVehicleSubtitle}>
+            Select the vehicle that best suits your journey
           </Text>
         </View>
-        {expanded ? (
-          <ChevronUp size={20} color={Colors.textSecondary} strokeWidth={2} />
-        ) : (
-          <ChevronDown size={20} color={Colors.textSecondary} strokeWidth={2} />
-        )}
-      </Pressable>
-
-      {expanded ? (
-        <View style={styles.tierFeatures}>
-          {option.features.map(feature => (
-            <View key={feature} style={styles.tierFeatureRow}>
-              <CheckCircle2
-                size={16}
-                color={Colors.primary}
-                strokeWidth={2.5}
-              />
-              <Text style={styles.tierFeatureText}>{feature}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
-      <View style={styles.tierFooter}>
-        <Text style={styles.tierPrice}>{formatAmount(option.price)}</Text>
-        <Pressable
-          onPress={onSelect}
-          style={({ pressed }) => [
-            styles.tierSelectBtn,
-            selected && styles.tierSelectBtnActive,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={
-            selected ? `${option.name} selected` : `Select ${option.name}`
-          }
-        >
-          {selected ? (
-            <CheckCircle2
-              size={15}
-              color={Colors.textOnPrimary}
-              strokeWidth={2.5}
-            />
-          ) : null}
-          <Text
-            style={[
-              styles.tierSelectBtnText,
-              selected && styles.tierSelectBtnTextActive,
-            ]}
-          >
-            {selected ? 'Selected' : 'Select'}
-          </Text>
-        </Pressable>
       </View>
+
+      {VEHICLE_OPTIONS.map((option, i) => (
+        <VehicleOptionCard
+          key={option.id}
+          option={option}
+          index={i + 1}
+          selected={selection?.optionId === option.id}
+          quantity={qtyFor(option.id)}
+          onChangeQuantity={next => onChangeQuantity(option.id, next)}
+          onSelect={() => onSelect(option.id)}
+        />
+      ))}
     </View>
   );
 };
@@ -1532,8 +1440,8 @@ const styles = StyleSheet.create({
    * The same visual DNA drives BOTH:
    *   - the single locked-in vehicle card shown when the quotation
    *     is `accepted` / `expired` (VehicleCard), and
-   *   - each of the 4 tier options shown when it's `pending`
-   *     (VehicleTierCard).
+   *   - (the pending picker now uses its own VehicleOptionCard —
+   *     see components/VehicleOptionCard.tsx).
    *
    * Common:
    *   - Card container: 1px borderLight, Radius.md, surface bg,
@@ -1618,137 +1526,38 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  /* ── Choose Your Vehicle — accordion (pending quotations only) */
-  chooseVehicleSubtitle: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    marginTop: -Spacing.sm,
-    marginBottom: Spacing.md,
+  /* ── Choose Your Vehicle (pending quotations only) ──
+   * Option cards render directly in the scroll (not nested inside a
+   * card shell) so each one gets the full width. */
+  chooseVehicleBlock: {
+    gap: Spacing.md,
   },
-  tierList: {
-    gap: Spacing.sm,
-  },
-  tierCard: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.surface,
-    overflow: 'hidden',
-    ...Shadows.xs,
-  },
-  tierCardSelected: {
-    borderColor: Colors.primary,
-    borderWidth: 1.5,
-    // Faint brand wash so the picked tier is unmistakable at a
-    // glance without needing to read the button label.
-    backgroundColor: Colors.primaryTint,
-  },
-  tierPopularBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    borderBottomRightRadius: Radius.sm,
-  },
-  tierPopularText: {
-    ...Typography.caption,
-    fontSize: 10,
-    fontWeight: '800',
-    color: Colors.textOnPrimary,
-    letterSpacing: 0.4,
-  },
-  tierHeader: {
+  chooseVehicleHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.backgroundSecondary,
   },
-  tierIconChip: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.sm,
+  chooseVehicleIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: Colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Same slot dimensions as `vehicleThumb` above so the pending
-  // tier cards and the locked-in VehicleCard read as one design.
-  // Falls back to `tierIconChip` when a tier ships without an image.
-  tierThumb: {
-    width: 52,
-    height: 52,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.surfaceMuted,
-  },
-  tierHeaderText: {
+  chooseVehicleHeaderText: {
     flex: 1,
     gap: 2,
   },
-  tierName: {
-    ...Typography.subtitle,
-    fontWeight: '800',
-    color: Colors.primaryDark,
-  },
-  tierMeta: {
+  chooseVehicleSubtitle: {
     ...Typography.caption,
     color: Colors.textSecondary,
     fontWeight: '500',
-  },
-  tierFeatures: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
-    paddingTop: Spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    gap: 8,
-  },
-  tierFeatureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  tierFeatureText: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '500',
-  },
-  tierFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-  },
-  tierPrice: {
-    ...Typography.subtitle,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-  },
-  tierSelectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surface,
-  },
-  tierSelectBtnActive: {
-    backgroundColor: Colors.primary,
-  },
-  tierSelectBtnText: {
-    ...Typography.bodySmall,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  tierSelectBtnTextActive: {
-    color: Colors.textOnPrimary,
   },
 
   /* ── Important Charges card ── */

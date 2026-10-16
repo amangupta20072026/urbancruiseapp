@@ -152,6 +152,10 @@ export const Colors = {
   secondaryTint: '#FEF9C3', // pairs with secondary (gold)
   accentTint: '#FFE4CC', // pairs with accent (deep orange)
   royalTint: '#F3E8FF', // pairs with royal (purple)
+  /** Faint selected-card washes — lighter than the *Tint above so
+   *  text on them keeps full contrast. */
+  primaryWash: '#F4FBF5',
+  royalWash: '#FAF5FF',
 
   /**
    * ------------------------------------------------------------
