@@ -2,9 +2,8 @@
  * ------------------------------------------------------------------
  * Quotation duration — shared display helpers
  * ------------------------------------------------------------------
- * One place for the day / night / rest-day wording, so the list
- * card, the detail screen and the Continue-to-Booking sheet always
- * describe a trip the same way.
+ * One place for the day / rest-day wording, so the list card and
+ * the Quotation Details trip card describe a trip the same way.
  *
  * REST DAYS (pickup & drop only):
  *   A pickup & drop trip is two separate legs — the car drops the
@@ -37,22 +36,4 @@ export function formatRestDays(restDays: number): string {
 /** True when the trip has rest days worth showing. */
 export function hasRestDays(restDays: number | undefined): restDays is number {
   return typeof restDays === 'number' && restDays > 0;
-}
-
-/**
- * Bracketed duration line for the detail screen and booking sheet.
- *   with rest days → "(2 Travel Days / 3 Rest Days)"
- *   otherwise      → "(3 Nights / 4 Days)"
- */
-export function formatDurationBreakdown(d: {
-  nights: number;
-  days: number;
-  restDays?: number;
-}): string {
-  if (hasRestDays(d.restDays)) {
-    return `(${plural(d.days, 'Travel Day', 'Travel Days')} / ${formatRestDays(
-      d.restDays,
-    )})`;
-  }
-  return `(${plural(d.nights, 'Night', 'Nights')} / ${formatDays(d.days)})`;
 }

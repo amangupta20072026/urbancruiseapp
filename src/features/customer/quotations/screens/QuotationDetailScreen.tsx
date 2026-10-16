@@ -89,9 +89,11 @@
  * ------------------------------------------------------------------
  * WHY subcomponents are LOCAL to this file
  * ------------------------------------------------------------------
- * The meta card, trip timeline, vehicle card, total bar, terms
- * grid and bottom bar are only meaningful in the context of this
- * screen. Extracting them to `components/` would create six new
+ * The meta card, vehicle card, total bar, terms grid and bottom
+ * bar are only meaningful in the context of this screen. The Trip
+ * Details card is the exception: it lives in
+ * `components/QuotationTripCard.tsx` because it mirrors the booking
+ * TripDetailsCard design and is easier to keep in step there. Extracting them to `components/` would create six new
  * files with zero external consumers. If any get reused later
  * (say, in a shared "Quotation summary" preview), hoist them
  * out at that point — YAGNI until then.
@@ -160,13 +162,11 @@ import {
   Mail,
   MessageCircle,
   Lock,
-  MapPin,
   Milestone,
   Moon,
   PenSquare,
   Phone,
   RefreshCw,
-  Users,
   XCircle,
 } from 'lucide-react-native';
 
@@ -175,14 +175,9 @@ import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { makePhoneCall, openWhatsApp, sendEmail } from '@services/contact';
 import type { CustomerStackParamList } from '@navigation/types';
 
-import type {
-  CustomerQuotationDetail,
-  QuotationStatus,
-  TripType,
-} from '../types';
-import { formatDurationBreakdown } from '../utils/duration';
+import type { CustomerQuotationDetail, QuotationStatus } from '../types';
 import { getCustomerQuotationDetail } from '../mocks';
-import { getTripTypeOption } from '../tripTypeOptions';
+import { QuotationTripCard } from '../components/QuotationTripCard';
 import {
   VEHICLE_TIER_OPTIONS,
   type VehicleTierKey,
@@ -225,26 +220,8 @@ const EMAIL_TINT_FG = '#D97B0A';
  * Formatting helpers
  * ================================================================ */
 
-/** "2026-08-12" / ISO → "12 Aug 2026". */
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 function formatAmount(rupees: number): string {
   return `₹${rupees.toLocaleString('en-IN')}`;
-}
-
-function formatPassengers(adults: number, children: number): string {
-  const parts: string[] = [];
-  parts.push(`${adults} ${adults === 1 ? 'Adult' : 'Adults'}`);
-  if (children > 0) {
-    parts.push(`${children} ${children === 1 ? 'Child' : 'Children'}`);
-  }
-  return parts.join(', ');
 }
 
 /* ================================================================
@@ -458,7 +435,7 @@ const QuotationDetailScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
         <MetaCard detail={detail} />
-        <TripCard detail={detail} />
+        <QuotationTripCard detail={detail} />
         {status === 'pending' ? (
           <ChooseVehicleSection
             selectedKey={selectedTierKey}
@@ -669,124 +646,6 @@ const MetaCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
         </View>
       </View>
     </>
-  );
-};
-
-/* ================================================================
- * TripCard  — trip icon header, horizontal stop timeline, then
- *             a two-column travel-date / passengers row.
- * ================================================================ */
-
-const TripCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
-  detail,
-}) => {
-  return (
-    <View style={styles.card}>
-      <SectionHeader
-        icon={<MapPin size={18} color={Colors.primary} strokeWidth={2} />}
-        iconBg={Colors.primaryTint}
-        title="Trip Details"
-        rightSlot={<TripTypeBadge tripType={detail.tripType} />}
-      />
-
-      <StopTimeline detail={detail} />
-
-      <View style={styles.divider} />
-
-      <View style={styles.tripFactsRow}>
-        <View style={styles.tripFactCell}>
-          <Calendar size={18} color={Colors.textSecondary} strokeWidth={2} />
-          <View style={styles.tripFactBody}>
-            <Text style={styles.factLabel}>Travel Date</Text>
-            <Text style={styles.factValue}>
-              {formatDate(detail.travelDateStart)} –{' '}
-              {formatDate(detail.travelDateEnd)}
-            </Text>
-            <Text style={styles.factSubtle}>
-              {formatDurationBreakdown(detail)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.tripFactDivider} />
-
-        <View style={styles.tripFactCell}>
-          <Users size={18} color={Colors.textSecondary} strokeWidth={2} />
-          <View style={styles.tripFactBody}>
-            <Text style={styles.factLabel}>Passengers</Text>
-            <Text style={styles.factValue}>
-              {formatPassengers(detail.adults, detail.children)}
-            </Text>
-            <Text style={styles.factSubtle}>
-              ({detail.adults + detail.children}{' '}
-              {detail.adults + detail.children === 1
-                ? 'Passenger'
-                : 'Passengers'}
-              )
-            </Text>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-};
-
-/**
- * Horizontal stop timeline. Each stop is a column with a coloured
- * dot on top, city underneath, address below. Each column carries its
- * own trailing connector line to the right of the dot (except the last
- * column), so the dots and the line share a single row and stay
- * vertically aligned regardless of column width.
- *
- * COLOUR RULE:
- *   - Last stop dot → red (destination)
- *   - Every other  → green (origin / intermediate)
- *   The list card doesn't visualise stop role at all; the detail
- *   screen does, so a distinct red endpoint reads immediately.
- *
- * LAYOUT NOTE:
- *   Each column is `flex: 1` so up to ~4 stops fit on a phone.
- *   For >4 stops the columns get uncomfortably narrow — if that
- *   becomes real, switch to a vertical timeline here.
- */
-const StopTimeline: React.FC<{ detail: CustomerQuotationDetail }> = ({
-  detail,
-}) => {
-  const stops = detail.stopDetails;
-  return (
-    <View style={styles.timeline}>
-      {stops.map((stop, i) => {
-        const isLast = i === stops.length - 1;
-        const accent = isLast ? Colors.error : Colors.primary;
-        const accentTint = isLast ? Colors.errorTint : Colors.primaryTint;
-        return (
-          <View key={`${stop.city}-${i}`} style={styles.stopCol}>
-            <View style={styles.stopDotRow}>
-              <View style={[styles.dotRing, { backgroundColor: accentTint }]}>
-                <View style={[styles.dot, { backgroundColor: accent }]} />
-              </View>
-              {isLast ? null : (
-                <View
-                  style={[
-                    styles.connector,
-                    { borderColor: Colors.primaryLight },
-                  ]}
-                />
-              )}
-            </View>
-            <Text
-              style={[styles.stopCity, { color: accent }]}
-              numberOfLines={1}
-            >
-              {stop.city}
-            </Text>
-            <Text style={styles.stopAddress} numberOfLines={2}>
-              {stop.address}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
   );
 };
 
@@ -1283,27 +1142,6 @@ const SectionHeader: React.FC<{
 );
 
 /* ================================================================
- * TripTypeBadge  — read-only chip on the Trip Details header
- *                  showing the service category (One Way / Round
- *                  Trip / Pickup & Drop). Shares icon + label with
- *                  the RequestQuotation picker via `tripTypeOptions`
- *                  so the same trip concept reads identically
- *                  wherever it appears.
- * ================================================================ */
-
-const TripTypeBadge: React.FC<{ tripType: TripType }> = ({ tripType }) => {
-  const { Icon, label } = getTripTypeOption(tripType);
-  return (
-    <View style={styles.tripTypeBadge}>
-      <Icon size={13} color={Colors.primaryDark} strokeWidth={2.5} />
-      <Text style={styles.tripTypeBadgeText} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
-};
-
-/* ================================================================
  * BottomBar  — sticky action row + trust caption. Layout differs
  *              by status; see the file header for the CTA matrix.
  * ================================================================ */
@@ -1557,24 +1395,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  /* Trip type badge — SectionHeader rightSlot on the Trip Details
-     card, showing One Way / Round Trip / Pickup & Drop. */
-  tripTypeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    maxWidth: 130,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 5,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.primaryTint,
-  },
-  tripTypeBadgeText: {
-    ...Typography.caption,
-    fontWeight: '700',
-    color: Colors.primaryDark,
-  },
-
   /* Icon tile — square variant used on the meta card */
   iconTile: {
     width: 44,
@@ -1702,97 +1522,6 @@ const styles = StyleSheet.create({
   advisorMessageSubtitle: {
     ...Typography.caption,
     color: Colors.textSecondary,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-
-  /* Trip timeline */
-  timeline: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: Spacing.xs,
-  },
-  stopCol: {
-    flex: 1,
-    alignItems: 'flex-start',
-    gap: 4,
-  },
-  stopDotRow: {
-    height: 18,
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dotRing: {
-    width: 18,
-    height: 18,
-    borderRadius: Radius.circle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dot: {
-    width: 9,
-    height: 9,
-    borderRadius: Radius.circle,
-  },
-  connector: {
-    flex: 1,
-    height: 0,
-    borderTopWidth: 2,
-    borderStyle: 'dashed',
-    marginLeft: 4,
-    marginRight: 4,
-  },
-  stopCity: {
-    ...Typography.bodySmall,
-    fontWeight: '800',
-  },
-  stopAddress: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-
-  /* Divider inside cards */
-  divider: {
-    height: 1,
-    backgroundColor: Colors.borderLight,
-    marginVertical: Spacing.md,
-  },
-
-  /* Trip facts (date + passengers) */
-  tripFactsRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: Spacing.sm,
-  },
-  tripFactCell: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-  },
-  tripFactBody: {
-    flex: 1,
-  },
-  tripFactDivider: {
-    width: 1,
-    backgroundColor: Colors.borderLight,
-  },
-  factLabel: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  factValue: {
-    ...Typography.bodySmall,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    marginTop: 2,
-  },
-  factSubtle: {
-    ...Typography.caption,
-    color: Colors.textTertiary,
     fontWeight: '500',
     marginTop: 2,
   },
