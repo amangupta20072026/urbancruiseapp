@@ -510,11 +510,6 @@ const QuotationDetailScreen: React.FC = () => {
           quotationNumber: detail.quotationNumber,
           travelDateStart: detail.travelDateStart,
           travelDateEnd: detail.travelDateEnd,
-          nights: detail.nights,
-          days: detail.days,
-          ...(detail.restDays !== undefined
-            ? { restDays: detail.restDays }
-            : {}),
           adults: detail.adults,
           children: detail.children,
           amount: detail.amount,

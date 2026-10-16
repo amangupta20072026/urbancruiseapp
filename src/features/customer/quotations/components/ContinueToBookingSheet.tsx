@@ -20,10 +20,9 @@
  *   ├────────────────────────────────────────────────────────┤
  *   │ ┌ Summary ─────────────────────────────── (tinted) ─┐  │
  *   │ │ 📄 Quotation ID   QU-2026-482913                  │  │
+ *   │ │ 📍 Trip           Delhi → Agra → Jaipur → Delhi   │  │
  *   │ │ 📅 Travel Date           12 Aug 2026 – 15 Aug 2026│  │
- *   │ │                              (3 Nights / 4 Days) │  │
- *   │ │ 👥 Passengers            2 Adults, 1 Child       │  │
- *   │ │                              (3 Passengers)      │  │
+ *   │ │ 👥 Passengers                      3 Passengers   │  │
  *   │ │ ₹  Total Amount          ₹35,200                 │  │
  *   │ └───────────────────────────────────────────────────┘  │
  *   ├────────────────────────────────────────────────────────┤
@@ -124,7 +123,6 @@ import {
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { toast } from '@services/toast';
-import { formatDurationBreakdown } from '../utils/duration';
 
 /* ================================================================
  * Types + Props
@@ -140,10 +138,6 @@ export type ConfirmSummary = {
   quotationNumber: string;
   travelDateStart: string; // ISO
   travelDateEnd: string; // ISO
-  nights: number;
-  days: number;
-  /** Pickup & drop only: days at the destination, not counted in `days`. */
-  restDays?: number;
   adults: number;
   children: number;
   /** Total amount in INR (whole rupees). */
@@ -199,13 +193,11 @@ function formatAmount(rupees: number): string {
   return `₹${rupees.toLocaleString('en-IN')}`;
 }
 
+/** Total head-count only, e.g. "3 Passengers" — the adult / child
+ *  split is shown on the Quotation Details screen, not here. */
 function formatPassengers(adults: number, children: number): string {
-  const parts: string[] = [];
-  parts.push(`${adults} ${adults === 1 ? 'Adult' : 'Adults'}`);
-  if (children > 0) {
-    parts.push(`${children} ${children === 1 ? 'Child' : 'Children'}`);
-  }
-  return parts.join(', ');
+  const total = adults + children;
+  return `${total} ${total === 1 ? 'Passenger' : 'Passengers'}`;
 }
 
 /* ================================================================
@@ -318,27 +310,10 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
       [summary.travelDateStart, summary.travelDateEnd],
     );
 
-    const durationLabel = useMemo(
-      () =>
-        formatDurationBreakdown({
-          nights: summary.nights,
-          days: summary.days,
-          ...(summary.restDays !== undefined
-            ? { restDays: summary.restDays }
-            : {}),
-        }),
-      [summary.nights, summary.days, summary.restDays],
-    );
-
     const passengerLine = useMemo(
       () => formatPassengers(summary.adults, summary.children),
       [summary.adults, summary.children],
     );
-
-    const passengerTotal = useMemo(() => {
-      const total = summary.adults + summary.children;
-      return `(${total} ${total === 1 ? 'Passenger' : 'Passengers'})`;
-    }, [summary.adults, summary.children]);
 
     /* -------- Render -------- */
 
@@ -394,18 +369,8 @@ export const ContinueToBookingSheet = forwardRef<BottomSheetModal, Props>(
               value={summary.quotationNumber}
             />
             <SummaryRow Icon={MapPin} label="Trip" value={summary.trip} />
-            <SummaryRow
-              Icon={Calendar}
-              label="Travel Date"
-              value={dateRange}
-              subValue={durationLabel}
-            />
-            <SummaryRow
-              Icon={Users}
-              label="Passengers"
-              value={passengerLine}
-              subValue={passengerTotal}
-            />
+            <SummaryRow Icon={Calendar} label="Travel Date" value={dateRange} />
+            <SummaryRow Icon={Users} label="Passengers" value={passengerLine} />
             <SummaryRow
               Icon={IndianRupee}
               label="Total Amount"
