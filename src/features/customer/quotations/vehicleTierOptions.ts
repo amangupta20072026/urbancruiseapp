@@ -91,10 +91,10 @@ const PLACEHOLDER_IMG = require('@assets/images/service-car.png');
 
 export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
   {
-    id: 'economy-traveller',
+    id: 'economy-traveller-13',
     tier: 'economy',
     model: 'Force Traveller',
-    description: 'Basic A/C, Non-Recline Seat, Basic music',
+    description: 'Basic A/c, Non-Recline Seat, Basic',
     seats: 13,
     amenities: [
       { kind: 'ac', label: 'A/C' },
@@ -104,11 +104,11 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
     image: PLACEHOLDER_IMG,
   },
   {
-    id: 'premium-traveller',
+    id: 'premium-traveller-13',
     tier: 'premium',
     model: 'Force Traveller',
     description:
-      '2018–20 Model, A/c, Recline Seat, Charging Point, Music System + Speaker',
+      '2018-20 Model, A/c, Recline Seat, Charging Point, Music System + Speaker',
     seats: 13,
     amenities: [
       { kind: 'ac', label: 'A/C' },
@@ -119,11 +119,11 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
     image: PLACEHOLDER_IMG,
   },
   {
-    id: 'royal-traveller',
+    id: 'royal-traveller-13',
     tier: 'royal',
     model: 'Force Traveller',
     description:
-      '2021–23 Model, Modified Veh., Good A/c, Recline Seat, Charging Point, BT Music + Speaker, Sofa/Bed',
+      '2021-23 Model, Modified Veh., Good A/c, Recline Seat, Charging Point, BT Music + Speaker, Sofa/Bed',
     seats: 13,
     amenities: [
       { kind: 'ac', label: 'A/C' },
@@ -135,11 +135,28 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
     image: PLACEHOLDER_IMG,
   },
   {
-    id: 'royal-vip-traveller',
+    id: 'royal-traveller-26',
+    tier: 'royal',
+    model: 'Force Traveller',
+    description:
+      '2021-23 Model, Modified Veh., Good A/c, Recline Seat, Charging Point, BT Music + Speaker, Sofa/Bed',
+    seats: 26,
+    amenities: [
+      { kind: 'ac', label: 'A/C' },
+      { kind: 'music', label: 'BT Music' },
+      { kind: 'sofa_bed', label: 'Sofa/Bed' },
+    ],
+    // TODO(data): price copied from the rate sheet, where it equals
+    // the 13-seat Royal. Confirm with ops before go-live.
+    pricePerVehicle: 17000,
+    image: PLACEHOLDER_IMG,
+  },
+  {
+    id: 'royal-vip-traveller-12',
     tier: 'royal_vip',
     model: 'Force Traveller',
     description:
-      'A/c, 1x1 VIP Maharaja Seat, More Legroom, Custom Designed Veh., Charging Points, Personal A/c Vents, BT Touch Music + Good Speaker, HD TV',
+      'A/c, 1x1 VIP Maharaja Seat, More Legroom, Custom Designed Veh., Charging Points, Personal A/c Vent, BT Touch Music + Good Speakers, HD TV',
     seats: 12,
     amenities: [
       { kind: 'ac', label: 'A/C' },
@@ -150,11 +167,28 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
     image: PLACEHOLDER_IMG,
   },
   {
-    id: 'royal-vip-urbania',
+    id: 'royal-vip-urbania-15-a',
     tier: 'royal_vip',
     model: 'Force Urbania',
     description:
-      'A/c, 1x1 Recline Seat (15), Comfortable & Silent Cabin, Panoramic Window, Charging Points, Personal A/c Vents, BT Music + Speaker',
+      'A/c, 2x1 Recline Seat (15), Comfortable & Silent Cabin, Panoramic Window, Charging Points, Personal A/c Vents, BT Music + Speaker, Comfort, Silent',
+    seats: 15,
+    amenities: [
+      { kind: 'ac', label: 'A/C' },
+      { kind: 'music', label: 'BT Music' },
+      { kind: 'panoramic', label: 'Panoramic' },
+    ],
+    pricePerVehicle: 30000,
+    image: PLACEHOLDER_IMG,
+  },
+  {
+    id: 'royal-vip-urbania-15-b',
+    tier: 'royal_vip',
+    model: 'Force Urbania',
+    // TODO(data): identical to the row above in the rate sheet (its
+    // text is cut off there). Confirm what makes this one different.
+    description:
+      'A/c, 2x1 Recline Seat (15), Comfortable & Silent Cabin, Panoramic Window, Charging Points, Personal A/c Vents, BT Music + Speaker, Comfort, Silent',
     seats: 15,
     amenities: [
       { kind: 'ac', label: 'A/C' },
