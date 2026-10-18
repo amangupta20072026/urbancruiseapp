@@ -21,31 +21,26 @@
  *   └───────────────────────────────────────────────────────────┘
  *   [ Logout ]                        ← red-tinted full-width CTA
  *
- * REGISTRATION:
- *   The `Settings` route is registered in UC ✅ and Customer ✅
- *   navigators today. Vendor / Driver stacks do NOT register it yet
- *   — see the SHARED SCREENS block in `useMoreActions.ts`. Every
- *   row that opens a screen goes through `navigateOrComingSoon`, so
- *   a role that hasn't registered that screen shows the standard
- *   "Coming soon" toast rather than doing nothing.
+ * ROLES:
+ *   One screen for every role. WHICH cards a role sees, and in which
+ *   groups, is pure data in `../settingsMenu.ts`; cards that open a
+ *   shared screen are shown only if SCREEN_ACCESS
+ *   (src/rbac/screenAccess.ts) grants it to the role. This file only
+ *   renders the sections and decides what a tap does (`handleRow`).
  *
- * BEHAVIOR / WIRING STATUS:
- *   Some rows land on real destinations today; the rest toast
- *   "coming soon" with an inline TODO. The mapping is intentionally
- *   in ONE place (`handleRow`) so a future PR that ships e.g. a
- *   Language screen only changes one line.
- *
- *     Personal Information     → Profile               (registered)
- *     Saved Payment Methods    → toast (no route)
- *     Notifications            → NotificationPreferences  ✅ real
- *     Language                 → toast (i18n not built)
- *     Appearance               → toast (dark-mode toggle not built)
- *     Permissions              → Linking.openSettings()  ✅ real
- *     Terms & Conditions       → open termsUrl (AppConfig)  ✅ real
- *     About Urban Cruise       → AboutUrbanCruise screen    ✅ real
- *     Help & Support           → HelpSupport             ✅
- *     Delete Account           → toast (no account-delete flow yet)
- *     Logout                   → useLogout() with confirm Alert  ✅
+ * WHAT EACH CARD DOES (roles in brackets):
+ *     Personal Information   → Profile                    [all]
+ *     Saved Payment Methods  → toast, not built yet       [customer]
+ *     Notifications          → NotificationPreferences    [customer]
+ *     Language               → toast (i18n not built)     [all]
+ *     Appearance             → toast (dark mode not built)[all]
+ *     Permissions            → Linking.openSettings()     [all]
+ *     Terms & Conditions     → open termsUrl (AppConfig)  [all]
+ *     About Urban Cruise     → AboutUrbanCruise           [all]
+ *     Help & Support         → HelpSupport                [customer, vendor, driver]
+ *     Contact Support        → Support                    [uc]
+ *     Delete Account         → toast, not built yet       [all]
+ *     Logout                 → useLogout() with confirm   [all]
  *
  * DESIGN INVARIANTS:
  *   - SafeScreen + ScreenHeader, matching every other stack screen.
@@ -61,7 +56,7 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Alert,
   Linking,
@@ -74,21 +69,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
-import {
-  Bell,
-  Palette,
-  CreditCard,
-  ChevronRight,
-  FileText,
-  HelpCircle,
-  Info,
-  Languages,
-  LogOut,
-  Shield,
-  Trash2,
-  User,
-  type LucideProps,
-} from 'lucide-react-native';
+import { ChevronRight, LogOut } from 'lucide-react-native';
 
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
@@ -98,58 +79,11 @@ import { useLogout } from '@features/auth/hooks';
 import { navigateOrComingSoon } from '@navigation/NavigationService';
 import { notifyComingSoon } from '@services/comingSoon';
 
-/* -----------------------------------------------------------------
- * Local color pairs — purple / pink don't have theme tokens yet.
- * Kept as named module-scope constants so a future theme addition
- * (Colors.purple*, Colors.pink*) can be swapped in at one line each.
- * See HelpSupportScreen.tsx for the same pattern.
- * ----------------------------------------------------------------- */
-
-const PURPLE_FG = '#7C3AED';
-const PURPLE_BG = '#EDE9FE';
-const PINK_FG = '#EC4899';
-const PINK_BG = '#FCE7F3';
-
-/* -----------------------------------------------------------------
- * Row / section model
- * ----------------------------------------------------------------- */
-
-/**
- * Every navigable item on this screen has a stable id. `handleRow`
- * routes on this id — so wiring a new destination is a one-line
- * switch update and never touches the row JSX.
- */
-type RowId =
-  | 'personalInfo'
-  | 'savedPayments'
-  | 'notifications'
-  | 'language'
-  | 'appearance'
-  | 'permissions'
-  | 'termsConditions'
-  | 'aboutApp'
-  | 'helpSupport'
-  | 'deleteAccount';
-
-type Row = {
-  id: RowId;
-  title: string;
-  subtitle: string;
-  Icon: React.ComponentType<LucideProps>;
-  iconFg: string;
-  iconBg: string;
-  /**
-   * When true, the row's title renders in error red — used by the
-   * "Delete Account" row so the destructive intent is unmistakable.
-   */
-  destructive?: boolean;
-};
-
-type Section = {
-  key: string;
-  label: string;
-  rows: Row[];
-};
+import {
+  buildSettingsSections,
+  type SettingsRow,
+  type SettingsRowId,
+} from '../settingsMenu';
 
 /* -----------------------------------------------------------------
  * Screen
@@ -169,114 +103,16 @@ const SettingsScreen: React.FC = () => {
   // Bottom pad accommodates the sticky Logout CTA + the home indicator.
   const bottomPad = Math.max(insets.bottom, Spacing.lg);
 
-  /* -------- Sections (static config) --------
+  /* -------- Cards for this role --------
    *
-   * Declared inside the component so the icon fg/bg pairs read
-   * against Colors in scope; the array is stable for a given render
-   * because every value is a token or a module-scope constant. */
-  const SECTIONS: readonly Section[] = [
-    {
-      key: 'account',
-      label: 'Account Settings',
-      rows: [
-        {
-          id: 'personalInfo',
-          title: 'Personal Information',
-          subtitle: 'Name, mobile number, email, date of birth',
-          Icon: User,
-          iconFg: Colors.info,
-          iconBg: Colors.infoTint,
-        },
-        {
-          id: 'savedPayments',
-          title: 'Saved Payment Methods',
-          subtitle: 'Cards, UPI, wallets',
-          Icon: CreditCard,
-          iconFg: Colors.accent,
-          iconBg: Colors.accentTint,
-        },
-      ],
-    },
-    {
-      key: 'preferences',
-      label: 'App Preferences',
-      rows: [
-        {
-          id: 'notifications',
-          title: 'Notifications',
-          subtitle: 'Manage your notification preferences',
-          Icon: Bell,
-          iconFg: PURPLE_FG,
-          iconBg: PURPLE_BG,
-        },
-        {
-          id: 'language',
-          title: 'Language',
-          // Placeholder value — swap for the current selection once
-          // i18n lands (right-aligned trailing text also nice-to-have).
-          subtitle: 'English',
-          Icon: Languages,
-          iconFg: Colors.primary,
-          iconBg: Colors.primaryTint,
-        },
-        {
-          id: 'appearance',
-          title: 'Appearance',
-          subtitle: 'Light mode / Dark mode / System default',
-          Icon: Palette,
-          iconFg: PINK_FG,
-          iconBg: PINK_BG,
-        },
-        {
-          id: 'permissions',
-          title: 'Permissions',
-          subtitle: 'Camera, location, notifications and more',
-          Icon: Shield,
-          iconFg: Colors.info,
-          iconBg: Colors.infoTint,
-        },
-      ],
-    },
-    {
-      key: 'supportLegal',
-      label: 'Support & Legal',
-      rows: [
-        {
-          id: 'termsConditions',
-          title: 'Terms & Conditions',
-          subtitle: 'Read our terms and policies',
-          Icon: FileText,
-          iconFg: PURPLE_FG,
-          iconBg: PURPLE_BG,
-        },
-        {
-          id: 'aboutApp',
-          title: 'About Urban Cruise',
-          subtitle: `App version ${DeviceInfo.getVersion()}`,
-          Icon: Info,
-          iconFg: Colors.accent,
-          iconBg: Colors.accentTint,
-        },
-        {
-          id: 'helpSupport',
-          title: 'Help & Support',
-          subtitle: 'Get help, FAQs and contact us',
-          Icon: HelpCircle,
-          iconFg: Colors.info,
-          iconBg: Colors.infoTint,
-        },
-        {
-          id: 'deleteAccount',
-          title: 'Delete Account',
-          subtitle: 'Permanently delete your account and data',
-          Icon: Trash2,
-          iconFg: Colors.error,
-          iconBg: Colors.errorTint,
-          destructive: true,
-        },
-      ],
-    },
-  ];
+   * Which cards show, and in which groups, is pure data in
+   * ../settingsMenu.ts (access comes from SCREEN_ACCESS). The role
+   * comes from the server-issued session, never from user input. */
+  const role = useAppSelector(s => s.app.userRole);
+  const sections = useMemo(
+    () => buildSettingsSections(role, { appVersion: DeviceInfo.getVersion() }),
+    [role],
+  );
 
   /* -------- Handlers -------- */
 
@@ -285,7 +121,7 @@ const SettingsScreen: React.FC = () => {
   }, [navigation]);
 
   const handleRow = useCallback(
-    (id: RowId) => {
+    (id: SettingsRowId) => {
       switch (id) {
         case 'personalInfo':
           // Shared screen; roles that don't register it yet get the
@@ -328,6 +164,11 @@ const SettingsScreen: React.FC = () => {
           // Contact and a Legal Information entry that opens
           // legal.termsUrl. Registered in Customer + UC navigators.
           navigateOrComingSoon('aboutApp', 'AboutUrbanCruise');
+          return;
+
+        case 'contactSupport':
+          // UC's direct contact screen (they have no help hub).
+          navigateOrComingSoon('helpSupport', 'Support');
           return;
 
         case 'helpSupport':
@@ -403,7 +244,7 @@ const SettingsScreen: React.FC = () => {
         contentContainerStyle={[styles.scroll, { paddingBottom: bottomPad }]}
         showsVerticalScrollIndicator={false}
       >
-        {SECTIONS.map(section => (
+        {sections.map(section => (
           <View key={section.key} style={styles.sectionBlock}>
             <Text style={styles.sectionLabel}>{section.label}</Text>
             <View style={styles.card}>
@@ -450,7 +291,7 @@ export default SettingsScreen;
  * Local subcomponents
  * ================================================================= */
 
-const RowItem: React.FC<{ row: Row; onPress: () => void }> = ({
+const RowItem: React.FC<{ row: SettingsRow; onPress: () => void }> = ({
   row,
   onPress,
 }) => {

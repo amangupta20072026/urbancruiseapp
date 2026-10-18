@@ -32,15 +32,12 @@
  *   - Live Chat has no screen yet, so tapping the tile shows the
  *     standard "Coming soon" toast from `@services/comingSoon`
  *     (same as BookingsScreen's Track Vehicle button).
- *   - All six "Get Help With" tiles now route to dedicated screens:
- *     Quotation Help → QuotationHelpScreen, Booking Help →
- *     BookingHelpScreen, Payments & Refunds → PaymentsHelpScreen,
- *     Account & App Support → AccountHelpScreen, Safety & Travel
- *     Support → SafetyHelpScreen, Feedback & Suggestions →
- *     FeedbackHelpScreen (form, not FAQ — see its header). Adding
- *     a seventh topic is: append to TopicId + TOPICS[], add its
- *     case in `handleTopicPress`, and register the screen on each
- *     role stack.
+ *   - "Get Help With" tiles are filtered by role: each tile names
+ *     the shared screen it opens, and is shown only when
+ *     SCREEN_ACCESS (src/rbac/screenAccess.ts) grants that screen.
+ *     Customer sees all six topics; Vendor and Driver see Payments,
+ *     Account, Safety and Feedback. To add a topic: add the screen to
+ *     SharedStackParamList and SCREEN_ACCESS, then add a TOPICS entry.
  *
  * DESIGN INVARIANTS:
  *   - Uses SafeScreen + ScreenHeader, matching every other stack
@@ -87,6 +84,7 @@ import { Colors, Radius, Spacing, Typography } from '@theme';
 import { notifyComingSoon } from '@services/comingSoon';
 import { navigate } from '@navigation/NavigationService';
 import { useAppSelector } from '@store/hooks';
+import { canAccess, type SharedScreen } from '@rbac/screenAccess';
 
 /* -----------------------------------------------------------------
  * Helpers
@@ -132,9 +130,11 @@ const PURPLE_BG = '#EDE9FE';
 
 /**
  * Ordered list of topics rendered in the "Get Help With" section.
- * Each entry has a stable `id` used by `handleTopicPress` — adding
- * a new topic OR wiring a real destination is a one-line switch
- * update, keeping this array as pure content.
+ * Each topic names the shared screen it opens. A role sees a topic
+ * only when SCREEN_ACCESS (src/rbac/screenAccess.ts) grants it that
+ * screen — so a tile can never open a screen the role doesn't have.
+ * Adding a topic: add the screen to SharedStackParamList and
+ * SCREEN_ACCESS, then add an entry here.
  */
 type TopicId =
   | 'quotation'
@@ -144,8 +144,21 @@ type TopicId =
   | 'safety'
   | 'feedback';
 
+/** The shared help screens a topic tile can open. */
+type HelpTopicScreen = Extract<
+  SharedScreen,
+  | 'QuotationHelp'
+  | 'BookingHelp'
+  | 'PaymentsHelp'
+  | 'AccountHelp'
+  | 'SafetyHelp'
+  | 'FeedbackHelp'
+>;
+
 type Topic = {
   id: TopicId;
+  /** Screen opened on tap; also decides which roles see the tile. */
+  screen: HelpTopicScreen;
   title: string;
   subtitle: string;
   Icon: React.ComponentType<LucideProps>;
@@ -158,6 +171,7 @@ type Topic = {
 const TOPICS: readonly Topic[] = [
   {
     id: 'quotation',
+    screen: 'QuotationHelp',
     title: 'Quotation Help',
     subtitle: 'Get support for quotations (Pending, Accepted, Expired)',
     Icon: FileText,
@@ -166,6 +180,7 @@ const TOPICS: readonly Topic[] = [
   },
   {
     id: 'booking',
+    screen: 'BookingHelp',
     title: 'Booking Help',
     subtitle:
       'Get support for bookings (Upcoming, Ongoing, Completed, Cancelled)',
@@ -175,6 +190,7 @@ const TOPICS: readonly Topic[] = [
   },
   {
     id: 'payments',
+    screen: 'PaymentsHelp',
     title: 'Payments & Refunds',
     subtitle: 'Help with payments, invoices, refunds and GST',
     Icon: CreditCard,
@@ -183,6 +199,7 @@ const TOPICS: readonly Topic[] = [
   },
   {
     id: 'account',
+    screen: 'AccountHelp',
     title: 'Account & App Support',
     subtitle: 'Login, profile, app usage and technical issues',
     Icon: UserCircle2,
@@ -191,6 +208,7 @@ const TOPICS: readonly Topic[] = [
   },
   {
     id: 'safety',
+    screen: 'SafetyHelp',
     title: 'Safety & Travel Support',
     subtitle: 'On-trip support, safety concerns and general travel assistance',
     Icon: ShieldCheck,
@@ -199,6 +217,7 @@ const TOPICS: readonly Topic[] = [
   },
   {
     id: 'feedback',
+    screen: 'FeedbackHelp',
     title: 'Feedback & Suggestions',
     subtitle: 'Share your feedback to help us improve',
     Icon: MessageSquare,
@@ -291,45 +310,21 @@ const HelpSupportScreen: React.FC = () => {
     notifyComingSoon('liveChat');
   }, []);
 
-  const handleTopicPress = useCallback((topicId: TopicId) => {
-    // Every topic tile now has a dedicated destination. Adding a
-    // new topic later means: add its id to the TopicId union above,
-    // add the corresponding case here, and register the screen on
-    // every role stack that has HelpSupport (mirror the existing
-    // topics in CustomerNavigator / VendorNavigator / DriverNavigator).
-    //
-    // Using the imperative `navigate` from NavigationService (not
-    // `navigation.navigate` from useNavigation) because this screen
-    // is registered on three role stacks (Customer, Vendor, Driver),
-    // and the useNavigation hook types calls against the global
-    // RootParamList — which only knows the outer flow-level routes.
-    // NavigationService.navigate is typed as the flat union of
-    // every ParamList precisely for cross-stack calls like this;
-    // see its header for the full contract.
-    switch (topicId) {
-      case 'quotation':
-        navigate('QuotationHelp');
-        return;
-      case 'booking':
-        navigate('BookingHelp');
-        return;
-      case 'payments':
-        navigate('PaymentsHelp');
-        return;
-      case 'account':
-        navigate('AccountHelp');
-        return;
-      case 'safety':
-        navigate('SafetyHelp');
-        return;
-      case 'feedback':
-        navigate('FeedbackHelp');
-        return;
-      default: {
-        const _exhaustive: never = topicId;
-        void _exhaustive;
-      }
-    }
+  /* -------- Topics for this role -------- *
+   *
+   * Filtered by the same access table the navigators use, so every
+   * visible tile's screen is registered for this role. The role comes
+   * from the server-issued session. */
+  const role = useAppSelector(s => s.app.userRole);
+  const topics = useMemo(
+    () => TOPICS.filter(topic => canAccess(role, topic.screen)),
+    [role],
+  );
+
+  const handleTopicPress = useCallback((screen: HelpTopicScreen) => {
+    // NavigationService.navigate (not useNavigation) because this
+    // screen is registered on several role stacks; see its header.
+    navigate(screen);
   }, []);
 
   /* -------- Render -------- */
@@ -426,11 +421,11 @@ const HelpSupportScreen: React.FC = () => {
         </View>
 
         <View style={styles.topicList}>
-          {TOPICS.map(topic => (
+          {topics.map(topic => (
             <TopicRow
               key={topic.id}
               topic={topic}
-              onPress={() => handleTopicPress(topic.id)}
+              onPress={() => handleTopicPress(topic.screen)}
             />
           ))}
         </View>

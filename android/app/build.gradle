@@ -137,7 +137,7 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             // Removes Android resources nothing references (requires
             // minifyEnabled). JS-bundled images are looked up by name at
-            // runtime, so they are protected by res/raw/keep.xml — do not
+            // runtime, so they are protected by res/raw/keep_app_urbancruise.xml — do not
             // delete that file while this flag is on.
             shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"

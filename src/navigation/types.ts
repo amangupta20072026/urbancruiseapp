@@ -2,6 +2,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { BookingId, QuotationId } from '@app-types/ids';
 import type { UserRole } from '@rbac/roles';
+import type { SharedScreensFor } from '@rbac/screenAccess';
 import type { VehicleTierKey } from '@features/customer/quotations/vehicleTierOptions';
 // Value import (not `import type`) — the tab param list types below use
 // `[MORE_ROUTE_NAME]` as a computed key so that renaming the constant
@@ -50,6 +51,51 @@ export type AuthParamList = {
   };
   Support: undefined;
 };
+
+/* ------------------ Shared screens ------------------ */
+/**
+ * Screens built once and reused by several roles. WHICH roles get
+ * each one is decided only by `SCREEN_ACCESS` in
+ * src/rbac/screenAccess.ts; each role's ParamList below picks up its
+ * share through `SharedParamsFor<role>`, and the navigators register
+ * the same set through `renderSharedScreens`. All take no params.
+ */
+export type SharedStackParamList = {
+  Settings: undefined;
+  /**
+   * Contact card (phone / WhatsApp / email). Also registered in the
+   * Auth stack for the login screen's "Contact Support" link.
+   */
+  Support: undefined;
+  AboutUrbanCruise: undefined;
+  /** Signed-in user's own profile; data comes from the access token. */
+  Profile: undefined;
+  /** Signed-in user's own inbox; the backend scopes it by token. */
+  NotificationCentre: undefined;
+  /**
+   * Rich "Help & Support" hub: contact channels + topic tiles. The
+   * tiles shown are filtered by role with the same access table.
+   */
+  HelpSupport: undefined;
+  /**
+   * Per-topic help screens opened from HelpSupport tiles.
+   * FeedbackHelp is a submission form, not an FAQ list.
+   */
+  QuotationHelp: undefined;
+  BookingHelp: undefined;
+  PaymentsHelp: undefined;
+  AccountHelp: undefined;
+  SafetyHelp: undefined;
+  FeedbackHelp: undefined;
+  /** Per-channel notification toggles, reached from Settings. */
+  NotificationPreferences: undefined;
+};
+
+/** The shared screens role `R` has, as ParamList entries. */
+export type SharedParamsFor<R extends UserRole> = Pick<
+  SharedStackParamList,
+  SharedScreensFor<R>
+>;
 
 /* ------------------ Customer stack ------------------ */
 export type CustomerStackParamList = {
@@ -109,59 +155,11 @@ export type CustomerStackParamList = {
 
   BookingDetail: { bookingId: BookingId };
   Feedback: { bookingId: BookingId };
-  NotificationCentre: undefined;
-  Support: undefined;
-  /**
-   * Rich "Help & Support" hub reached from the More sheet. Kept
-   * distinct from the pre-auth `Support` route (used by the login
-   * screen's "Contact Support" link) so each entry point retains
-   * its own tailored surface — the pre-auth SupportScreen is a
-   * three-channel contact card, while HelpSupport is a full hub
-   * with contact channels + topic browsing.
-   */
-  HelpSupport: undefined;
-  /**
-   * Per-topic FAQ list reached from a "Get Help With" tile inside
-   * HelpSupport. Ships one screen per topic (QuotationHelp,
-   * BookingHelp, PaymentsHelp, AccountHelp, SafetyHelp,
-   * FeedbackHelp) — each is a shared component registered on every
-   * role stack that also has HelpSupport.
-   *
-   * NB: FeedbackHelp is a SUBMISSION FORM, not an FAQ list — feedback
-   * has no "questions with answers" set to browse, only a place to
-   * write in. Route name follows the topic-tile naming convention
-   * so `handleTopicPress` reads uniformly. See FeedbackHelpScreen
-   * header for full rationale.
-   */
-  QuotationHelp: undefined;
-  BookingHelp: undefined;
-  PaymentsHelp: undefined;
-  AccountHelp: undefined;
-  SafetyHelp: undefined;
-  FeedbackHelp: undefined;
   // General customer feedback (from More sheet — no booking scope).
   // Distinct from booking-scoped `Feedback` above.
   CustomerFeedback: undefined;
-
-  // -----------------------------------------------------------------
-  // More-sheet destinations. Shared screens (Profile, Settings,
-  // NotificationCentre above) live under features/shared/*; role-
-  // scoped ones (Referrals) live under features/customer/*. When a
-  // real UI ships, only the component reference in CustomerNavigator
-  // changes — route names and this param list stay stable.
-  // -----------------------------------------------------------------
-  Profile: undefined;
-  Settings: undefined;
-  /**
-   * "About Urban Cruise" — reached from the Support & Legal section
-   * inside SettingsScreen. Static content screen: app version + brand,
-   * expandable About / Services / Mission / Why Choose Us / Contact
-   * sections and a Legal Information entry.
-   */
-  AboutUrbanCruise: undefined;
-  NotificationPreferences: undefined;
   Referrals: undefined;
-};
+} & SharedParamsFor<'customer'>;
 
 export type CustomerTabParamList = {
   Home: undefined;
@@ -174,17 +172,7 @@ export type CustomerTabParamList = {
 /* ------------------- Vendor stack ------------------- */
 export type VendorStackParamList = {
   VendorTabs: NavigatorScreenParams<VendorTabParamList>;
-  Support: undefined;
-  /** Rich "Help & Support" hub from the More sheet. See CustomerStackParamList for rationale. */
-  HelpSupport: undefined;
-  /** Per-topic FAQ list from HelpSupport. See CustomerStackParamList. */
-  QuotationHelp: undefined;
-  BookingHelp: undefined;
-  PaymentsHelp: undefined;
-  AccountHelp: undefined;
-  SafetyHelp: undefined;
-  FeedbackHelp: undefined;
-};
+} & SharedParamsFor<'vendor'>;
 
 export type VendorTabParamList = {
   Dashboard: undefined;
@@ -197,17 +185,7 @@ export type VendorTabParamList = {
 /* ------------------- Driver stack ------------------- */
 export type DriverStackParamList = {
   DriverTabs: NavigatorScreenParams<DriverTabParamList>;
-  Support: undefined;
-  /** Rich "Help & Support" hub from the More sheet. See CustomerStackParamList for rationale. */
-  HelpSupport: undefined;
-  /** Per-topic FAQ list from HelpSupport. See CustomerStackParamList. */
-  QuotationHelp: undefined;
-  BookingHelp: undefined;
-  PaymentsHelp: undefined;
-  AccountHelp: undefined;
-  SafetyHelp: undefined;
-  FeedbackHelp: undefined;
-};
+} & SharedParamsFor<'driver'>;
 
 export type DriverTabParamList = {
   Home: undefined;
@@ -222,21 +200,10 @@ export type UcStackParamList = {
   UcTabs: NavigatorScreenParams<UcTabParamList>;
   CustomersList: { reopenCustomerId?: string } | undefined;
   CustomerDetail: { customerId: string };
-  NotificationCentre: undefined;
-  Support: undefined;
 
-  // -----------------------------------------------------------------
   // More-sheet destinations. Some bodies are still the shared
   // ComingSoon component; real screens land in `features/uc/<domain>/`
   // without touching the navigator wiring.
-  // -----------------------------------------------------------------
-  Profile: undefined;
-  Settings: undefined;
-  /**
-   * "About Urban Cruise" — reached from Settings. See
-   * CustomerStackParamList for the same route's rationale.
-   */
-  AboutUrbanCruise: undefined;
   VendorsList: undefined;
   Payments: undefined;
   DriversList: undefined;
@@ -247,7 +214,7 @@ export type UcStackParamList = {
    * top tabs. Replaces the four separate More-sheet entries.
    */
   Directory: undefined;
-};
+} & SharedParamsFor<'uc'>;
 
 export type UcTabParamList = {
   Dashboard: undefined;

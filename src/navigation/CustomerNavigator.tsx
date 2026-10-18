@@ -34,22 +34,8 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import CustomerTabs from './tabs/CustomerTabs';
+import { renderSharedScreens } from './sharedScreens';
 import type { CustomerStackParamList } from './types';
-import SupportScreen from '@features/shared/support/screens/SupportScreen';
-import HelpSupportScreen from '@features/shared/support/screens/HelpSupportScreen';
-import QuotationHelpScreen from '@features/shared/support/screens/QuotationHelpScreen';
-import BookingHelpScreen from '@features/shared/support/screens/BookingHelpScreen';
-import PaymentsHelpScreen from '@features/shared/support/screens/PaymentsHelpScreen';
-import AccountHelpScreen from '@features/shared/support/screens/AccountHelpScreen';
-import SafetyHelpScreen from '@features/shared/support/screens/SafetyHelpScreen';
-import FeedbackHelpScreen from '@features/shared/support/screens/FeedbackHelpScreen';
-import { ProfileScreen } from '@features/shared/profile';
-import {
-  SettingsScreen,
-  NotificationPreferencesScreen,
-  AboutUrbanCruiseScreen,
-} from '@features/shared/settings';
-import { NotificationCentreScreen } from '@features/shared/notifications';
 import {
   CustomerFeedbackScreen,
   GiveFeedbackScreen,
@@ -80,30 +66,11 @@ const CustomerNavigator: React.FC = () => {
     >
       {/* Real screens */}
       <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
-      <Stack.Screen name="Support" component={SupportScreen} />
-      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
-      <Stack.Screen name="QuotationHelp" component={QuotationHelpScreen} />
-      <Stack.Screen name="BookingHelp" component={BookingHelpScreen} />
-      <Stack.Screen name="PaymentsHelp" component={PaymentsHelpScreen} />
-      <Stack.Screen name="AccountHelp" component={AccountHelpScreen} />
-      <Stack.Screen name="SafetyHelp" component={SafetyHelpScreen} />
-      <Stack.Screen name="FeedbackHelp" component={FeedbackHelpScreen} />
+
+      {/* Shared screens — decided by SCREEN_ACCESS (src/rbac/screenAccess.ts) */}
+      {renderSharedScreens(Stack, 'customer')}
 
       {/* More-sheet destinations — shared across roles */}
-      <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen
-        name="AboutUrbanCruise"
-        component={AboutUrbanCruiseScreen}
-      />
-      <Stack.Screen
-        name="NotificationPreferences"
-        component={NotificationPreferencesScreen}
-      />
-      <Stack.Screen
-        name="NotificationCentre"
-        component={NotificationCentreScreen}
-      />
 
       {/* More-sheet destinations — Customer-scoped */}
       <Stack.Screen

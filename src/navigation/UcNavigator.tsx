@@ -24,19 +24,13 @@ import {
   CustomersListScreen,
   CustomerHistoryScreen,
 } from '@features/uc/customers';
-import { ProfileScreen } from '@features/shared/profile';
-import {
-  SettingsScreen,
-  AboutUrbanCruiseScreen,
-} from '@features/shared/settings';
-import { NotificationCentreScreen } from '@features/shared/notifications';
 import { VendorsListScreen } from '@features/uc/vendors';
 import { PaymentsScreen } from '@features/uc/payments';
 import { DriversListScreen } from '@features/uc/drivers';
 import { PerformanceScreen } from '@features/uc/performance';
 import DirectoryScreen from '@features/uc/_directory/screens/DirectoryScreen';
+import { renderSharedScreens } from './sharedScreens';
 import type { UcStackParamList } from './types';
-import SupportScreen from '@features/shared/support/screens/SupportScreen';
 
 const Stack = createNativeStackNavigator<UcStackParamList>();
 
@@ -51,21 +45,13 @@ const UcNavigator: React.FC = () => {
     >
       {/* Real screens */}
       <Stack.Screen name="UcTabs" component={UcTabs} />
+
+      {/* Shared screens — decided by SCREEN_ACCESS (src/rbac/screenAccess.ts) */}
+      {renderSharedScreens(Stack, 'uc')}
       <Stack.Screen name="CustomersList" component={CustomersListScreen} />
       <Stack.Screen name="CustomerDetail" component={CustomerHistoryScreen} />
-      <Stack.Screen name="Support" component={SupportScreen} />
 
       {/* ComingSoon placeholders — pushed from the More sheet */}
-      <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen
-        name="AboutUrbanCruise"
-        component={AboutUrbanCruiseScreen}
-      />
-      <Stack.Screen
-        name="NotificationCentre"
-        component={NotificationCentreScreen}
-      />
       <Stack.Screen name="VendorsList" component={VendorsListScreen} />
       <Stack.Screen name="Payments" component={PaymentsScreen} />
       <Stack.Screen name="DriversList" component={DriversListScreen} />
