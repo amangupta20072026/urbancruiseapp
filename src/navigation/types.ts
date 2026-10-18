@@ -10,6 +10,7 @@ import type {
   EnquiryId,
 } from '@app-types/ids';
 import type { UserRole } from '@rbac/roles';
+import type { VehicleTierKey } from '@features/customer/quotations/vehicleTierOptions';
 // Value import (not `import type`) — the tab param list types below use
 // `[MORE_ROUTE_NAME]` as a computed key so that renaming the constant
 // is a single-point-of-truth change caught by TypeScript everywhere.
@@ -86,7 +87,34 @@ export type CustomerStackParamList = {
      * pending cards. Default (undefined / false) = normal open.
      */
     openNeedChangesSheet?: boolean;
+    /**
+     * One-shot: select this vehicle option in "Choose Your Vehicle"
+     * on arrival. Set by VehicleVideo / CompareVehicles via
+     * `popTo('QuotationDetail', …, { merge: true })`; the screen clears
+     * it after applying it.
+     */
+    selectVehicleOptionId?: string;
   };
+
+  // -----------------------------------------------------------------
+  // Vehicle brochures (YouTube videos + compare). Reached from
+  // QuotationDetail only.
+  // -----------------------------------------------------------------
+  /** Grouped list: vehicle type → seater → tier. Pending quotations only. */
+  VehicleBrochures: { quotationId: QuotationId };
+  /**
+   * One brochure's videos and facilities. `select` is present only
+   * when exactly one vehicle option of a pending quotation is being
+   * viewed; it shows the price and the "Select this vehicle" CTA.
+   */
+  VehicleVideo: {
+    groupKey: string;
+    tier: VehicleTierKey;
+    select?: { quotationId: QuotationId; optionId: string };
+  };
+  /** Every vehicle option side by side; `focusOptionId` is highlighted. */
+  CompareVehicles: { quotationId: QuotationId; focusOptionId: string };
+
   BookingDetail: { bookingId: BookingId };
   PassengerList: { bookingId: BookingId };
   TripLive: { tripId: TripId };

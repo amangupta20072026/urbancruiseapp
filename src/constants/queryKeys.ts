@@ -82,6 +82,14 @@ export const queryKeys = {
       summary: (id: BookingId) =>
         ['customer', 'payments', 'summary', id] as const,
     },
+    /**
+     * Vehicle brochure catalog (GET /config/brochures). Same for every
+     * user, so the key carries no userId.
+     */
+    brochures: {
+      all: () => ['customer', 'brochures'] as const,
+      catalog: () => ['customer', 'brochures', 'catalog'] as const,
+    },
     feedback: {
       all: () => ['customer', 'feedback'] as const,
       /** List of already-submitted feedback for the My Feedback tab. */

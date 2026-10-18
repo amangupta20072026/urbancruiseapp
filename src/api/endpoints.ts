@@ -19,6 +19,13 @@ import type {
 } from '@app-types/ids';
 
 export const endpoints = {
+  // Public server-driven config (no session needed). /config/app is
+  // read by the bootstrap step in app/bootstrap/steps/appConfig.ts.
+  config: {
+    /** Vehicle brochure catalog: YouTube ids, grouping, specs. */
+    brochures: () => '/config/brochures',
+  },
+
   auth: {
     requestOtp: () => '/auth/otp/request',
     verifyOtp: () => '/auth/otp/verify',

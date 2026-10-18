@@ -179,11 +179,28 @@ import type { CustomerStackParamList } from '@navigation/types';
 import type { CustomerQuotationDetail, QuotationStatus } from '../types';
 import { getCustomerQuotationDetail } from '../mocks';
 import { QuotationTripCard } from '../components/QuotationTripCard';
-import { VEHICLE_OPTIONS, type VehicleSelection } from '../vehicleTierOptions';
+import {
+  VEHICLE_OPTIONS,
+  VEHICLE_TIER_LABELS,
+  type VehicleOption,
+  type VehicleSelection,
+} from '../vehicleTierOptions';
 import { VehicleOptionCard } from '../components/VehicleOptionCard';
 import { NeedChangesSheet } from '../components/NeedChangesSheet';
 import { ContinueToBookingSheet } from '../components/ContinueToBookingSheet';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
+import {
+  BrochureActionRow,
+  ViewAllVehiclesLink,
+  WatchVehicleVideoButton,
+  findBrochure,
+  findBrochureByGroupKey,
+  hasVideo,
+  lookupForVehicleOption,
+  useBrochures,
+  type BrochureEntry,
+  type BrochureVideoState,
+} from '@features/customer/brochures';
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList, 'QuotationDetail'>;
 type Route = RouteProp<CustomerStackParamList, 'QuotationDetail'>;
@@ -390,6 +407,13 @@ const QuotationDetailScreen: React.FC = () => {
     navigation.navigate('RequestQuotation');
   }, [navigation]);
 
+  // `selectVehicleOptionId` is one-shot (set by VehicleVideo /
+  // CompareVehicles on return); clear it once applied so going back
+  // and forth never re-applies a stale choice.
+  const onPendingSelectConsumed = useCallback(() => {
+    navigation.setParams({ selectVehicleOptionId: undefined });
+  }, [navigation]);
+
   /* -------- Render -------- */
 
   if (!detail) {
@@ -435,8 +459,11 @@ const QuotationDetailScreen: React.FC = () => {
         <QuotationTripCard detail={detail} />
         {status === 'pending' ? (
           <ChooseVehicleSection
+            quotationId={route.params.quotationId}
             selection={vehicleSelection}
             onChangeSelection={setVehicleSelection}
+            pendingSelectOptionId={route.params.selectVehicleOptionId}
+            onPendingSelectConsumed={onPendingSelectConsumed}
           />
         ) : (
           <VehicleCard detail={detail} />
@@ -667,7 +694,35 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
   detail,
 }) => {
   const v = detail.vehicle;
+  const navigation = useNavigation<Nav>();
   const [expanded, setExpanded] = useState(false);
+
+  /* Brochure video. Shown only when the quotation names its brochure
+   * (`vehicle.brochure`, sent by the quotations API) AND the catalog
+   * has it. Never guessed from the vehicle name: no video is better
+   * than the wrong video. No brochure ref → no network call. */
+  const brochureRef = v.brochure;
+  const { data: brochureEntries } = useBrochures({
+    enabled: brochureRef !== undefined,
+  });
+  const brochure = useMemo(
+    () =>
+      brochureRef && brochureEntries
+        ? findBrochureByGroupKey(
+            brochureEntries,
+            brochureRef.groupKey,
+            brochureRef.tier,
+          )
+        : null,
+    [brochureRef, brochureEntries],
+  );
+  const onWatchVideo = useCallback(() => {
+    if (!brochure) return;
+    navigation.navigate('VehicleVideo', {
+      groupKey: brochure.groupKey,
+      tier: brochure.tier,
+    });
+  }, [navigation, brochure]);
 
   const onToggle = useCallback(() => {
     setExpanded(e => !e);
@@ -764,6 +819,16 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
           </View>
         ) : null}
       </View>
+
+      {brochure ? (
+        <View style={styles.vehicleVideoAction}>
+          <WatchVehicleVideoButton
+            comingSoon={!hasVideo(brochure)}
+            onPress={onWatchVideo}
+            vehicleName={v.name}
+          />
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -783,12 +848,33 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
  *   already-selected card updates the selection live; changing it on
  *   any other card does NOT steal the selection — only Select does.
  *   Tapping Select on the selected card again deselects it.
+ *
+ * BROCHURES:
+ *   Each card gets a "Watch Video / Compare" row, and a "View all
+ *   vehicles" link sits under the header. They come from the brochure
+ *   catalog; while it loads or if it fails, the video button and the
+ *   link are hidden and the picker works as before (Compare stays —
+ *   prices and seats need no catalog).
+ *
+ *   `pendingSelectOptionId` is a selection made on VehicleVideo or
+ *   CompareVehicles. It is applied with that card's own quantity,
+ *   exactly like tapping its Select, then consumed.
  * ================================================================ */
 
 const ChooseVehicleSection: React.FC<{
+  quotationId: CustomerQuotationDetail['id'];
   selection: VehicleSelection | null;
   onChangeSelection: (next: VehicleSelection | null) => void;
-}> = ({ selection, onChangeSelection }) => {
+  pendingSelectOptionId: string | undefined;
+  onPendingSelectConsumed: () => void;
+}> = ({
+  quotationId,
+  selection,
+  onChangeSelection,
+  pendingSelectOptionId,
+  onPendingSelectConsumed,
+}) => {
+  const navigation = useNavigation<Nav>();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const qtyFor = useCallback(
@@ -818,6 +904,94 @@ const ChooseVehicleSection: React.FC<{
     [selection, onChangeSelection, qtyFor],
   );
 
+  /* Selection coming back from VehicleVideo / CompareVehicles. Unlike
+   * a card tap it never toggles off: "Select this vehicle" means
+   * select. Unknown ids (stale option list) are ignored.
+   *
+   * Runs once per new id. The callbacks are read through a ref so a
+   * re-render (e.g. the selection it just made) can never re-apply it,
+   * even before the screen has cleared the param. */
+  const pendingSelectDeps = useRef({
+    onChangeSelection,
+    qtyFor,
+    onPendingSelectConsumed,
+  });
+  useEffect(() => {
+    pendingSelectDeps.current = {
+      onChangeSelection,
+      qtyFor,
+      onPendingSelectConsumed,
+    };
+  });
+  useEffect(() => {
+    if (pendingSelectOptionId === undefined) return;
+    const deps = pendingSelectDeps.current;
+    if (VEHICLE_OPTIONS.some(o => o.id === pendingSelectOptionId)) {
+      deps.onChangeSelection({
+        optionId: pendingSelectOptionId,
+        quantity: deps.qtyFor(pendingSelectOptionId),
+      });
+    }
+    deps.onPendingSelectConsumed();
+  }, [pendingSelectOptionId]);
+
+  /* -------- Brochures -------- */
+  const { data: brochureEntries, isSuccess: brochuresReady } = useBrochures();
+
+  const brochureByOption = useMemo(() => {
+    const map = new Map<string, BrochureEntry>();
+    if (!brochureEntries) return map;
+    for (const option of VEHICLE_OPTIONS) {
+      const entry = findBrochure(
+        brochureEntries,
+        lookupForVehicleOption(option),
+      );
+      if (entry) map.set(option.id, entry);
+    }
+    return map;
+  }, [brochureEntries]);
+
+  const videoStateFor = useCallback(
+    (optionId: string): BrochureVideoState => {
+      const entry = brochureByOption.get(optionId);
+      if (!entry) return 'none';
+      return hasVideo(entry) ? 'available' : 'comingSoon';
+    },
+    [brochureByOption],
+  );
+
+  const onWatchVideo = useCallback(
+    (option: VehicleOption) => {
+      const entry = brochureByOption.get(option.id);
+      if (!entry) return;
+      navigation.navigate('VehicleVideo', {
+        groupKey: entry.groupKey,
+        tier: entry.tier,
+        select: { quotationId, optionId: option.id },
+      });
+    },
+    [navigation, brochureByOption, quotationId],
+  );
+
+  const onCompare = useCallback(
+    (option: VehicleOption) => {
+      navigation.navigate('CompareVehicles', {
+        quotationId,
+        focusOptionId: option.id,
+      });
+    },
+    [navigation, quotationId],
+  );
+
+  const onViewAll = useCallback(() => {
+    navigation.navigate('VehicleBrochures', { quotationId });
+  }, [navigation, quotationId]);
+
+  const showViewAll =
+    brochuresReady &&
+    brochureEntries !== undefined &&
+    brochureEntries.length > 0;
+
   return (
     <View style={styles.chooseVehicleBlock}>
       <View style={styles.chooseVehicleHeader}>
@@ -832,6 +1006,8 @@ const ChooseVehicleSection: React.FC<{
         </View>
       </View>
 
+      {showViewAll ? <ViewAllVehiclesLink onPress={onViewAll} /> : null}
+
       {VEHICLE_OPTIONS.map((option, i) => (
         <VehicleOptionCard
           key={option.id}
@@ -841,6 +1017,16 @@ const ChooseVehicleSection: React.FC<{
           quantity={qtyFor(option.id)}
           onChangeQuantity={next => onChangeQuantity(option.id, next)}
           onSelect={() => onSelect(option.id)}
+          actions={
+            <BrochureActionRow
+              videoState={videoStateFor(option.id)}
+              onWatchVideo={() => onWatchVideo(option)}
+              onCompare={() => onCompare(option)}
+              vehicleName={`${VEHICLE_TIER_LABELS[option.tier]} ${
+                option.model
+              }`}
+            />
+          }
         />
       ))}
     </View>
@@ -1278,6 +1464,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderLight,
     ...Shadows.xs,
+  },
+
+  /* Brochure video button under the Vehicle Details accordion */
+  vehicleVideoAction: {
+    marginTop: Spacing.md,
   },
 
   /* Section header (icon tile + title) */

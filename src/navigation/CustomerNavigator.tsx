@@ -54,6 +54,11 @@ import {
   RequestQuotationScreen,
   QuotationSuccessScreen,
 } from '@features/customer/quotations';
+import {
+  CompareVehiclesScreen,
+  VehicleBrochuresScreen,
+  VehicleVideoScreen,
+} from '@features/customer/brochures';
 
 const Stack = createNativeStackNavigator<CustomerStackParamList>();
 
@@ -110,6 +115,13 @@ const CustomerNavigator: React.FC = () => {
         component={QuotationSuccessScreen}
       />
       <Stack.Screen name="QuotationDetail" component={QuotationDetailScreen} />
+      {/* Vehicle brochures (reached from QuotationDetail) */}
+      <Stack.Screen
+        name="VehicleBrochures"
+        component={VehicleBrochuresScreen}
+      />
+      <Stack.Screen name="VehicleVideo" component={VehicleVideoScreen} />
+      <Stack.Screen name="CompareVehicles" component={CompareVehiclesScreen} />
 
       {/* Registered ghost routes — real screens land later. */}
       <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />

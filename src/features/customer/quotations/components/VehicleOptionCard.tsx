@@ -9,6 +9,7 @@
  *   │   │ img  │ Model                               │
  *   │   └──────┘ description (max 3 lines)           │
  *   │ 🪑 13 Seats │ ❄ A/C │ ♫ BT Music │ 🛋 Sofa/Bed  │
+ *   │ [ actions slot, e.g. ▶ Watch Video | ⇄ Compare ] │
  *   │ ₹17,000          [ − 2 + ]  [ ✓ Selected ]     │
  *   │ per vehicle                                    │
  *   └───────────────────────────────────────────────┘
@@ -108,10 +109,24 @@ export type VehicleOptionCardProps = {
   quantity: number;
   onChangeQuantity: (next: number) => void;
   onSelect: () => void;
+  /**
+   * Optional row rendered between the spec row and the price footer
+   * (the brochure "Watch Video / Compare" row on pending quotations).
+   * Kept as a slot so this card stays unaware of brochures.
+   */
+  actions?: React.ReactNode;
 };
 
 export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
-  ({ option, index, selected, quantity, onChangeQuantity, onSelect }) => {
+  ({
+    option,
+    index,
+    selected,
+    quantity,
+    onChangeQuantity,
+    onSelect,
+    actions,
+  }) => {
     const tierPalette = TIER_PALETTE[option.tier];
     // Accent for everything except the tier pill — see COLOUR RULE.
     const accent = selected ? tierPalette : GREEN;
@@ -192,6 +207,8 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
             </React.Fragment>
           ))}
         </View>
+
+        {actions ?? null}
 
         {/* ── Footer: price · quantity · select ─────────────── */}
         <View style={styles.footer}>

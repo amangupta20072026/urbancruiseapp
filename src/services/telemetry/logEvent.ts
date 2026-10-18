@@ -103,6 +103,17 @@ export type EventName =
   | 'support.feedback_submitted'
   | 'support.feedback_failed'
 
+  // ── Vehicle brochures ─────────────────────────────────
+  // `brochure.opened` fires when a brochure video is opened.
+  // Properties: { groupKey, seater, tier, videoIndex, source }.
+  // `brochure.open_failed` when the video could not be opened.
+  // `brochure.list_opened` / `brochure.compare_opened` are screen
+  // views. Properties never include customer data.
+  | 'brochure.opened'
+  | 'brochure.open_failed'
+  | 'brochure.list_opened'
+  | 'brochure.compare_opened'
+
   // ── Push (FCM) ────────────────────────────────────────
   | 'fcm.notification_received'
   | 'fcm.notification_tapped'

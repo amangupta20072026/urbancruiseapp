@@ -29,6 +29,7 @@
  */
 
 import type { QuotationId } from '@app-types/ids';
+import type { VehicleTierKey } from './vehicleTierOptions';
 
 /**
  * Customer-facing lifecycle status of a priced quotation.
@@ -185,6 +186,12 @@ export type QuotationVehicle = {
   fuel: 'Diesel' | 'Petrol' | 'CNG' | 'Electric';
   ac: boolean;
   hasLuggageSpace: boolean;
+  /**
+   * Which vehicle brochure (GET /config/brochures) shows this vehicle.
+   * Sent by the quotations API once it is built; absent → the
+   * "Watch Vehicle Video" button is hidden (never guessed from name).
+   */
+  brochure?: { groupKey: string; tier: VehicleTierKey };
 };
 
 /**
