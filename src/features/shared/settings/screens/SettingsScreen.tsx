@@ -24,9 +24,10 @@
  * REGISTRATION:
  *   The `Settings` route is registered in UC ✅ and Customer ✅
  *   navigators today. Vendor / Driver stacks do NOT register it yet
- *   — see the SHARED-SCREEN REGISTRATION STATUS block in
- *   `useMoreActions.ts` for the status matrix and the ComingSoon
- *   pattern to follow when wiring the other two roles.
+ *   — see the SHARED SCREENS block in `useMoreActions.ts`. Every
+ *   row that opens a screen goes through `navigateOrComingSoon`, so
+ *   a role that hasn't registered that screen shows the standard
+ *   "Coming soon" toast rather than doing nothing.
  *
  * BEHAVIOR / WIRING STATUS:
  *   Some rows land on real destinations today; the rest toast
@@ -94,7 +95,8 @@ import { Colors, Radius, Spacing, Typography } from '@theme';
 import { toast } from '@services/toast';
 import { useAppSelector } from '@store/hooks';
 import { useLogout } from '@features/auth/hooks';
-import { navigate } from '@navigation/NavigationService';
+import { navigateOrComingSoon } from '@navigation/NavigationService';
+import { notifyComingSoon } from '@services/comingSoon';
 
 /* -----------------------------------------------------------------
  * Local color pairs — purple / pink don't have theme tokens yet.
@@ -286,10 +288,9 @@ const SettingsScreen: React.FC = () => {
     (id: RowId) => {
       switch (id) {
         case 'personalInfo':
-          // Profile is registered as a ComingSoon in Customer / UC;
-          // routing there anyway means when the real Profile screen
-          // lands this row starts working with no code change.
-          navigate('Profile');
+          // Shared screen; roles that don't register it yet get the
+          // standard "Coming soon" toast instead of a silent no-op.
+          navigateOrComingSoon('profile', 'Profile');
           return;
 
         case 'permissions':
@@ -310,9 +311,8 @@ const SettingsScreen: React.FC = () => {
 
         case 'termsConditions':
           if (!termsUrl) {
-            toast.info('Coming soon', {
-              description: 'Terms & Conditions will be available shortly.',
-            });
+            // Server config hasn't published the URL yet.
+            notifyComingSoon('termsAndConditions');
             return;
           }
           void Linking.openURL(termsUrl).catch(() => {
@@ -327,18 +327,21 @@ const SettingsScreen: React.FC = () => {
           // tagline, About / Services / Mission / Why Choose Us /
           // Contact and a Legal Information entry that opens
           // legal.termsUrl. Registered in Customer + UC navigators.
-          navigate('AboutUrbanCruise');
+          navigateOrComingSoon('aboutApp', 'AboutUrbanCruise');
           return;
 
         case 'helpSupport':
           // Hub screen shipped in the previous change — reachable from
           // both the More sheet's "Help & Support" tile and here.
-          navigate('HelpSupport');
+          navigateOrComingSoon('helpSupport', 'HelpSupport');
           return;
 
         case 'notifications':
           // Notification preference screen — per-channel toggles.
-          navigate('NotificationPreferences');
+          navigateOrComingSoon(
+            'notificationPreferences',
+            'NotificationPreferences',
+          );
           return;
 
         case 'savedPayments':
@@ -347,9 +350,7 @@ const SettingsScreen: React.FC = () => {
         case 'deleteAccount':
           // TODO(nav): route each of these to its dedicated screen
           // when it lands — the switch is the ONE spot to change.
-          toast.info('Coming soon', {
-            description: 'This setting will be available shortly.',
-          });
+          notifyComingSoon('settingsOption');
           return;
 
         default: {

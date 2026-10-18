@@ -55,7 +55,7 @@ import { Search, SlidersHorizontal } from 'lucide-react-native';
 
 import { SafeScreen } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
-import { toast } from '@services/toast';
+import { notifyComingSoon } from '@services/comingSoon';
 import type { CustomerStackParamList } from '@navigation/types';
 
 import type { BookingFilter, CustomerBookingListItem } from '../types';
@@ -150,22 +150,16 @@ const BookingsScreen: React.FC = () => {
     [navigation],
   );
 
-  const onModifyBooking = useCallback(
-    (item: CustomerBookingListItem) => {
-      navigation.navigate('ModificationRequest', { bookingId: item.id });
-    },
-    [navigation],
-  );
+  const onModifyBooking = useCallback((_item: CustomerBookingListItem) => {
+    // Booking modification isn't built yet. When it ships, add the
+    // route and navigate here with `{ bookingId: item.id }`.
+    notifyComingSoon('customer.modifyBooking');
+  }, []);
 
   const onTrackVehicle = useCallback((_item: CustomerBookingListItem) => {
-    // Live tracking screen is a ghost destination today. Same
-    // "coming soon" toast the detail screen fires from its sticky
-    // Track Vehicle button — keeps the two entry points behaving
-    // identically until the real TripLive route lands.
-    // TODO(nav): navigation.navigate('TripLive', { tripId: tripIdFrom(item.id, '01') });
-    toast.info('Live tracking coming soon', {
-      description: "We're rolling this out shortly.",
-    });
+    // Live tracking isn't built yet. When it ships, add the TripLive
+    // route and navigate here with the booking's trip id.
+    notifyComingSoon('customer.tripLive');
   }, []);
 
   const onBookAgain = useCallback(

@@ -31,6 +31,15 @@
  *   first. A URL our allow-list rejects is invisible to React
  *   Navigation, so the app opens on the normal home destination
  *   instead of trying to render an unknown route.
+ *
+ * WARM URLS — one gated path:
+ *   A URL that arrives while the app is running is stashed and
+ *   drained immediately — the same path push-notification taps use
+ *   (`handleFcmClick`). It is NOT handed to React Navigation's
+ *   listener, because that path would skip the role/auth gate, leave
+ *   the target stuck in the pending slot, and silently drop links to
+ *   unfinished features. The drain applies the gate, the mount-race
+ *   retry, the "Coming soon" handling and the analytics.
  * ------------------------------------------------------------------
  */
 
@@ -42,6 +51,7 @@ import type { RootStackParamList } from '@navigation/types';
 
 import { resolveUrl } from './resolve';
 import { stash } from './pending';
+import { drainPendingDeepLink } from './drain';
 import { targetToNavigatePayload } from './toNavigate';
 
 /* ================================================================
@@ -94,16 +104,16 @@ export function buildLinkingConfig(): LinkingOptions<RootStackParamList> {
 
     /**
      * Warm subscription: OS-delivered URLs while the app is running
-     * (foreground or background). Same gate as above.
+     * (foreground or background). Routed through the gated drain —
+     * see "WARM URLS" in the file header for why the React
+     * Navigation listener is intentionally not called.
      */
-    subscribe(listener) {
+    subscribe(_listener) {
       const sub = Linking.addEventListener('url', ({ url }) => {
-        // console.log('[deeplink] subscribe url =', url);
         const r = resolveUrl(url);
-        // console.log('[deeplink] subscribe resolve =', r);
         if (!r.ok) return;
         stash(r.target);
-        listener(url);
+        drainPendingDeepLink();
       });
       return () => sub.remove();
     },
@@ -130,7 +140,11 @@ export function buildLinkingConfig(): LinkingOptions<RootStackParamList> {
       const r = resolveUrl(asUrl);
       if (!r.ok) return undefined;
 
+      // Unfinished feature: give React Navigation nothing to open.
+      // The target is already stashed, so the drain shows the
+      // "Coming soon" toast once the app is ready.
       const p = targetToNavigatePayload(r.target);
+      if (p.type === 'comingSoon') return undefined;
       return {
         routes: [
           p.params === undefined

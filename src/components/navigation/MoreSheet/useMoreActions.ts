@@ -43,28 +43,23 @@
  *   Every case in the switch MUST return one of these two values.
  *   The exhaustiveness check at the bottom keeps that honest.
  *
- * SHARED-SCREEN REGISTRATION STATUS:
- *   `Profile`, `Settings`, `NotificationCentre` all live
- *   in `features/shared/*` and are meant to be reused by every role.
- *   For `navigate('Profile')` to actually push a screen, the current
- *   role's navigator must REGISTER that route with a component.
+ * SHARED SCREENS & UNFINISHED FEATURES:
+ *   `Profile`, `Settings`, `NotificationCentre` and `HelpSupport`
+ *   live in `features/shared/*` and are registered per role. Shared
+ *   actions go through `navigateOrComingSoon`, so a role that hasn't
+ *   registered the screen yet (Vendor and Driver today) gets the
+ *   standard "Coming soon" toast instead of a silent no-op — and
+ *   starts working with no change here once the role registers it.
  *
- *   Currently registered in:
- *     - UC       ✅ (all three)
- *     - Customer ✅ (all three; customer feedback has its own action —
- *                     see customer.feedback below)
- *     - Vendor   ❌ (Profile / Settings / Notifications all
- *                     silently no-op)
- *     - Driver   ❌ (same as Vendor)
- *
- *   To wire a new role, mirror the ComingSoon-registration block used
- *   by UcNavigator / CustomerNavigator.
+ *   Role-specific items whose feature isn't built at all call
+ *   `notifyComingSoon(<feature>)` directly and return 'inline'.
  * ------------------------------------------------------------------
  */
 
 import { useCallback } from 'react';
 
-import { navigate } from '@navigation/NavigationService';
+import { navigate, navigateOrComingSoon } from '@navigation/NavigationService';
+import { notifyComingSoon } from '@services/comingSoon';
 import { useLogout } from '@features/auth/hooks';
 
 import type { MoreActionId } from './moreMenuConfig';
@@ -100,12 +95,12 @@ export function useMoreActions() {
       switch (actionId) {
         /* ---- Shared (Profile / Settings / Notifications / Support / Logout) ---- */
         case 'profile':
-          navigate('Profile');
-          return 'navigated';
+          return toResult(navigateOrComingSoon('profile', 'Profile'));
 
         case 'notifications':
-          navigate('NotificationCentre');
-          return 'navigated';
+          return toResult(
+            navigateOrComingSoon('notifications', 'NotificationCentre'),
+          );
 
         case 'support':
           // From the More sheet, "Help & Support" goes to the rich hub
@@ -113,12 +108,10 @@ export function useMoreActions() {
           // The `Support` route is still registered in every stack so
           // LoginScreen's "Contact Support" link keeps working — the
           // two entry points are deliberately separate surfaces.
-          navigate('HelpSupport');
-          return 'navigated';
+          return toResult(navigateOrComingSoon('helpSupport', 'HelpSupport'));
 
         case 'settings':
-          navigate('Settings');
-          return 'navigated';
+          return toResult(navigateOrComingSoon('settings', 'Settings'));
 
         case 'logout':
           // Fire the full logout mutation:
@@ -149,21 +142,19 @@ export function useMoreActions() {
           navigate('CustomerFeedback');
           return 'navigated';
 
-        /* ---- Vendor ---- */
+        /* ---- Vendor & Driver (not built yet) ---- */
         case 'vendor.fleet':
         case 'vendor.drivers':
         case 'vendor.payouts':
         case 'vendor.maintenance':
         case 'vendor.reports':
-          noop();
-          return 'inline';
-
-        /* ---- Driver ---- */
         case 'driver.routes':
         case 'driver.fuelLog':
         case 'driver.incidents':
         case 'driver.rewards':
-          noop();
+          // These action ids are also ComingSoonFeature keys, so the
+          // toast names the exact feature the user tapped.
+          notifyComingSoon(actionId);
           return 'inline';
 
         /* ---- UC ---- */
@@ -208,7 +199,11 @@ export function useMoreActions() {
  * Helpers
  * ----------------------------------------------------------------- */
 
-/** Placeholder for actions whose target screen doesn't exist yet. */
-function noop(): void {
-  // Intentionally empty.
+/**
+ * Map `navigateOrComingSoon`'s boolean to the MoreActionResult
+ * contract: a dispatched navigation means the tabs screen will blur
+ * ('navigated'); a toast keeps it focused ('inline').
+ */
+function toResult(didNavigate: boolean): MoreActionResult {
+  return didNavigate ? 'navigated' : 'inline';
 }

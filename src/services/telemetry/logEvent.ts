@@ -124,7 +124,15 @@ export type EventName =
 
   // ── Deeplinks ─────────────────────────────────────────
   | 'deeplink.opened'
-  | 'deeplink.rejected';
+  | 'deeplink.rejected'
+
+  // ── Unfinished features ───────────────────────────────
+  // Fires every time the "Coming soon" toast is shown. Properties:
+  // { feature: ComingSoonFeature, source: ComingSoonSource } — both
+  // bounded literals (see services/comingSoon). Aggregating on
+  // `feature` shows which unfinished features users try to reach
+  // most, which is a direct input to roadmap priority.
+  | 'feature.coming_soon_shown';
 
 export type EventProperties = Record<string, unknown>;
 

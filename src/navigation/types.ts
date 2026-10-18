@@ -1,14 +1,6 @@
 // src/navigation/types.ts
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import type {
-  BookingId,
-  QuotationId,
-  TripId,
-  VehicleId,
-  DriverId,
-  VendorId,
-  EnquiryId,
-} from '@app-types/ids';
+import type { BookingId, QuotationId } from '@app-types/ids';
 import type { UserRole } from '@rbac/roles';
 import type { VehicleTierKey } from '@features/customer/quotations/vehicleTierOptions';
 // Value import (not `import type`) — the tab param list types below use
@@ -116,12 +108,6 @@ export type CustomerStackParamList = {
   CompareVehicles: { quotationId: QuotationId; focusOptionId: string };
 
   BookingDetail: { bookingId: BookingId };
-  PassengerList: { bookingId: BookingId };
-  TripLive: { tripId: TripId };
-  ModificationRequest: { bookingId: BookingId };
-  AddRemark: { quotationId: QuotationId };
-  PayBalance: { bookingId: BookingId };
-  GstInvoice: { bookingId: BookingId };
   Feedback: { bookingId: BookingId };
   NotificationCentre: undefined;
   Support: undefined;
@@ -188,18 +174,6 @@ export type CustomerTabParamList = {
 /* ------------------- Vendor stack ------------------- */
 export type VendorStackParamList = {
   VendorTabs: NavigatorScreenParams<VendorTabParamList>;
-  AssignmentDetail: { bookingId: BookingId };
-  AcceptAssignment: { bookingId: BookingId };
-  RejectAssignment: { bookingId: BookingId };
-  VehicleDetail: { vehicleId: VehicleId };
-  AddVehicle: undefined;
-  VehicleAvailability: { vehicleId: VehicleId };
-  DriverDetail: { driverId: DriverId };
-  AddDriver: undefined;
-  TripDetail: { tripId: TripId };
-  ChangeVehicleRequest: { tripId: TripId };
-  PaymentDetail: { entryId: string };
-  NotificationCentre: undefined;
   Support: undefined;
   /** Rich "Help & Support" hub from the More sheet. See CustomerStackParamList for rationale. */
   HelpSupport: undefined;
@@ -223,15 +197,6 @@ export type VendorTabParamList = {
 /* ------------------- Driver stack ------------------- */
 export type DriverStackParamList = {
   DriverTabs: NavigatorScreenParams<DriverTabParamList>;
-  TripDetail: { tripId: TripId };
-  DeclineTrip: { tripId: TripId };
-  OtpEntry: { tripId: TripId };
-  StartLegKm: { tripId: TripId; leg: number };
-  EndLegKm: { tripId: TripId; leg: number };
-  Briefing: { tripId: TripId };
-  CollectPayment: { tripId: TripId };
-  DriverRegistration: undefined;
-  NotificationCentre: undefined;
   Support: undefined;
   /** Rich "Help & Support" hub from the More sheet. See CustomerStackParamList for rationale. */
   HelpSupport: undefined;
@@ -256,25 +221,14 @@ export type DriverTabParamList = {
 export type UcStackParamList = {
   UcTabs: NavigatorScreenParams<UcTabParamList>;
   CustomersList: { reopenCustomerId?: string } | undefined;
-  EnquiryDetail: { enquiryId: EnquiryId };
-  CreateEnquiry: undefined;
-  QuotationBuilder: { enquiryId: EnquiryId };
-  QuotationRevision: { quotationId: QuotationId };
   CustomerDetail: { customerId: string };
-  VendorDetail: { vendorId: VendorId };
-  VendorApprovalQueue: undefined;
-  AssignVendor: { bookingId: BookingId };
-  TripMonitor: { tripId: TripId };
-  ChangeVehicleApproval: { tripId: TripId };
-  PayinDetail: { entryId: string };
-  PayoutDetail: { entryId: string };
   NotificationCentre: undefined;
   Support: undefined;
 
   // -----------------------------------------------------------------
-  // More-sheet destinations. Placeholder ComingSoon screens for now;
-  // real screens will land here without touching the navigator wiring
-  // — each route already has a home in `features/uc/<domain>/`.
+  // More-sheet destinations. Some bodies are still the shared
+  // ComingSoon component; real screens land in `features/uc/<domain>/`
+  // without touching the navigator wiring.
   // -----------------------------------------------------------------
   Profile: undefined;
   Settings: undefined;
@@ -283,7 +237,6 @@ export type UcStackParamList = {
    * CustomerStackParamList for the same route's rationale.
    */
   AboutUrbanCruise: undefined;
-  NotificationPreferences: undefined;
   VendorsList: undefined;
   Payments: undefined;
   DriversList: undefined;

@@ -19,11 +19,10 @@
  *   GET /uc/quotations ships — see the hook header.
  *
  * NAVIGATION INTENTS:
- *   - "+ New Quotation"        → CreateEnquiry (UC flow starts from an
- *                                enquiry; QuotationBuilder needs its id)
- *   - Card tap / "Open"        → QuotationRevision { quotationId }
- *   Both routes are registered ghost routes today; when their real
- *   screens land, only the component in UcNavigator changes.
+ *   - "+ New Quotation"        → quotation builder (not built yet)
+ *   - Card tap / "Open"        → quotation detail (not built yet)
+ *   Both show the standard "Coming soon" toast via
+ *   `@services/comingSoon` until their screens ship.
  *
  * Tab root: no back chevron.
  * ------------------------------------------------------------------
@@ -48,13 +47,11 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Plus, Search, SlidersHorizontal, X } from 'lucide-react-native';
 
 import { EmptyState, ErrorView, SafeScreen } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
-import type { UcStackParamList } from '@navigation/types';
+import { notifyComingSoon } from '@services/comingSoon';
 
 import { useUcQuotationList } from '../hooks/useUcQuotationList';
 import { UcQuotationCard } from '../components/UcQuotationCard';
@@ -69,8 +66,6 @@ import {
   type UcQuotationListItem,
   type UcQuotationStatusFilter,
 } from '../types';
-
-type Nav = NativeStackNavigationProp<UcStackParamList>;
 
 /** Wait this long after the last keystroke before querying. */
 const SEARCH_DEBOUNCE_MS = 300;
@@ -89,8 +84,6 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
  * ================================================================ */
 
 const QuotationsScreen: React.FC = () => {
-  const navigation = useNavigation<Nav>();
-
   const [status, setStatus] = useState<UcQuotationStatusFilter>('all');
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -123,16 +116,16 @@ const QuotationsScreen: React.FC = () => {
 
   /* -------- Navigation -------- */
 
+  // Neither destination is built yet; both show the standard
+  // "Coming soon" toast. When they ship, add the routes to
+  // UcStackParamList and navigate here instead.
   const goToNewQuotation = useCallback(() => {
-    navigation.navigate('CreateEnquiry');
-  }, [navigation]);
+    notifyComingSoon('uc.createQuotation');
+  }, []);
 
-  const openQuotation = useCallback(
-    (q: UcQuotationListItem) => {
-      navigation.navigate('QuotationRevision', { quotationId: q.id });
-    },
-    [navigation],
-  );
+  const openQuotation = useCallback((_q: UcQuotationListItem) => {
+    notifyComingSoon('uc.quotationDetail');
+  }, []);
 
   /* -------- Sheets -------- */
 

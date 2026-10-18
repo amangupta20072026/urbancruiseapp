@@ -3,22 +3,30 @@
  * ------------------------------------------------------------------
  * CustomerNavigator
  * ------------------------------------------------------------------
- * All routes declared in CustomerStackParamList are registered here.
- * Screens that don't have a real implementation yet are wired to
- * NoImplementedScreen — this eliminates the "declared in types /
- * missing at runtime" class of bug where `navigate('SomeRoute', …)`
- * type-checks but throws at runtime.
+ * ROUTE POLICY (applies to every role navigator):
+ *   Only screens that are actually built are registered, and every
+ *   route in CustomerStackParamList (and its siblings) has a real
+ *   component. There are no placeholder routes.
  *
- * SWAP PROCEDURE:
- *   When a real screen lands, replace `component={NoImplementedScreen}`
- *   with the real component import. Route name and typing don't change.
+ *   Unfinished features are NOT given a route. The UI that would
+ *   open them calls `notifyComingSoon('<feature>')` from
+ *   `@services/comingSoon`, which shows a "Coming soon" toast and
+ *   records the attempt. Destinations that exist for some roles but
+ *   not others go through `navigateOrComingSoon` in
+ *   NavigationService. Deep links to unfinished destinations are
+ *   handled in `services/deeplinks/toNavigate.ts`.
+ *
+ * SHIPPING A NEW SCREEN:
+ *   1. Add the route to the role's ParamList in `./types.ts`.
+ *   2. Register it below with its real component.
+ *   3. Replace the `notifyComingSoon(...)` call(s) with navigation,
+ *      and delete the feature key from `services/comingSoon/features.ts`
+ *      — TypeScript then lists any call site you missed.
  *
  * MORE-SHEET DESTINATIONS:
  *   Profile / Settings / NotificationCentre are shared cross-role
  *   screens under features/shared/*. Referrals is Customer-scoped
- *   under features/customer/referrals/. All four currently render
- *   ComingSoon bodies; when real UI ships, only the component file
- *   changes — this navigator wiring stays.
+ *   under features/customer/referrals/.
  * ------------------------------------------------------------------
  */
 
@@ -122,7 +130,7 @@ const CustomerNavigator: React.FC = () => {
       <Stack.Screen name="VehicleVideo" component={VehicleVideoScreen} />
       <Stack.Screen name="CompareVehicles" component={CompareVehiclesScreen} />
 
-      {/* Registered ghost routes — real screens land later. */}
+      {/* Bookings */}
       <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <Stack.Screen name="Feedback" component={GiveFeedbackScreen} />
     </Stack.Navigator>

@@ -1,7 +1,11 @@
 // src/navigation/DriverNavigator.tsx
 /**
  * ------------------------------------------------------------------
- * DriverNavigator — see CustomerNavigator for the ghost-route policy.
+ * DriverNavigator — see CustomerNavigator for the route policy.
+ *
+ * The driver app is not built yet: only the tab shell and the
+ * shared Help & Support screens are registered. Everything else the
+ * driver can tap shows a "Coming soon" toast.
  * ------------------------------------------------------------------
  */
 

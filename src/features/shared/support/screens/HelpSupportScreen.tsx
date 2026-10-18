@@ -29,10 +29,9 @@
  *   config hasn't loaded yet (offline first-run).
  *
  * COMING-SOON PLACEHOLDERS:
- *   - Live Chat is gated behind `supportChatEnabled` feature flag
- *     (still off today). Until the flag flips, tapping the tile
- *     shows an info toast — matches the pattern used by
- *     BookingsScreen's Track Vehicle button.
+ *   - Live Chat has no screen yet, so tapping the tile shows the
+ *     standard "Coming soon" toast from `@services/comingSoon`
+ *     (same as BookingsScreen's Track Vehicle button).
  *   - All six "Get Help With" tiles now route to dedicated screens:
  *     Quotation Help → QuotationHelpScreen, Booking Help →
  *     BookingHelpScreen, Payments & Refunds → PaymentsHelpScreen,
@@ -85,7 +84,7 @@ import {
 
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
-import { toast } from '@services/toast';
+import { notifyComingSoon } from '@services/comingSoon';
 import { navigate } from '@navigation/NavigationService';
 import { useAppSelector } from '@store/hooks';
 
@@ -223,9 +222,6 @@ const HelpSupportScreen: React.FC = () => {
    * up on the next AppConfig refresh — no store release needed.
    */
   const supportConfig = useAppSelector(s => s.app.appConfig?.support);
-  const supportChatEnabled = useAppSelector(
-    s => s.app.appConfig?.featureFlags.supportChatEnabled ?? false,
-  );
   const SUPPORT_CONTACT = useMemo(
     () => ({
       phone: supportConfig?.phone ?? '',
@@ -285,18 +281,15 @@ const HelpSupportScreen: React.FC = () => {
   }, [SUPPORT_CONTACT]);
 
   const handleLiveChat = useCallback(() => {
-    // Feature-flagged: LiveChat surface isn't built yet. Once the
-    // flag flips true the real navigation goes here — for today the
-    // tile is present in the UI so users see the affordance, and a
-    // toast explains it's coming.
-    if (!supportChatEnabled) {
-      toast.info('Live chat coming soon', {
-        description: "We're rolling this out shortly.",
-      });
-      return;
-    }
-    // TODO(nav): navigate('SupportLiveChat') once the screen lands.
-  }, [supportChatEnabled]);
+    // No live-chat screen exists in this build, so the tile always
+    // shows the "Coming soon" toast — even if the server's
+    // `supportChatEnabled` flag is switched on, which would otherwise
+    // leave a tile that does nothing. When the screen ships:
+    //   1. register the route,
+    //   2. read `appConfig.featureFlags.supportChatEnabled` here and
+    //      navigate when true, keeping this toast as the `false` path.
+    notifyComingSoon('liveChat');
+  }, []);
 
   const handleTopicPress = useCallback((topicId: TopicId) => {
     // Every topic tile now has a dedicated destination. Adding a

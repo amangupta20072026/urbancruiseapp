@@ -38,13 +38,28 @@
  *   it dispatch the navigate. See the schedule constants below
  *   for the backoff.
  *
- * ── Analytics ─────────────────────────────────────────────────────
- * Four emit sites, mirroring every logError:
+ * UNFINISHED DESTINATIONS:
+ *   Two layers, both ending in the standard "Coming soon" toast:
  *
- *   `deeplink.opened   { kind }`                      — decision to navigate
- *   `deeplink.rejected { reason: 'orphan_kind', … }`  — catalog miss
- *   `deeplink.rejected { reason: 'navigate_timeout' }`— nav retries exhausted
- *   `deeplink.rejected { reason: 'wrong_role', … }`   — RBAC denial
+ *   1. Declared — `toNavigate.ts` maps kinds whose feature isn't
+ *      built to `{ type: 'comingSoon' }`. Checked AFTER the gate, so
+ *      a wrong-role user still gets the generic wrong-account toast
+ *      and never learns what another role's link points at.
+ *   2. Runtime — once the role navigator is mounted, the target
+ *      screen must actually be registered for this role
+ *      (`isRouteAvailable`). This covers shared routes that only
+ *      some roles register (e.g. NotificationCentre) and turns what
+ *      used to be a silent no-op into a visible, measured outcome.
+ *
+ * ── Analytics ─────────────────────────────────────────────────────
+ * Six emit sites, mirroring every logError:
+ *
+ *   `deeplink.opened   { kind }`                       — decision to navigate
+ *   `deeplink.rejected { reason: 'orphan_kind', … }`   — catalog miss
+ *   `deeplink.rejected { reason: 'navigate_timeout' }` — nav retries exhausted
+ *   `deeplink.rejected { reason: 'wrong_role', … }`    — RBAC denial
+ *   `deeplink.rejected { reason: 'coming_soon', … }`   — feature not built
+ *   `deeplink.rejected { reason: 'route_unavailable' }`— screen not in role
  *
  * `deeplink.opened` fires on the drain DECISION, not when the
  * deferred setTimeout actually dispatches. If the timeout later
@@ -57,7 +72,12 @@
  */
 
 import { store } from '@store';
-import { navigate, navigationRef } from '@navigation/NavigationService';
+import {
+  isRouteAvailable,
+  navigate,
+  navigationRef,
+} from '@navigation/NavigationService';
+import { notifyComingSoon } from '@services/comingSoon';
 import { logError } from '@services/telemetry/logError';
 import { logEvent } from '@services/telemetry/logEvent';
 import { toast } from '@services/toast';
@@ -65,7 +85,7 @@ import { toast } from '@services/toast';
 import { peek, consume } from './pending';
 import { gate, type GateContext } from './gate';
 import { findCatalogEntryByKind } from './catalog';
-import { targetToNavigatePayload, type NavigatePayload } from './toNavigate';
+import { targetToNavigatePayload, type ScreenPayload } from './toNavigate';
 import type { DeepLinkTarget } from './schema';
 
 /**
@@ -74,9 +94,16 @@ import type { DeepLinkTarget } from './schema';
  *                       (dispatch itself is deferred — see below)
  *   - 'held'         — target is still pending (bootstrap, onboarding, auth)
  *   - 'denied'       — target was rejected; fallback dispatched
+ *   - 'unavailable'  — target's feature isn't built; "Coming soon"
+ *                       toast shown, user stays where they are
  *   - 'idle'         — nothing was pending
  */
-export type DrainOutcome = 'navigated' | 'held' | 'denied' | 'idle';
+export type DrainOutcome =
+  | 'navigated'
+  | 'held'
+  | 'denied'
+  | 'unavailable'
+  | 'idle';
 
 export function drainPendingDeepLink(): DrainOutcome {
   const target = peek();
@@ -114,13 +141,25 @@ export function drainPendingDeepLink(): DrainOutcome {
     return 'denied';
   }
 
-  // Type-narrow to the ok branch. Emit the opened event BEFORE we
-  // dispatch — measures the DECISION to navigate. A subsequent
-  // navigate_timeout (if the nested navigator never mounts) will
-  // fire deeplink.rejected as well; the funnel between the two is
-  // the interesting signal.
+  const payload = targetToNavigatePayload(g.target);
+
+  // Gate passed, but the feature isn't built yet. Stay put and say
+  // so, rather than opening a blank screen or doing nothing.
+  if (payload.type === 'comingSoon') {
+    logEvent('deeplink.rejected', {
+      reason: 'coming_soon',
+      kind: g.target.kind,
+    });
+    notifyComingSoon(payload.feature, 'deeplink');
+    return 'unavailable';
+  }
+
+  // Emit the opened event BEFORE we dispatch — measures the DECISION
+  // to navigate. A subsequent navigate_timeout (if the nested
+  // navigator never mounts) will fire deeplink.rejected as well; the
+  // funnel between the two is the interesting signal.
   logEvent('deeplink.opened', { kind: g.target.kind });
-  dispatchNavigate(g.target);
+  attemptNavigate(payload, 0);
   return 'navigated';
 }
 
@@ -172,12 +211,21 @@ const NAVIGATE_RETRY_DELAYS_MS = [
   50, 100, 150, 250, 400, 600, 800, 1000, 1500, 2000,
 ] as const;
 
+/**
+ * Navigate to a target that has already passed the gate (used by
+ * the wrong-role fallback action). Unfinished destinations show the
+ * "Coming soon" toast instead.
+ */
 function dispatchNavigate(target: DeepLinkTarget): void {
   const p = targetToNavigatePayload(target);
+  if (p.type === 'comingSoon') {
+    notifyComingSoon(p.feature, 'deeplink');
+    return;
+  }
   attemptNavigate(p, 0);
 }
 
-function attemptNavigate(p: NavigatePayload, attempt: number): void {
+function attemptNavigate(p: ScreenPayload, attempt: number): void {
   if (attempt >= NAVIGATE_RETRY_DELAYS_MS.length) {
     // We agreed to open this link (deeplink.opened fired) but the
     // nested navigator never mounted in time. Emit the failure leg
@@ -205,10 +253,18 @@ function attemptNavigate(p: NavigatePayload, attempt: number): void {
       return;
     }
 
-    // console.log(
-    //   '[deeplink] nested navigator mounted, dispatching navigate to',
-    //   p.screen,
-    // );
+    // The role navigator is mounted — but does THIS role register
+    // the screen? Shared routes (e.g. NotificationCentre) exist for
+    // some roles only. Without this check the navigate below would
+    // be a silent no-op.
+    if (!isRouteAvailable(p.screen)) {
+      logEvent('deeplink.rejected', {
+        reason: 'route_unavailable',
+        screen: p.screen,
+      });
+      notifyComingSoon('generic', 'deeplink');
+      return;
+    }
 
     // Boundary cast: navigate() is typed as the intersection of every
     // ParamList; the dynamic screen name doesn't narrow to one of them.

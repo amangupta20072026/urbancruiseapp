@@ -1,21 +1,18 @@
 // src/navigation/UcNavigator.tsx
 /**
  * ------------------------------------------------------------------
- * UcNavigator — see CustomerNavigator for the ghost-route policy.
+ * UcNavigator — see CustomerNavigator for the route policy.
  * ------------------------------------------------------------------
- * Registered screens fall into three buckets:
+ * Registered screens fall into two buckets:
  *
- *   1. Real feature screens — full UI (UcTabs, CustomersList).
- *   2. ComingSoon placeholders — user-facing "coming soon" pages
- *      pushed from the More sheet. Live in `features/uc/<domain>/`
+ *   1. Real feature screens — full UI (UcTabs, CustomersList, …).
+ *   2. More-sheet destinations whose body is still the shared
+ *      ComingSoon component. They live in `features/uc/<domain>/`
  *      so the file is the swap point when the real screen lands.
- *   3. Ghost routes — registered against NotImplementedScreen (a
- *      DEV-facing debug placeholder). These are for routes whose UX
- *      hasn't been designed yet; NotImplementedScreen exists to
- *      make bad navigate() calls visible during development.
  *
- * When a ComingSoon or ghost screen graduates to a real UI, simply
- * change its component reference below.
+ * Features with no screen at all (quotation builder, enquiry
+ * detail, trip monitor, …) have no route; the UI that would open
+ * them shows a "Coming soon" toast via `@services/comingSoon`.
  * ------------------------------------------------------------------
  */
 

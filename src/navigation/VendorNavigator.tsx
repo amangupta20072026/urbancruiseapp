@@ -1,7 +1,11 @@
 // src/navigation/VendorNavigator.tsx
 /**
  * ------------------------------------------------------------------
- * VendorNavigator — see CustomerNavigator for the ghost-route policy.
+ * VendorNavigator — see CustomerNavigator for the route policy.
+ *
+ * The vendor app is not built yet: only the tab shell and the
+ * shared Help & Support screens are registered. Everything else the
+ * vendor can tap shows a "Coming soon" toast.
  * ------------------------------------------------------------------
  */
 

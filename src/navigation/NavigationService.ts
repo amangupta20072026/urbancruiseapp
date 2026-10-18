@@ -29,6 +29,14 @@
  *   - `getCurrentRoute` returns a DISCRIMINATED UNION across every
  *     param list, so callers get `route.params` narrowed correctly
  *     by `route.name` without any casts.
+ *
+ * ROLE-AWARE AVAILABILITY:
+ *   The flat typing above means TypeScript accepts a route name if
+ *   ANY role registers it — but at runtime only one role navigator
+ *   is mounted. `isRouteAvailable` answers "would navigate(X) work
+ *   right now?", and `navigateOrComingSoon` uses it to show the
+ *   standard "Coming soon" toast instead of silently doing nothing
+ *   when the current role doesn't have that screen.
  * ------------------------------------------------------------------
  */
 
@@ -37,6 +45,8 @@ import {
   StackActions,
   createNavigationContainerRef,
 } from '@react-navigation/native';
+
+import { notifyComingSoon, type ComingSoonFeature } from '@services/comingSoon';
 
 import type {
   AuthParamList,
@@ -93,12 +103,13 @@ type AllScreensParamList = RootStackParamList &
  * them and forbids them otherwise. Safe to call before the container
  * is ready — silently no-ops.
  *
- * Runtime semantics: React Navigation searches the currently mounted
- * navigator tree for a screen with the given name. If found, focuses
- * it (respecting the nesting). If not found, the call is a no-op.
- * Because every declared route is now also registered (see the
- * per-role navigators), that "not found" case cannot happen for any
- * name TypeScript accepts.
+ * Runtime semantics: React Navigation hands the action to the
+ * focused navigator and bubbles it up through its parents until one
+ * of them has a screen with that name. If none does, the call is a
+ * no-op. Because only ONE role navigator is mounted at a time, a
+ * name TypeScript accepts (registered by some role) can still be
+ * missing for the current role — use `navigateOrComingSoon` when
+ * that can happen.
  */
 export function navigate<RouteName extends keyof AllScreensParamList>(
   ...args: AllScreensParamList[RouteName] extends undefined
@@ -110,6 +121,86 @@ export function navigate<RouteName extends keyof AllScreensParamList>(
   // just forwards positional args. The cast is confined here — no
   // caller sees `any`.
   (navigationRef.navigate as (...a: unknown[]) => void)(...args);
+}
+
+/* =================================================================
+ * isRouteAvailable — would navigate(name) succeed right now?
+ * ================================================================= */
+
+/**
+ * Minimal structural view of a navigator state. Covers both full
+ * `NavigationState` objects and the `PartialState` React Navigation
+ * stores on a route before its child navigator has mounted (where
+ * `routeNames` and `index` may be absent).
+ */
+type InspectableState = {
+  readonly index?: number;
+  readonly routeNames?: readonly string[];
+  readonly routes: readonly { readonly state?: InspectableState }[];
+};
+
+/**
+ * True when a `navigate(name)` dispatched from the container would be
+ * handled. Mirrors React Navigation's own resolution: the action goes
+ * to the FOCUSED navigator and bubbles up through its parents, so we
+ * walk the focused chain from the root down and check each level's
+ * registered `routeNames`.
+ *
+ * Returns false before the container is ready. Cost is O(nesting
+ * depth) — three or four levels in this app — so it is safe to call
+ * on every tap.
+ */
+export function isRouteAvailable(name: string): boolean {
+  if (!navigationRef.isReady()) return false;
+
+  let state: InspectableState | undefined = navigationRef.getRootState() as
+    | InspectableState
+    | undefined;
+
+  while (state) {
+    if (state.routeNames?.includes(name)) return true;
+    const focused: { readonly state?: InspectableState } | undefined =
+      state.routes[state.index ?? state.routes.length - 1];
+    state = focused?.state;
+  }
+  return false;
+}
+
+/* =================================================================
+ * navigateOrComingSoon
+ * ================================================================= */
+
+/**
+ * Navigate if the current role has the screen; otherwise show the
+ * standard "Coming soon" toast for `feature`.
+ *
+ * Use this for destinations that exist for some roles but not yet
+ * for others (e.g. Profile is built for Customer and UC, not yet
+ * for Vendor or Driver). For a feature no role has yet, call
+ * `notifyComingSoon` directly instead — there is no route to try.
+ *
+ * Returns true when navigation was dispatched, false otherwise (the
+ * toast was shown, or the container is not ready yet). Callers such
+ * as the More sheet use this to decide whether the current screen is
+ * about to blur.
+ */
+export function navigateOrComingSoon<
+  RouteName extends keyof AllScreensParamList,
+>(
+  feature: ComingSoonFeature,
+  ...args: AllScreensParamList[RouteName] extends undefined
+    ? [screen: RouteName]
+    : [screen: RouteName, params: AllScreensParamList[RouteName]]
+): boolean {
+  // Not ready is a timing condition, not a missing feature — stay
+  // silent, exactly like navigate() does.
+  if (!navigationRef.isReady()) return false;
+  if (!isRouteAvailable(args[0] as string)) {
+    notifyComingSoon(feature, 'navigation_guard');
+    return false;
+  }
+  navigate<RouteName>(...args);
+  return true;
 }
 
 /* =================================================================
