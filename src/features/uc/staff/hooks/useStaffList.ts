@@ -18,11 +18,7 @@ import { queryKeys } from '@constants/queryKeys';
 import { fixtureUcStaffAll } from '@mocks/fixtures/ucStaff';
 import { delayLikeApi } from '@mocks/helpers/delay';
 
-import {
-  DEFAULT_STAFF_FILTERS,
-  type Staff,
-  type StaffFilters,
-} from '../types';
+import { DEFAULT_STAFF_FILTERS, type Staff, type StaffFilters } from '../types';
 
 const USE_MOCK = true;
 const PAGE_SIZE = 20;

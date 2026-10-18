@@ -59,7 +59,10 @@ type VendorListPage = {
 /* Sort + filter helpers                                              */
 /* ------------------------------------------------------------------ */
 
-function sortVendors(items: Vendor[], sortBy: VendorFilters['sortBy']): Vendor[] {
+function sortVendors(
+  items: Vendor[],
+  sortBy: VendorFilters['sortBy'],
+): Vendor[] {
   const copy = [...items];
   switch (sortBy) {
     case 'newest':

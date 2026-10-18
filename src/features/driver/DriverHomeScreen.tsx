@@ -7,13 +7,7 @@ import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  Colors,
-  Dimensions,
-  Radius,
-  Spacing,
-  Typography,
-} from '../../theme';
+import { Colors, Dimensions, Radius, Spacing, Typography } from '../../theme';
 import { useAppDispatch } from '../../store/hooks';
 import { logout } from '../../store/slices/appSlice';
 
@@ -36,7 +30,8 @@ const DriverHomeScreen: React.FC = () => {
         <Text style={styles.eyebrow}>Signed in</Text>
         <Text style={styles.title}>Driver Home</Text>
         <Text style={styles.description}>
-          Bottom tabs will live here: Home, MyTrips, Emergency, Earnings, Profile.
+          Bottom tabs will live here: Home, MyTrips, Emergency, Earnings,
+          Profile.
         </Text>
       </View>
       <Pressable

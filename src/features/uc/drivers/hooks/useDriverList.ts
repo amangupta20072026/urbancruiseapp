@@ -45,7 +45,10 @@ type DriverListPage = {
   total: number;
 };
 
-function sortDrivers(items: Driver[], sortBy: DriverFilters['sortBy']): Driver[] {
+function sortDrivers(
+  items: Driver[],
+  sortBy: DriverFilters['sortBy'],
+): Driver[] {
   const copy = [...items];
   switch (sortBy) {
     case 'newest':

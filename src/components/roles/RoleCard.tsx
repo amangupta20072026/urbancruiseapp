@@ -26,12 +26,7 @@ import {
   Typography,
 } from '../../theme';
 import type { UserRole } from '../../store/slices/appSlice';
-import {
-  CheckIcon,
-  TINT_COLOR,
-  withAlpha,
-  type RoleConfig,
-} from './config';
+import { CheckIcon, TINT_COLOR, withAlpha, type RoleConfig } from './config';
 
 type RoleCardProps = {
   role: RoleConfig;
@@ -39,68 +34,72 @@ type RoleCardProps = {
   onPress: (id: UserRole) => void;
 };
 
-const RoleCard: React.FC<RoleCardProps> = memo(({ role, selected, onPress }) => {
-  const { Icon, pickerTitle, description, tint, id } = role;
-  const tintColor = TINT_COLOR[tint];
+const RoleCard: React.FC<RoleCardProps> = memo(
+  ({ role, selected, onPress }) => {
+    const { Icon, pickerTitle, description, tint, id } = role;
+    const tintColor = TINT_COLOR[tint];
 
-  const scale = useSharedValue(1);
+    const scale = useSharedValue(1);
 
-  useEffect(() => {
-    scale.value = withSpring(1, { damping: 14, stiffness: 260 });
-  }, [selected, scale]);
+    useEffect(() => {
+      scale.value = withSpring(1, { damping: 14, stiffness: 260 });
+    }, [selected, scale]);
 
-  const handlePress = useCallback(() => {
-    scale.value = withSpring(0.97, { damping: 16, stiffness: 300 }, () => {
-      scale.value = withSpring(1, { damping: 12, stiffness: 260 });
-    });
-    onPress(id);
-  }, [onPress, id, scale]);
+    const handlePress = useCallback(() => {
+      scale.value = withSpring(0.97, { damping: 16, stiffness: 300 }, () => {
+        scale.value = withSpring(1, { damping: 12, stiffness: 260 });
+      });
+      onPress(id);
+    }, [onPress, id, scale]);
 
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+    const cardAnimStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: scale.value }],
+    }));
 
-  const badgeAnimStyle = useAnimatedStyle(() => ({
-    backgroundColor: selected ? tintColor : 'transparent',
-    borderColor: selected ? tintColor : Colors.border,
-    transform: [{ scale: withTiming(selected ? 1 : 0.85, { duration: 150 }) }],
-  }));
+    const badgeAnimStyle = useAnimatedStyle(() => ({
+      backgroundColor: selected ? tintColor : 'transparent',
+      borderColor: selected ? tintColor : Colors.border,
+      transform: [
+        { scale: withTiming(selected ? 1 : 0.85, { duration: 150 }) },
+      ],
+    }));
 
-  return (
-    <Animated.View style={[styles.card, cardAnimStyle]}>
-      <Pressable
-        onPress={handlePress}
-        accessibilityRole="radio"
-        accessibilityState={{ selected }}
-        accessibilityLabel={`${pickerTitle}. ${description}`}
-        style={({ pressed }) => [
-          styles.cardInner,
-          pressed && styles.cardPressed,
-        ]}
-      >
-        <View
-          style={[
-            styles.iconWrap,
-            { backgroundColor: withAlpha(tintColor, 0.12) },
+    return (
+      <Animated.View style={[styles.card, cardAnimStyle]}>
+        <Pressable
+          onPress={handlePress}
+          accessibilityRole="radio"
+          accessibilityState={{ selected }}
+          accessibilityLabel={`${pickerTitle}. ${description}`}
+          style={({ pressed }) => [
+            styles.cardInner,
+            pressed && styles.cardPressed,
           ]}
         >
-          <Icon color={tintColor} size={Dimensions.iconLg} />
-        </View>
-        <View style={styles.cardText}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            {pickerTitle}
-          </Text>
-          <Text style={styles.cardSubtitle} numberOfLines={2}>
-            {description}
-          </Text>
-        </View>
-        <Animated.View style={[styles.checkBadge, badgeAnimStyle]}>
-          {selected && <CheckIcon color={Colors.white} size={14} />}
-        </Animated.View>
-      </Pressable>
-    </Animated.View>
-  );
-});
+          <View
+            style={[
+              styles.iconWrap,
+              { backgroundColor: withAlpha(tintColor, 0.12) },
+            ]}
+          >
+            <Icon color={tintColor} size={Dimensions.iconLg} />
+          </View>
+          <View style={styles.cardText}>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+              {pickerTitle}
+            </Text>
+            <Text style={styles.cardSubtitle} numberOfLines={2}>
+              {description}
+            </Text>
+          </View>
+          <Animated.View style={[styles.checkBadge, badgeAnimStyle]}>
+            {selected && <CheckIcon color={Colors.white} size={14} />}
+          </Animated.View>
+        </Pressable>
+      </Animated.View>
+    );
+  },
+);
 RoleCard.displayName = 'RoleCard';
 
 export default RoleCard;

@@ -12,14 +12,21 @@
  *     Typography,
  *     Spacing,
  *     Radius,
- *     Shadows,         
+ *     Shadows,
  *     Dimensions,
  *   } from '@/theme';
  * ------------------------------------------------------------------
  */
 
 export { Colors } from './colors';
-export { Typography, FontFamily, FontSize, FontWeight, LineHeight, LetterSpacing } from './typography';
+export {
+  Typography,
+  FontFamily,
+  FontSize,
+  FontWeight,
+  LineHeight,
+  LetterSpacing,
+} from './typography';
 export { Spacing } from './spacing';
 export { Radius } from './radius';
 export { Shadows } from './shadows';

@@ -180,7 +180,6 @@ export const Dimensions = {
 
 export type DimensionKey = keyof typeof Dimensions;
 
-export type DimensionValue =
-  (typeof Dimensions)[DimensionKey];
+export type DimensionValue = (typeof Dimensions)[DimensionKey];
 
 export default Dimensions;

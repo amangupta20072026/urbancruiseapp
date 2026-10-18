@@ -46,10 +46,7 @@ export const InsightsBanner: React.FC<Props> = ({
           onPress={onPress}
           accessibilityRole="button"
           accessibilityLabel={ctaLabel}
-          style={({ pressed }) => [
-            styles.cta,
-            pressed && { opacity: 0.85 },
-          ]}
+          style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}
         >
           <Text style={styles.ctaText}>{ctaLabel}</Text>
         </Pressable>
@@ -75,9 +72,7 @@ const MiniGrowthChart: React.FC = () => {
     { x: 100, h: 72 },
   ];
   const barW = 12;
-  const linePts = bars
-    .map(b => `${b.x + barW / 2},${H - b.h - 4}`)
-    .join(' ');
+  const linePts = bars.map(b => `${b.x + barW / 2},${H - b.h - 4}`).join(' ');
 
   return (
     <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
@@ -91,9 +86,9 @@ const MiniGrowthChart: React.FC = () => {
       {bars.map(b => (
         <Path
           key={b.x}
-          d={`M${b.x},${H} L${b.x},${H - b.h} L${b.x + barW},${
-            H - b.h
-          } L${b.x + barW},${H} Z`}
+          d={`M${b.x},${H} L${b.x},${H - b.h} L${b.x + barW},${H - b.h} L${
+            b.x + barW
+          },${H} Z`}
           fill="url(#growthBar)"
         />
       ))}

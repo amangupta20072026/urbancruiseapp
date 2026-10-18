@@ -52,9 +52,7 @@ const FALLBACK_VERSION = '0.0.0 (0)';
  */
 export async function getDeviceInfo(): Promise<DeviceInfoPayload> {
   const platform: DeviceInfoPayload['platform'] =
-    Platform.OS === 'ios'
-      ? 'ios'
-      : 'android';
+    Platform.OS === 'ios' ? 'ios' : 'android';
 
   const [id, model, systemVersion] = await Promise.all([
     safeAsync(() => DeviceInfo.getUniqueId(), FALLBACK_ID),

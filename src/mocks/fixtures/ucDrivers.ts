@@ -10,10 +10,7 @@
  * ------------------------------------------------------------------
  */
 
-import type {
-  Driver,
-  DriverVerification,
-} from '@features/uc/drivers/types';
+import type { Driver, DriverVerification } from '@features/uc/drivers/types';
 import { fixtureUcVendorsAll } from './ucVendors';
 import { asISODateTime, type ISODateTime } from '@app-types/datetime';
 

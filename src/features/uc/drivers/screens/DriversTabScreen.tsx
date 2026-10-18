@@ -22,7 +22,11 @@ import { DirectoryListView } from '@features/uc/_directory';
 import { useDriverList } from '../hooks/useDriverList';
 import { DriverCard } from '../components/DriverCard';
 import { DriverContactSheet } from '../components/DriverContactSheet';
-import { DEFAULT_DRIVER_FILTERS, type Driver, type DriverFilters } from '../types';
+import {
+  DEFAULT_DRIVER_FILTERS,
+  type Driver,
+  type DriverFilters,
+} from '../types';
 
 const DriversTabScreen: React.FC = () => {
   const [search, setSearch] = useState('');

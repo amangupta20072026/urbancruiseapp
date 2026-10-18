@@ -10,10 +10,7 @@ import { VENDOR_STATUS_LABEL } from '../types';
 
 type Props = { vendor: Vendor; onPress: (v: Vendor) => void };
 
-const STATUS_COLOUR: Record<
-  Vendor['status'],
-  { bg: string; fg: string }
-> = {
+const STATUS_COLOUR: Record<Vendor['status'], { bg: string; fg: string }> = {
   active: { bg: '#E7F7EC', fg: '#049856' },
   pending: { bg: '#FEF3C7', fg: '#B45309' },
   suspended: { bg: '#FEE2E2', fg: '#B91C1C' },
@@ -42,10 +39,7 @@ export const VendorCard: React.FC<Props> = ({ vendor, onPress }) => {
             {vendor.companyName}
           </Text>
           <View
-            style={[
-              styles.statusPill,
-              { backgroundColor: statusPalette.bg },
-            ]}
+            style={[styles.statusPill, { backgroundColor: statusPalette.bg }]}
           >
             <Text style={[styles.statusText, { color: statusPalette.fg }]}>
               {VENDOR_STATUS_LABEL[vendor.status]}

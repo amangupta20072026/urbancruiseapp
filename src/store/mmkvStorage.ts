@@ -18,11 +18,11 @@ export const reduxMmkvStorage: Storage = {
     persistStore.set(key, value);
     return Promise.resolve(true);
   },
-  getItem: (key) => {
+  getItem: key => {
     const value = persistStore.getString(key);
     return Promise.resolve(value ?? null);
   },
-  removeItem: (key) => {
+  removeItem: key => {
     persistStore.remove(key);
     return Promise.resolve();
   },
