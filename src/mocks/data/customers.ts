@@ -225,7 +225,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
     type: 'personal',
     name: 'Nitin Kumar',
     phone: '+91 8882347948',
-    email: 'nitin.kumar19@proton.me',
+    email: '',
     city: 'Goa',
     createdAt: asISODateTime('2026-08-01T04:45:00Z'),
     totalBookings: 11,

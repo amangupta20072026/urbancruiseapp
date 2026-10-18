@@ -19,7 +19,8 @@
  *     - 'account'     → identity / preferences (Profile, Notifications, Settings)
  *     - 'business'    → role-specific work items (Fleet, Customers, Finance…)
  *     - 'engagement'  → customer growth touchpoints (Referrals, Feedback)
- *     - 'support'     → operational escalation for UC (Feedback, Issues)
+ *     - 'support'     → reserved; no role uses it today (empty groups
+ *                       are not rendered by MoreSheet)
  *
  * NOT IN THE MORE SHEET (single source of truth is SettingsScreen):
  *   - Logout          → SettingsScreen's red-tinted CTA with confirm
@@ -54,7 +55,6 @@ import {
   Award,
   Users,
   Wallet,
-  AlertTriangle,
   TrendingUp,
   MessageSquare,
   type LucideProps,
@@ -91,7 +91,6 @@ export type MoreActionId =
   | 'profile'
   | 'notifications'
   | 'support'
-  | 'feedback'
   | 'settings'
   | 'logout'
   | 'customer.referrals'
@@ -107,7 +106,6 @@ export type MoreActionId =
   | 'driver.rewards'
   | 'uc.directory'
   | 'uc.payments'
-  | 'uc.issues'
   | 'uc.performance';
 
 export type MoreItem = {
@@ -365,8 +363,8 @@ const ucMore: MoreItem[] = [
      * Single "Directory" entry replaces the four scattered entries
      * (Customers / Vendors / Drivers / Staff). It opens a top-tab
      * screen that hosts all four — one place, four tabs. Grouped
-     * under Business so UC's menu collapses to the documented
-     * 3-group model (Account / Business / Support).
+     * under Business so UC's menu collapses to two groups
+     * (Account / Business).
      */
     key: 'directory',
     label: 'Directory',
@@ -390,23 +388,6 @@ const ucMore: MoreItem[] = [
     color: Palette.purple,
     actionId: 'uc.performance',
     group: 'business',
-  },
-
-  {
-    key: 'feedback',
-    label: 'Feedback',
-    Icon: MessageSquare,
-    color: Palette.orange,
-    actionId: 'feedback',
-    group: 'support',
-  },
-  {
-    key: 'issues',
-    label: 'Issues',
-    Icon: AlertTriangle,
-    color: Palette.red,
-    actionId: 'uc.issues',
-    group: 'support',
   },
 ];
 

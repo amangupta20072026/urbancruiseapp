@@ -287,9 +287,7 @@ export type UcStackParamList = {
   VendorsList: undefined;
   Payments: undefined;
   DriversList: undefined;
-  Issues: undefined;
   Performance: undefined;
-  Feedback: undefined;
 
   /**
    * Directory hub — hosts the Customers / Vendors / UC Staff / Drivers

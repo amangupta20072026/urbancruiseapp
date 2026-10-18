@@ -36,9 +36,7 @@ import { NotificationCentreScreen } from '@features/shared/notifications';
 import { VendorsListScreen } from '@features/uc/vendors';
 import { PaymentsScreen } from '@features/uc/payments';
 import { DriversListScreen } from '@features/uc/drivers';
-import { IssuesScreen } from '@features/uc/issues';
 import { PerformanceScreen } from '@features/uc/performance';
-import { FeedbackScreen } from '@features/shared/feedbacks';
 import DirectoryScreen from '@features/uc/_directory/screens/DirectoryScreen';
 import type { UcStackParamList } from './types';
 import { NotImplementedScreen } from '@features/shared/screens';
@@ -75,9 +73,7 @@ const UcNavigator: React.FC = () => {
       <Stack.Screen name="VendorsList" component={VendorsListScreen} />
       <Stack.Screen name="Payments" component={PaymentsScreen} />
       <Stack.Screen name="DriversList" component={DriversListScreen} />
-      <Stack.Screen name="Issues" component={IssuesScreen} />
       <Stack.Screen name="Performance" component={PerformanceScreen} />
-      <Stack.Screen name="Feedback" component={FeedbackScreen} />
 
       {/* Directory hub — Customers / Vendors / UC Staff / Drivers */}
       <Stack.Screen name="Directory" component={DirectoryScreen} />

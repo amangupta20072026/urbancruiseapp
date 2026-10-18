@@ -44,16 +44,16 @@
  *   The exhaustiveness check at the bottom keeps that honest.
  *
  * SHARED-SCREEN REGISTRATION STATUS:
- *   `Profile`, `Settings`, `NotificationCentre`, `Feedback` all live
+ *   `Profile`, `Settings`, `NotificationCentre` all live
  *   in `features/shared/*` and are meant to be reused by every role.
  *   For `navigate('Profile')` to actually push a screen, the current
  *   role's navigator must REGISTER that route with a component.
  *
  *   Currently registered in:
- *     - UC       ✅ (all four)
- *     - Customer ✅ (Profile, Settings, NotificationCentre; Feedback
- *                     is booking-scoped — see customer.feedback below)
- *     - Vendor   ❌ (Profile / Settings / Notifications / Feedback all
+ *     - UC       ✅ (all three)
+ *     - Customer ✅ (all three; customer feedback has its own action —
+ *                     see customer.feedback below)
+ *     - Vendor   ❌ (Profile / Settings / Notifications all
  *                     silently no-op)
  *     - Driver   ❌ (same as Vendor)
  *
@@ -98,7 +98,7 @@ export function useMoreActions() {
   const run = useCallback(
     (actionId: MoreActionId): MoreActionResult => {
       switch (actionId) {
-        /* ---- Shared (Profile / Settings / Notifications / Feedback / Support / Logout) ---- */
+        /* ---- Shared (Profile / Settings / Notifications / Support / Logout) ---- */
         case 'profile':
           navigate('Profile');
           return 'navigated';
@@ -114,10 +114,6 @@ export function useMoreActions() {
           // LoginScreen's "Contact Support" link keeps working — the
           // two entry points are deliberately separate surfaces.
           navigate('HelpSupport');
-          return 'navigated';
-
-        case 'feedback':
-          navigate('Feedback');
           return 'navigated';
 
         case 'settings':
@@ -185,10 +181,6 @@ export function useMoreActions() {
 
         case 'uc.payments':
           navigate('Payments');
-          return 'navigated';
-
-        case 'uc.issues':
-          navigate('Issues');
           return 'navigated';
 
         case 'uc.performance':
