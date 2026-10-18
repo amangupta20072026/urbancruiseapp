@@ -39,7 +39,6 @@ import { DriversListScreen } from '@features/uc/drivers';
 import { PerformanceScreen } from '@features/uc/performance';
 import DirectoryScreen from '@features/uc/_directory/screens/DirectoryScreen';
 import type { UcStackParamList } from './types';
-import { NotImplementedScreen } from '@features/shared/screens';
 import SupportScreen from '@features/shared/support/screens/SupportScreen';
 
 const Stack = createNativeStackNavigator<UcStackParamList>();
@@ -77,25 +76,6 @@ const UcNavigator: React.FC = () => {
 
       {/* Directory hub — Customers / Vendors / UC Staff / Drivers */}
       <Stack.Screen name="Directory" component={DirectoryScreen} />
-
-      {/* Registered ghost routes — real screens land later. */}
-      <Stack.Screen name="EnquiryDetail" component={NotImplementedScreen} />
-      <Stack.Screen name="CreateEnquiry" component={NotImplementedScreen} />
-      <Stack.Screen name="QuotationBuilder" component={NotImplementedScreen} />
-      <Stack.Screen name="QuotationRevision" component={NotImplementedScreen} />
-      <Stack.Screen name="VendorDetail" component={NotImplementedScreen} />
-      <Stack.Screen
-        name="VendorApprovalQueue"
-        component={NotImplementedScreen}
-      />
-      <Stack.Screen name="AssignVendor" component={NotImplementedScreen} />
-      <Stack.Screen name="TripMonitor" component={NotImplementedScreen} />
-      <Stack.Screen
-        name="ChangeVehicleApproval"
-        component={NotImplementedScreen}
-      />
-      <Stack.Screen name="PayinDetail" component={NotImplementedScreen} />
-      <Stack.Screen name="PayoutDetail" component={NotImplementedScreen} />
     </Stack.Navigator>
   );
 };

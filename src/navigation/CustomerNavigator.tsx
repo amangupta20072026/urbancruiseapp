@@ -27,7 +27,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import CustomerTabs from './tabs/CustomerTabs';
 import type { CustomerStackParamList } from './types';
-import { NotImplementedScreen } from '@features/shared/screens';
 import SupportScreen from '@features/shared/support/screens/SupportScreen';
 import HelpSupportScreen from '@features/shared/support/screens/HelpSupportScreen';
 import QuotationHelpScreen from '@features/shared/support/screens/QuotationHelpScreen';
@@ -125,15 +124,6 @@ const CustomerNavigator: React.FC = () => {
 
       {/* Registered ghost routes — real screens land later. */}
       <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
-      <Stack.Screen name="PassengerList" component={NotImplementedScreen} />
-      <Stack.Screen name="TripLive" component={NotImplementedScreen} />
-      <Stack.Screen
-        name="ModificationRequest"
-        component={NotImplementedScreen}
-      />
-      <Stack.Screen name="AddRemark" component={NotImplementedScreen} />
-      <Stack.Screen name="PayBalance" component={NotImplementedScreen} />
-      <Stack.Screen name="GstInvoice" component={NotImplementedScreen} />
       <Stack.Screen name="Feedback" component={GiveFeedbackScreen} />
     </Stack.Navigator>
   );
