@@ -8,7 +8,11 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
-import type { Customer } from '../types';
+import {
+  CUSTOMER_CATEGORY_COLOR,
+  CUSTOMER_CATEGORY_LABEL,
+  type Customer,
+} from '../types';
 import { avatarColorFor, initials } from '../utils/avatar';
 
 type Props = { customer: Customer; onPress: (c: Customer) => void };
@@ -22,11 +26,19 @@ const fmtDate = (iso: string) =>
 
 export const CustomerCard: React.FC<Props> = ({ customer, onPress }) => {
   const c = avatarColorFor(customer.id);
+  const category = CUSTOMER_CATEGORY_COLOR[customer.category];
+  const categoryLabel = CUSTOMER_CATEGORY_LABEL[customer.category];
+  // Email is optional; an empty string means "not provided".
+  const email = customer.email.trim();
+  const joined = fmtDate(customer.createdAt);
 
   return (
     <Pressable
       onPress={() => onPress(customer)}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`${customer.name}, ${categoryLabel} customer, ${customer.totalBookings} trips, joined ${joined}`}
+      accessibilityHint="Opens customer details"
     >
       <View style={[styles.avatar, { backgroundColor: c.bg }]}>
         <Text style={[styles.avatarText, { color: c.fg }]}>
@@ -35,9 +47,18 @@ export const CustomerCard: React.FC<Props> = ({ customer, onPress }) => {
       </View>
 
       <View style={styles.body}>
-        <Text style={styles.name} numberOfLines={1}>
-          {customer.name}
-        </Text>
+        {/* Name + category badge. The name shrinks (ellipsis) first so
+            the badge always stays fully visible. */}
+        <View style={styles.nameRow}>
+          <Text style={styles.name} numberOfLines={1}>
+            {customer.name}
+          </Text>
+          <View style={[styles.badge, { backgroundColor: category.bg }]}>
+            <Text style={[styles.badgeText, { color: category.fg }]}>
+              {categoryLabel}
+            </Text>
+          </View>
+        </View>
 
         <View style={styles.metaRow}>
           <Phone size={13} color={Colors.textSecondary} />
@@ -46,18 +67,20 @@ export const CustomerCard: React.FC<Props> = ({ customer, onPress }) => {
           </Text>
         </View>
 
-        <View style={styles.metaRow}>
-          <Mail size={13} color={Colors.textSecondary} />
-          <Text style={styles.metaText} numberOfLines={1}>
-            {customer.email}
-          </Text>
-        </View>
+        {email ? (
+          <View style={styles.metaRow}>
+            <Mail size={13} color={Colors.textSecondary} />
+            <Text style={styles.metaText} numberOfLines={1}>
+              {email}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.footerRow}>
           <View style={styles.footerLeft}>
             <Calendar size={13} color={Colors.textSecondary} />
             <Text style={styles.footerText} numberOfLines={1}>
-              {fmtDate(customer.createdAt)}
+              {joined}
             </Text>
           </View>
 
@@ -101,10 +124,26 @@ const styles = StyleSheet.create({
   },
   avatarText: { ...Typography.body, fontWeight: '700' },
   body: { flex: 1, gap: 4 },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   name: {
     ...Typography.subtitle,
     color: Colors.textPrimary,
     fontWeight: '700',
+    flexShrink: 1,
+  },
+  badge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    flexShrink: 0,
+  },
+  badgeText: {
+    ...Typography.caption,
+    fontWeight: '600',
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   metaText: {

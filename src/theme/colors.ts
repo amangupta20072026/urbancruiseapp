@@ -150,6 +150,12 @@ export const Colors = {
   infoTint: '#E0F2FE', // pairs with info (sky blue)
   completedTint: '#DBEAFE', // pairs with completed (indigo blue)
   secondaryTint: '#FEF9C3', // pairs with secondary (gold)
+  /**
+   * Readable text on `secondaryTint` (badges, pills). The brand gold
+   * itself is too light for text there (1.8:1); this deeper gold
+   * passes WCAG AA for small text (4.6:1).
+   */
+  secondaryOnTint: '#A16207',
   accentTint: '#FFE4CC', // pairs with accent (deep orange)
   royalTint: '#F3E8FF', // pairs with royal (purple)
   /** Faint selected-card washes — lighter than the *Tint above so

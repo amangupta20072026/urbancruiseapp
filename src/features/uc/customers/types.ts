@@ -53,6 +53,19 @@ export const CUSTOMER_CATEGORY_LABEL: Record<CustomerCategory, string> = {
   agent: 'Agent',
 };
 
+/**
+ * Badge colours per category (text on a soft tint), from theme tokens:
+ * Personal = gold (secondary), Corporate = blue, Agent = purple.
+ */
+export const CUSTOMER_CATEGORY_COLOR: Record<
+  CustomerCategory,
+  StatusColorPair
+> = {
+  personal: { fg: Colors.secondaryOnTint, bg: Colors.secondaryTint },
+  corporate: { fg: Colors.completed, bg: Colors.completedTint },
+  agent: { fg: Colors.royal, bg: Colors.royalTint },
+};
+
 export const CUSTOMER_SUBTYPE_LABEL: Record<CustomerSubType, string> = {
   personal: 'Personal',
   company: 'Company',

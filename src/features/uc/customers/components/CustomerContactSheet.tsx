@@ -2,12 +2,20 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  BackHandler,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import {
   BottomSheetBackdrop,
@@ -121,6 +129,38 @@ export const CustomerContactSheet = forwardRef<BottomSheetModal, Props>(
       null,
     );
 
+    /* --------------------------------------------------------------
+     * Closing rules (same as NeedHelpSheet / NeedChangesSheet, but
+     * stricter): the sheet closes ONLY via the × icon or the Cancel
+     * button. Swipe-down and tapping outside are disabled below, and
+     * the Android back gesture is swallowed here.
+     *
+     * Why the back handler is needed: BottomSheetModalProvider sits
+     * above NavigationContainer (App.tsx), so the sheet lives in a
+     * portal outside the navigator. Without this listener, a back
+     * press would pop the screen underneath while the sheet stays on
+     * top. `isOpenRef` (a ref, so no re-render per animation frame)
+     * limits this to while the sheet is open; when it's closed, back
+     * works normally.
+     *
+     * The phone-number picker opened by Call/WhatsApp is a React
+     * Native Modal, which receives the back press first, so back still
+     * closes the picker as expected.
+     * -------------------------------------------------------------- */
+    const isOpenRef = useRef(false);
+
+    const handleSheetChange = useCallback((index: number) => {
+      isOpenRef.current = index >= 0;
+    }, []);
+
+    useEffect(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => isOpenRef.current,
+      );
+      return () => subscription.remove();
+    }, []);
+
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
         <BottomSheetBackdrop
@@ -128,7 +168,8 @@ export const CustomerContactSheet = forwardRef<BottomSheetModal, Props>(
           appearsOnIndex={0}
           disappearsOnIndex={-1}
           opacity={0.55}
-          pressBehavior="close"
+          // Tapping outside does NOT close — only × and Cancel do.
+          pressBehavior="none"
         />
       ),
       [],
@@ -216,8 +257,12 @@ export const CustomerContactSheet = forwardRef<BottomSheetModal, Props>(
 
     const handleEmail = useCallback(async () => {
       if (!customer) return;
+      // Email is optional; '' means none. The button is disabled in that
+      // case, but guard here too so this can never open an empty draft.
+      const to = customer.email.trim();
+      if (!to) return;
       const r = await sendEmail({
-        to: customer.email,
+        to,
         subject: 'Urban Cruise — Follow up',
         body: `Hi ${customer.name.split(' ')[0]},\n\n`,
       });
@@ -234,8 +279,9 @@ export const CustomerContactSheet = forwardRef<BottomSheetModal, Props>(
           backdropComponent={renderBackdrop}
           handleIndicatorStyle={styles.handle}
           backgroundStyle={styles.sheetBg}
+          onChange={handleSheetChange}
           onDismiss={handleSheetDismiss}
-          enablePanDownToClose
+          enablePanDownToClose={false}
         >
           <BottomSheetScrollView
             showsVerticalScrollIndicator={false}
@@ -294,6 +340,9 @@ const SheetContent: React.FC<ContentProps> = ({
   onViewHistory,
 }) => {
   const c = avatarColorFor(customer.id);
+  // Email is optional; an empty string means "not provided".
+  const email = customer.email.trim();
+  const hasEmail = email.length > 0;
 
   return (
     <View>
@@ -343,6 +392,10 @@ const SheetContent: React.FC<ContentProps> = ({
           bg={EMAIL_TINT_BG}
           fg={EMAIL_TINT_FG}
           onPress={onEmail}
+          // Same as NeedHelpSheet: keep the button, but disabled + dimmed
+          // when there is no address, so the row layout stays stable.
+          disabled={!hasEmail}
+          disabledHint="No email address for this customer"
           icon={<Mail size={22} color={EMAIL_TINT_FG} strokeWidth={2.2} />}
         />
       </View>
@@ -388,13 +441,15 @@ const SheetContent: React.FC<ContentProps> = ({
           value={customer.phoneGlobal}
         />
 
-        <InfoRow
-          bg="#FFF1E0"
-          fg={EMAIL}
-          icon={<Mail size={16} color={EMAIL} strokeWidth={2.2} />}
-          label="Email"
-          value={customer.email}
-        />
+        {hasEmail ? (
+          <InfoRow
+            bg="#FFF1E0"
+            fg={EMAIL}
+            icon={<Mail size={16} color={EMAIL} strokeWidth={2.2} />}
+            label="Email"
+            value={email}
+          />
+        ) : null}
 
         <InfoRow
           bg="#EDF2FF"
@@ -461,6 +516,20 @@ const SheetContent: React.FC<ContentProps> = ({
         <Text style={styles.historyBtnText}>View Full History</Text>
         <ChevronRight size={18} color={Colors.textInverse} strokeWidth={2.4} />
       </Pressable>
+
+      {/* Cancel — one of only two ways to close (with ×). Same style
+          as NeedChangesSheet's Cancel link. */}
+      <Pressable
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Cancel and close"
+        style={({ pressed }) => [
+          styles.cancelBtn,
+          pressed && styles.historyBtnPressed,
+        ]}
+      >
+        <Text style={styles.cancelText}>Cancel</Text>
+      </Pressable>
     </View>
   );
 };
@@ -473,14 +542,21 @@ const QuickAction: React.FC<{
   bg: string;
   fg: string;
   onPress: () => void;
-}> = ({ label, icon, bg, fg, onPress }) => (
+  disabled?: boolean;
+  /** Read by screen readers when the action is disabled. */
+  disabledHint?: string;
+}> = ({ label, icon, bg, fg, onPress, disabled = false, disabledHint }) => (
   <Pressable
     onPress={onPress}
+    disabled={disabled}
     accessibilityRole="button"
     accessibilityLabel={label}
+    accessibilityState={{ disabled }}
+    accessibilityHint={disabled ? disabledHint : undefined}
     style={({ pressed }) => [
       styles.quickWrap,
-      pressed && { transform: [{ scale: 0.96 }] },
+      pressed && !disabled && { transform: [{ scale: 0.96 }] },
+      disabled && styles.quickDisabled,
     ]}
   >
     <View style={[styles.quickCircle, { backgroundColor: bg }]}>{icon}</View>
@@ -573,6 +649,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   quickWrap: { alignItems: 'center', gap: 8 },
+  /* Same dimming as NeedHelpSheet's disabled Email button. */
+  quickDisabled: { opacity: 0.4 },
   quickCircle: {
     width: 56,
     height: 56,
@@ -632,7 +710,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.xl,
     paddingVertical: Spacing.md + 2,
     backgroundColor: Colors.primary,
     borderRadius: Radius.md,
@@ -646,5 +723,17 @@ const styles = StyleSheet.create({
     color: Colors.textInverse,
     fontWeight: '700',
     fontSize: 16,
+  },
+  cancelBtn: {
+    alignSelf: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  cancelText: {
+    ...Typography.body,
+    color: Colors.primary,
+    fontWeight: '700',
   },
 });
