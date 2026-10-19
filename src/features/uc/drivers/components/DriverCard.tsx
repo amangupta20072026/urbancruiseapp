@@ -43,14 +43,15 @@ export const DriverCard: React.FC<Props> = ({ driver, onPress }) => {
 
       <View style={styles.body}>
         <View style={styles.headerRow}>
-          <Text style={styles.name} numberOfLines={1}>
-            {driver.name}
-          </Text>
-          <View style={[styles.pill, { backgroundColor: vp.bg }]}>
-            <BadgeCheck size={11} color={vp.fg} />
-            <Text style={[styles.pillText, { color: vp.fg }]}>
-              {DRIVER_VERIFICATION_LABEL[driver.verification]}
-            </Text>
+          {/* Full name — wraps, never truncated. */}
+          <Text style={styles.name}>{driver.name}</Text>
+          <View style={styles.badgeSlot}>
+            <View style={[styles.pill, { backgroundColor: vp.bg }]}>
+              <BadgeCheck size={11} color={vp.fg} />
+              <Text style={[styles.pillText, { color: vp.fg }]}>
+                {DRIVER_VERIFICATION_LABEL[driver.verification]}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -111,7 +112,7 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: 4 },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: Spacing.sm,
   },
@@ -120,6 +121,13 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontWeight: '700',
     flex: 1,
+  },
+  /* One name-line tall: keeps the badge centred on the FIRST line of
+   * the name, however many lines the name wraps to. */
+  badgeSlot: {
+    height: Typography.subtitle.lineHeight,
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   pill: {
     flexDirection: 'row',

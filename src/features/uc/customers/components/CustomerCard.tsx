@@ -47,16 +47,17 @@ export const CustomerCard: React.FC<Props> = ({ customer, onPress }) => {
       </View>
 
       <View style={styles.body}>
-        {/* Name + category badge. The name shrinks (ellipsis) first so
-            the badge always stays fully visible. */}
+        {/* Name + category badge. The full name wraps onto more lines
+            (never truncated); the badge stays fully visible, aligned
+            with the first line. */}
         <View style={styles.nameRow}>
-          <Text style={styles.name} numberOfLines={1}>
-            {customer.name}
-          </Text>
-          <View style={[styles.badge, { backgroundColor: category.bg }]}>
-            <Text style={[styles.badgeText, { color: category.fg }]}>
-              {categoryLabel}
-            </Text>
+          <Text style={styles.name}>{customer.name}</Text>
+          <View style={styles.badgeSlot}>
+            <View style={[styles.badge, { backgroundColor: category.bg }]}>
+              <Text style={[styles.badgeText, { color: category.fg }]}>
+                {categoryLabel}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -126,7 +127,7 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: 4 },
   nameRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.sm,
   },
   name: {
@@ -134,6 +135,13 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontWeight: '700',
     flexShrink: 1,
+  },
+  /* One name-line tall: keeps the badge centred on the FIRST line of
+   * the name, however many lines the name wraps to. */
+  badgeSlot: {
+    height: Typography.subtitle.lineHeight,
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   badge: {
     paddingHorizontal: Spacing.sm,

@@ -35,15 +35,16 @@ export const VendorCard: React.FC<Props> = ({ vendor, onPress }) => {
 
       <View style={styles.body}>
         <View style={styles.headerRow}>
-          <Text style={styles.name} numberOfLines={1}>
-            {vendor.companyName}
-          </Text>
-          <View
-            style={[styles.statusPill, { backgroundColor: statusPalette.bg }]}
-          >
-            <Text style={[styles.statusText, { color: statusPalette.fg }]}>
-              {VENDOR_STATUS_LABEL[vendor.status]}
-            </Text>
+          {/* Full company name — wraps, never truncated. */}
+          <Text style={styles.name}>{vendor.companyName}</Text>
+          <View style={styles.badgeSlot}>
+            <View
+              style={[styles.statusPill, { backgroundColor: statusPalette.bg }]}
+            >
+              <Text style={[styles.statusText, { color: statusPalette.fg }]}>
+                {VENDOR_STATUS_LABEL[vendor.status]}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -104,7 +105,7 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: 4 },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: Spacing.sm,
   },
@@ -113,6 +114,13 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontWeight: '700',
     flex: 1,
+  },
+  /* One name-line tall: keeps the badge centred on the FIRST line of
+   * the name, however many lines the name wraps to. */
+  badgeSlot: {
+    height: Typography.subtitle.lineHeight,
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   statusPill: {
     paddingHorizontal: 8,

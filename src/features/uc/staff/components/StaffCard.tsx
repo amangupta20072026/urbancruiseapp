@@ -31,12 +31,13 @@ export const StaffCard: React.FC<Props> = ({ staff, onPress }) => {
 
       <View style={styles.body}>
         <View style={styles.headerRow}>
-          <Text style={styles.name} numberOfLines={1}>
-            {staff.name}
-          </Text>
+          {/* Full name — wraps, never truncated. */}
+          <Text style={styles.name}>{staff.name}</Text>
           {!staff.active && (
-            <View style={styles.inactivePill}>
-              <Text style={styles.inactivePillText}>Inactive</Text>
+            <View style={styles.badgeSlot}>
+              <View style={styles.inactivePill}>
+                <Text style={styles.inactivePillText}>Inactive</Text>
+              </View>
             </View>
           )}
         </View>
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: 4 },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: Spacing.sm,
   },
@@ -108,6 +109,13 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontWeight: '700',
     flex: 1,
+  },
+  /* One name-line tall: keeps the badge centred on the FIRST line of
+   * the name, however many lines the name wraps to. */
+  badgeSlot: {
+    height: Typography.subtitle.lineHeight,
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   inactivePill: {
     paddingHorizontal: 8,
