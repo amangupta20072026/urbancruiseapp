@@ -27,8 +27,6 @@ import {
   Building2,
   Calendar,
   ChevronRight,
-  CircleCheck,
-  CircleX,
   Mail,
   MapPin,
   Phone,
@@ -39,12 +37,7 @@ import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 
 import { avatarColorFor, initials } from '../../customers/utils/avatar';
 import type { DirectoryContact } from '../contact/types';
-import {
-  toCardModel,
-  type CardFooterItem,
-  type CardIcon,
-  type CardLineTone,
-} from './cardModel';
+import { toCardModel, type CardFooterItem, type CardIcon } from './cardModel';
 
 type Props = {
   contact: DirectoryContact;
@@ -59,13 +52,6 @@ const ICON: Record<CardIcon, LucideIcon> = {
   trips: Briefcase,
   company: Building2,
   location: MapPin,
-  active: CircleCheck,
-  inactive: CircleX,
-};
-
-const LINE_COLOUR: Record<CardLineTone, string> = {
-  muted: Colors.textSecondary,
-  success: Colors.success,
 };
 
 const DirectoryCardComponent: React.FC<Props> = ({ contact, onPress }) => {
@@ -104,16 +90,15 @@ const DirectoryCardComponent: React.FC<Props> = ({ contact, onPress }) => {
 
         {model.lines.map(line => {
           const LineIcon = ICON[line.icon];
-          const color = LINE_COLOUR[line.tone ?? 'muted'];
           return (
             <View key={line.key} style={styles.metaRow}>
               {/* One text-line tall, so the icon stays on the FIRST line
                   when the text wraps (e.g. a long address). */}
               <View style={styles.metaIconSlot}>
-                <LineIcon size={13} color={color} />
+                <LineIcon size={13} color={Colors.textSecondary} />
               </View>
               <Text
-                style={[styles.metaText, { color }]}
+                style={styles.metaText}
                 numberOfLines={line.wrap ? undefined : 1}
               >
                 {line.text}

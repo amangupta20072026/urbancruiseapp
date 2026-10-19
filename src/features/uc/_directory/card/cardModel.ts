@@ -38,21 +38,15 @@ export type CardIcon =
   | 'calendar'
   | 'trips'
   | 'company'
-  | 'location'
-  | 'active'
-  | 'inactive';
+  | 'location';
 
 /** Rounded pill, normal-case text (one style for every role). */
 export type CardBadge = { label: string; bg: string; fg: string };
-
-export type CardLineTone = 'muted' | 'success';
 
 export type CardLine = {
   key: string;
   icon: CardIcon;
   text: string;
-  /** Text + icon colour. Defaults to 'muted' (grey). */
-  tone?: CardLineTone;
   /** Show the full text on as many lines as needed (e.g. an address).
    *  Default: one line, shortened with "…". */
   wrap?: boolean;
@@ -210,32 +204,19 @@ function vendorCard(v: Vendor): DirectoryCardModel {
 
 function staffCard(s: Staff): DirectoryCardModel {
   const department = text(s.department);
-  const status = s.active ? 'Active' : 'Inactive';
   return {
     id: s.id,
     title: orEmpty(s.name),
     // Department badge; no badge when the server sends no department.
     badge: department ? { label: department, ...DEPARTMENT_COLOUR } : null,
+    // No active / inactive status on the card (product decision).
     lines: [
-      s.active
-        ? { key: 'status', icon: 'active', text: status, tone: 'success' }
-        : { key: 'status', icon: 'inactive', text: status, tone: 'muted' },
+      ...optionalLine('phone', 'phone', s.phone),
+      ...optionalLine('email', 'mail', s.email),
+      ...optionalLine('city', 'location', s.city),
     ],
-    footer: {
-      // City always in full; only the (long) email is shortened.
-      left: {
-        icon: 'location',
-        text: orEmpty(s.city),
-        emphasis: false,
-        shrink: false,
-      },
-      right: shrinkable('mail', orEmpty(s.email)),
-    },
-    accessibilityLabel: [
-      `Staff ${orEmpty(s.name)}`,
-      department,
-      status.toLowerCase(),
-    ]
+    footer: null,
+    accessibilityLabel: [`Staff ${orEmpty(s.name)}`, department]
       .filter(Boolean)
       .join(', '),
     accessibilityHint: 'Opens contact actions',
