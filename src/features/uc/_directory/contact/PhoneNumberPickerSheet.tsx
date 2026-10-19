@@ -1,19 +1,20 @@
 /**
  * ------------------------------------------------------------------
- * NumberPickerSheet — pick one of a customer's two phone numbers.
+ * PhoneNumberPickerSheet — choose which number to call / WhatsApp
  * ------------------------------------------------------------------
- * Renders as a native RN Modal (not a gorhom bottom sheet) so it
- * stacks cleanly on top of an already-open @gorhom/bottom-sheet
- * without any portal / animation-lifecycle conflicts. Slide-up
- * animation comes for free via `animationType="slide"`.
+ * Generalised from the customer NumberPickerSheet (same look) so all
+ * four directory roles share one picker.
+ *
+ * Renders as a native RN Modal, not a gorhom sheet, on purpose:
+ *   - it stacks cleanly over the open DirectoryContactSheet without
+ *     portal / animation-lifecycle conflicts;
+ *   - a Modal receives the Android back press BEFORE the contact
+ *     sheet's BackHandler, so back closes the picker, not the screen.
  *
  * UX contract:
- *   - Two rows: INDIA and GLOBAL, tap either to invoke onSelect.
- *   - Backdrop tap OR hardware back (Android) → onCancel.
- *   - Cancel button at the bottom for touch users.
- *   - If both numbers are identical, the parent should skip this
- *     picker and dial directly — showing "pick between two of the
- *     same number" is a bug in the parent's flow.
+ *   - One row per number; tap → onSelect(number).
+ *   - Backdrop tap, Cancel, or hardware back → onCancel.
+ *   - The parent shows this only for 2+ distinct numbers.
  * ------------------------------------------------------------------
  */
 
@@ -30,21 +31,21 @@ import { Phone } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 
+import type { ContactPhone } from './types';
+
 type Props = {
   visible: boolean;
-  /** e.g. "Call Karan Mehta" or "WhatsApp Karan Mehta". */
+  /** e.g. "Call Ravi Kumar" or "WhatsApp Ravi Kumar". */
   title: string;
-  phoneIndia: string;
-  phoneGlobal: string;
+  options: readonly ContactPhone[];
   onSelect: (phone: string) => void;
   onCancel: () => void;
 };
 
-export const NumberPickerSheet: React.FC<Props> = ({
+export const PhoneNumberPickerSheet: React.FC<Props> = ({
   visible,
   title,
-  phoneIndia,
-  phoneGlobal,
+  options,
   onSelect,
   onCancel,
 }) => (
@@ -56,26 +57,28 @@ export const NumberPickerSheet: React.FC<Props> = ({
     statusBarTranslucent
   >
     {/* Outer backdrop — taps outside the sheet cancel. */}
-    <TouchableWithoutFeedback onPress={onCancel}>
+    <TouchableWithoutFeedback
+      onPress={onCancel}
+      accessibilityRole="button"
+      accessibilityLabel="Close number picker"
+    >
       <View style={styles.backdrop}>
-        {/* Inner sheet — intercept taps so they don't bubble to the
-            backdrop-cancel handler above. */}
-        <TouchableWithoutFeedback>
+        {/* Inner sheet swallows taps so they don't reach the backdrop. */}
+        <TouchableWithoutFeedback accessible={false}>
           <View style={styles.sheet}>
             <View style={styles.handle} />
-            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.title} numberOfLines={2}>
+              {title}
+            </Text>
             <Text style={styles.subtitle}>Choose a number to use</Text>
 
-            <PhoneOption
-              region="India"
-              phone={phoneIndia}
-              onPress={() => onSelect(phoneIndia)}
-            />
-            <PhoneOption
-              region="Global"
-              phone={phoneGlobal}
-              onPress={() => onSelect(phoneGlobal)}
-            />
+            {options.map(option => (
+              <PhoneOption
+                key={`${option.label}:${option.value}`}
+                option={option}
+                onSelect={onSelect}
+              />
+            ))}
 
             <Pressable
               onPress={onCancel}
@@ -98,23 +101,22 @@ export const NumberPickerSheet: React.FC<Props> = ({
 /* ---------------- One row per number ---------------- */
 
 const PhoneOption: React.FC<{
-  region: string;
-  phone: string;
-  onPress: () => void;
-}> = ({ region, phone, onPress }) => (
+  option: ContactPhone;
+  onSelect: (phone: string) => void;
+}> = ({ option, onSelect }) => (
   <Pressable
-    onPress={onPress}
+    onPress={() => onSelect(option.value)}
     accessibilityRole="button"
-    accessibilityLabel={`${region} number ${phone}`}
+    accessibilityLabel={`${option.label} number ${option.value}`}
     style={({ pressed }) => [styles.option, pressed && styles.pressed]}
   >
     <View style={styles.iconWrap}>
       <Phone size={18} color={Colors.primary} strokeWidth={2.2} />
     </View>
     <View style={styles.optionText}>
-      <Text style={styles.region}>{region}</Text>
+      <Text style={styles.region}>{option.label}</Text>
       <Text style={styles.phone} numberOfLines={1}>
-        {phone}
+        {option.value}
       </Text>
     </View>
   </Pressable>
@@ -157,7 +159,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: Spacing.lg,
   },
-
   option: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -193,7 +194,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
-
   cancel: {
     marginTop: Spacing.sm,
     padding: Spacing.md,

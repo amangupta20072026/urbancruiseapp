@@ -4,3 +4,5 @@ export { avatarColorFor, initials } from '../customers/utils/avatar';
 export { DirectoryListView } from './components/DirectoryListView';
 export { ListMeta } from './components/ListMeta';
 export { ListFooterLoader } from './components/ListFooterLoader';
+export { DirectoryContactSheet, PhoneNumberPickerSheet } from './contact';
+export type { DirectoryContact, DirectoryContactKind } from './contact';

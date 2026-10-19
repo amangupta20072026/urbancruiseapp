@@ -13,17 +13,20 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 
 import { SearchBar } from '@shared/components';
 import { Spacing } from '@theme';
-import { DirectoryListView } from '@features/uc/_directory';
+import {
+  DirectoryListView,
+  DirectoryContactSheet,
+  type DirectoryContact,
+} from '@features/uc/_directory';
 
 import { useVendorList } from '../hooks/useVendorList';
 import { VendorCard } from '../components/VendorCard';
-import { VendorContactSheet } from '../components/VendorContactSheet';
 import { DEFAULT_VENDOR_FILTERS, type Vendor } from '../types';
 
 const VendorsTabScreen: React.FC = () => {
@@ -32,6 +35,10 @@ const VendorsTabScreen: React.FC = () => {
   const [filters] = useState(DEFAULT_VENDOR_FILTERS);
 
   const [selected, setSelected] = useState<Vendor | null>(null);
+  const contact = useMemo<DirectoryContact | null>(
+    () => (selected ? { kind: 'vendor', data: selected } : null),
+    [selected],
+  );
   const contactSheetRef = useRef<BottomSheetModal>(null);
 
   const state = useVendorList({ search, filters });
@@ -72,9 +79,9 @@ const VendorsTabScreen: React.FC = () => {
         countLabel="vendors"
       />
 
-      <VendorContactSheet
+      <DirectoryContactSheet
         ref={contactSheetRef}
-        vendor={selected}
+        contact={contact}
         onDismiss={onContactDismiss}
       />
     </View>

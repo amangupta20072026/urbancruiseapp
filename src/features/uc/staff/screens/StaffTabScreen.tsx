@@ -4,17 +4,20 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 
 import { SearchBar } from '@shared/components';
 import { Spacing } from '@theme';
-import { DirectoryListView } from '@features/uc/_directory';
+import {
+  DirectoryListView,
+  DirectoryContactSheet,
+  type DirectoryContact,
+} from '@features/uc/_directory';
 
 import { useStaffList } from '../hooks/useStaffList';
 import { StaffCard } from '../components/StaffCard';
-import { StaffContactSheet } from '../components/StaffContactSheet';
 import { DEFAULT_STAFF_FILTERS, type Staff } from '../types';
 
 const StaffTabScreen: React.FC = () => {
@@ -22,6 +25,10 @@ const StaffTabScreen: React.FC = () => {
   const [filters] = useState(DEFAULT_STAFF_FILTERS);
 
   const [selected, setSelected] = useState<Staff | null>(null);
+  const contact = useMemo<DirectoryContact | null>(
+    () => (selected ? { kind: 'staff', data: selected } : null),
+    [selected],
+  );
   const contactSheetRef = useRef<BottomSheetModal>(null);
 
   const state = useStaffList({ search, filters });
@@ -61,9 +68,9 @@ const StaffTabScreen: React.FC = () => {
         countLabel="uc staff"
       />
 
-      <StaffContactSheet
+      <DirectoryContactSheet
         ref={contactSheetRef}
-        staff={selected}
+        contact={contact}
         onDismiss={onContactDismiss}
       />
     </View>

@@ -219,7 +219,7 @@ const PURPLE_TINT = '#EDE9FE';
  * Advisor contact-action tints
  * ================================================================
  * Kept in sync with the UC Directory customer contact modal
- * (src/features/uc/customers/components/CustomerContactSheet.tsx)
+ * (src/features/uc/_directory/contact/DirectoryContactSheet.tsx)
  * so contact affordances read the same everywhere in the app:
  *   Call     → blue tint
  *   WhatsApp → green (already the app's success/brand tone)
@@ -294,7 +294,7 @@ const QuotationDetailScreen: React.FC = () => {
    * for "Continue to Booking". Both are mounted (but hidden) at
    * the bottom of the tree; the CTAs imperatively `.present()`
    * them. This is the same pattern used across the UC feature
-   * (CustomerFilterSheet, VendorContactSheet, etc.) — see
+   * (CustomerFilterSheet, DirectoryContactSheet, etc.) — see
    * `@gorhom/bottom-sheet`'s docs for the rationale over the
    * declarative visible-prop approach. */
   const needChangesRef = useRef<BottomSheetModal>(null);

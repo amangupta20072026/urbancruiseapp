@@ -9,7 +9,7 @@
  *   - Copy quote ID    → clipboard + toast
  *
  * Navigation is deferred to `onDismiss` (same invariant as MoreSheet
- * and CustomerContactSheet): the destination screen must not mount
+ * and DirectoryContactSheet): the destination screen must not mount
  * while the sheet is still animating out.
  *
  * Content-sized (dynamic sizing) — four rows never need a scroll.

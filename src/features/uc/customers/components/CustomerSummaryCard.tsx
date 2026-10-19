@@ -15,9 +15,9 @@
  *   └───────────────────────────────────────────────────────────┘
  *
  * Behaviour:
- *   - Tap Call / WhatsApp → opens NumberPickerSheet if the two
+ *   - Tap Call / WhatsApp → opens PhoneNumberPickerSheet if the two
  *     phones differ, otherwise dials the shared number directly.
- *     (Same rule as CustomerContactSheet — reuses NumberPickerSheet.)
+ *     (Same picker as the shared DirectoryContactSheet.)
  *   - Tap Email → opens the mail composer with a pre-filled subject.
  *   - No "View history" button here — this component IS on the
  *     history screen already.
@@ -26,7 +26,7 @@
  * — this component doesn't know or care that it's sticky.
  * ------------------------------------------------------------------ */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Phone, Mail } from 'lucide-react-native';
@@ -40,7 +40,7 @@ import {
   type Customer,
 } from '../types';
 import { avatarColorFor, initials } from '../utils/avatar';
-import { NumberPickerSheet } from './NumberPickerSheet';
+import { PhoneNumberPickerSheet } from '@features/uc/_directory';
 
 type Props = {
   customer: Customer;
@@ -55,7 +55,7 @@ const WHATSAPP_TINT_FG = '#1FA855';
 const EMAIL_TINT_BG = '#FFF1E0';
 const EMAIL_TINT_FG = '#D97B0A';
 
-/* Real WhatsApp brand mark (same SVG used in CustomerContactSheet). */
+/* Real WhatsApp brand mark (same SVG used in DirectoryContactSheet). */
 const WhatsAppIcon: React.FC<{ size?: number; color?: string }> = ({
   size = 18,
   color = '#fff',
@@ -71,7 +71,15 @@ const WhatsAppIcon: React.FC<{ size?: number; color?: string }> = ({
 export const CustomerSummaryCard: React.FC<Props> = ({ customer }) => {
   const avatar = avatarColorFor(customer.id);
 
-  /* -------- Phone-number picker (same pattern as CustomerContactSheet) ------ */
+  /* -------- Phone-number picker (same pattern as DirectoryContactSheet) ----- */
+
+  const pickerOptions = useMemo(
+    () => [
+      { label: 'India', value: customer.phoneIndia },
+      { label: 'Global', value: customer.phoneGlobal },
+    ],
+    [customer.phoneIndia, customer.phoneGlobal],
+  );
 
   const [phoneAction, setPhoneAction] = useState<'call' | 'whatsapp' | null>(
     null,
@@ -180,7 +188,7 @@ export const CustomerSummaryCard: React.FC<Props> = ({ customer }) => {
         </View>
       </View>
 
-      <NumberPickerSheet
+      <PhoneNumberPickerSheet
         visible={phoneAction !== null}
         title={
           phoneAction === 'call'
@@ -189,8 +197,7 @@ export const CustomerSummaryCard: React.FC<Props> = ({ customer }) => {
             ? `WhatsApp ${customer.name}`
             : ''
         }
-        phoneIndia={customer.phoneIndia}
-        phoneGlobal={customer.phoneGlobal}
+        options={pickerOptions}
         onSelect={handlePickerSelect}
         onCancel={handlePickerCancel}
       />

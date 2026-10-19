@@ -10,18 +10,21 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Building2, X } from 'lucide-react-native';
 
 import { SearchBar } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
-import { DirectoryListView } from '@features/uc/_directory';
+import {
+  DirectoryListView,
+  DirectoryContactSheet,
+  type DirectoryContact,
+} from '@features/uc/_directory';
 
 import { useDriverList } from '../hooks/useDriverList';
 import { DriverCard } from '../components/DriverCard';
-import { DriverContactSheet } from '../components/DriverContactSheet';
 import {
   DEFAULT_DRIVER_FILTERS,
   type Driver,
@@ -33,6 +36,10 @@ const DriversTabScreen: React.FC = () => {
   const [filters, setFilters] = useState<DriverFilters>(DEFAULT_DRIVER_FILTERS);
 
   const [selected, setSelected] = useState<Driver | null>(null);
+  const contact = useMemo<DirectoryContact | null>(
+    () => (selected ? { kind: 'driver', data: selected } : null),
+    [selected],
+  );
   const contactSheetRef = useRef<BottomSheetModal>(null);
 
   const state = useDriverList({ search, filters });
@@ -91,9 +98,9 @@ const DriversTabScreen: React.FC = () => {
         countLabel="drivers"
       />
 
-      <DriverContactSheet
+      <DirectoryContactSheet
         ref={contactSheetRef}
-        driver={selected}
+        contact={contact}
         onDismiss={onContactDismiss}
       />
     </View>

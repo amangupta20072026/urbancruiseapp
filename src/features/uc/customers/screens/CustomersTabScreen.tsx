@@ -3,9 +3,9 @@
  * CustomersTabScreen — Directory > Customers tab body
  * ------------------------------------------------------------------
  * Thin tab wrapper around the existing customer domain — reuses the
- * production useCustomerList hook, CustomerCard, and
- * CustomerContactSheet unchanged. Only the layout (no back button, no
- * stack header) is different from the standalone CustomersListScreen.
+ * production useCustomerList hook, CustomerCard, and the shared
+ * DirectoryContactSheet. Only the layout (no back button, no stack
+ * header) is different from the standalone CustomersListScreen.
  *
  * Filter sheet is intentionally NOT wired here yet — the tab uses
  * default filters. When the manager wants the tab to have the full
@@ -14,17 +14,20 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 
 import { SearchBar } from '@shared/components';
 import { Spacing } from '@theme';
-import { DirectoryListView } from '@features/uc/_directory';
+import {
+  DirectoryListView,
+  DirectoryContactSheet,
+  type DirectoryContact,
+} from '@features/uc/_directory';
 
 import { useCustomerList } from '../hooks/useCustomerList';
 import { CustomerCard } from '../components/CustomerCard';
-import { CustomerContactSheet } from '../components/CustomerContactSheet';
 import {
   DEFAULT_CUSTOMER_FILTERS,
   type Customer,
@@ -36,6 +39,10 @@ const CustomersTabScreen: React.FC = () => {
   const [filters] = useState<CustomerFilters>(DEFAULT_CUSTOMER_FILTERS);
 
   const [selected, setSelected] = useState<Customer | null>(null);
+  const contact = useMemo<DirectoryContact | null>(
+    () => (selected ? { kind: 'customer', data: selected } : null),
+    [selected],
+  );
   const contactSheetRef = useRef<BottomSheetModal>(null);
 
   const state = useCustomerList({ search, filters });
@@ -75,9 +82,9 @@ const CustomersTabScreen: React.FC = () => {
         countLabel="customers"
       />
 
-      <CustomerContactSheet
+      <DirectoryContactSheet
         ref={contactSheetRef}
-        customer={selected}
+        contact={contact}
         onDismiss={onContactDismiss}
       />
     </View>

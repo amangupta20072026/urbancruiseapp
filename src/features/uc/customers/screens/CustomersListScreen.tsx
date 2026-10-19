@@ -17,6 +17,10 @@ import {
   ErrorView,
 } from '@shared/components';
 import { Colors, Spacing } from '@theme';
+import {
+  DirectoryContactSheet,
+  type DirectoryContact,
+} from '@features/uc/_directory';
 
 import type { UcStackParamList } from '@navigation/types';
 
@@ -25,7 +29,6 @@ import { CustomerCard } from '../components/CustomerCard';
 import { CustomerListHeader } from '../components/CustomerListHeader';
 import { ListMeta } from '../components/ListMeta';
 import { ListFooterLoader } from '../components/ListFooterLoader';
-import { CustomerContactSheet } from '../components/CustomerContactSheet';
 import { CustomerFilterSheet } from '../components/CustomerFilterSheet';
 import { fixtureUcCustomersAll } from '@mocks/fixtures/ucCustomers';
 import {
@@ -50,6 +53,10 @@ const CustomersListScreen: React.FC = () => {
   );
 
   const [selected, setSelected] = useState<Customer | null>(null);
+  const contact = useMemo<DirectoryContact | null>(
+    () => (selected ? { kind: 'customer', data: selected } : null),
+    [selected],
+  );
   const contactSheetRef = useRef<BottomSheetModal>(null);
   const filterSheetRef = useRef<BottomSheetModal>(null);
 
@@ -181,9 +188,9 @@ const CustomersListScreen: React.FC = () => {
         />
       )}
 
-      <CustomerContactSheet
+      <DirectoryContactSheet
         ref={contactSheetRef}
-        customer={selected}
+        contact={contact}
         onDismiss={onContactDismiss}
       />
 

@@ -45,7 +45,7 @@
  *   [    Cancel        ]  (link)
  *
  * ------------------------------------------------------------------
- * PATTERNS FOLLOWED (from CustomerFilterSheet + CustomerContactSheet)
+ * PATTERNS FOLLOWED (from CustomerFilterSheet + DirectoryContactSheet)
  * ------------------------------------------------------------------
  *   - `forwardRef<BottomSheetModal, Props>` + `useImperativeHandle`
  *     so the parent presents/dismisses imperatively via a ref.
