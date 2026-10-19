@@ -17,7 +17,7 @@ import {
   type Customer,
 } from '../../customers/types';
 import { VENDOR_STATUS_LABEL, type Vendor } from '../../vendors/types';
-import { STAFF_SUBROLE_LABEL, type Staff } from '../../staff/types';
+import type { Staff } from '../../staff/types';
 import { DRIVER_VERIFICATION_LABEL, type Driver } from '../../drivers/types';
 
 import type {
@@ -258,18 +258,15 @@ function vendorProfile(v: Vendor): ContactProfile {
 }
 
 function staffProfile(s: Staff): ContactProfile {
-  const role = STAFF_SUBROLE_LABEL[s.subRole];
+  // Department is free text from the server; may be empty.
+  const metaText = [present(s.department), s.active ? null : 'Inactive']
+    .filter(Boolean)
+    .join(' • ');
   return {
     id: s.id,
     title: trimmed(s.name) || EMPTY_VALUE,
     subtitle: null,
-    meta: [
-      {
-        key: 'role',
-        icon: 'role',
-        text: s.active ? role : `${role} • Inactive`,
-      },
-    ],
+    meta: metaText ? [{ key: 'role', icon: 'role', text: metaText }] : [],
     phones: distinctPhones([
       { label: 'Work', value: s.phone },
       { label: 'Alternate', value: s.phoneAlt },

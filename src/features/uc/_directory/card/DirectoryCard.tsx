@@ -27,10 +27,11 @@ import {
   Building2,
   Calendar,
   ChevronRight,
+  CircleCheck,
+  CircleX,
   Mail,
   MapPin,
   Phone,
-  ShieldCheck,
   Truck,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -39,7 +40,12 @@ import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 
 import { avatarColorFor, initials } from '../../customers/utils/avatar';
 import type { DirectoryContact } from '../contact/types';
-import { toCardModel, type CardFooterItem, type CardIcon } from './cardModel';
+import {
+  toCardModel,
+  type CardFooterItem,
+  type CardIcon,
+  type CardLineTone,
+} from './cardModel';
 
 type Props = {
   contact: DirectoryContact;
@@ -55,7 +61,13 @@ const ICON: Record<CardIcon, LucideIcon> = {
   company: Building2,
   location: MapPin,
   vehicles: Truck,
-  role: ShieldCheck,
+  active: CircleCheck,
+  inactive: CircleX,
+};
+
+const LINE_COLOUR: Record<CardLineTone, string> = {
+  muted: Colors.textSecondary,
+  success: Colors.success,
 };
 
 const DirectoryCardComponent: React.FC<Props> = ({ contact, onPress }) => {
@@ -94,10 +106,11 @@ const DirectoryCardComponent: React.FC<Props> = ({ contact, onPress }) => {
 
         {model.lines.map(line => {
           const LineIcon = ICON[line.icon];
+          const color = LINE_COLOUR[line.tone ?? 'muted'];
           return (
             <View key={line.key} style={styles.metaRow}>
-              <LineIcon size={13} color={Colors.textSecondary} />
-              <Text style={styles.metaText} numberOfLines={1}>
+              <LineIcon size={13} color={color} />
+              <Text style={[styles.metaText, { color }]} numberOfLines={1}>
                 {line.text}
               </Text>
             </View>
@@ -123,7 +136,13 @@ const FooterItem: React.FC<{ item: CardFooterItem; gap: number }> = ({
   const FooterIcon = ICON[item.icon];
   const color = item.emphasis ? Colors.success : Colors.textSecondary;
   return (
-    <View style={[styles.footerItem, { gap }]}>
+    <View
+      style={[
+        styles.footerItem,
+        item.shrink ? styles.footerItemShrink : styles.footerItemFixed,
+        { gap },
+      ]}
+    >
       <FooterIcon size={13} color={color} />
       <Text
         style={[styles.footerText, item.emphasis && styles.footerEmphasis]}
@@ -203,7 +222,11 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   footerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  footerItem: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
+  footerItem: { flexDirection: 'row', alignItems: 'center' },
+  /* Shortens with "…" when space runs out. */
+  footerItemShrink: { flexShrink: 1, minWidth: 0 },
+  /* Always shown in full. */
+  footerItemFixed: { flexShrink: 0 },
   footerText: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,

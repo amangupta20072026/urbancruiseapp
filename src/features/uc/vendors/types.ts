@@ -15,12 +15,13 @@
 
 import type { ISODateTime } from '@app-types/datetime';
 
-export type VendorStatus = 'active' | 'pending' | 'suspended';
+export type VendorStatus = 'active' | 'pending' | 'suspended' | 'inactive';
 
 export const VENDOR_STATUS_LABEL: Record<VendorStatus, string> = {
   active: 'Active',
   pending: 'Pending',
   suspended: 'Suspended',
+  inactive: 'Inactive',
 };
 
 export type Vendor = {

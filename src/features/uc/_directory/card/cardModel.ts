@@ -23,7 +23,7 @@ import {
   type Customer,
 } from '../../customers/types';
 import { VENDOR_STATUS_LABEL, type Vendor } from '../../vendors/types';
-import { STAFF_SUBROLE_LABEL, type Staff } from '../../staff/types';
+import type { Staff } from '../../staff/types';
 import { DRIVER_VERIFICATION_LABEL, type Driver } from '../../drivers/types';
 import { EMPTY_VALUE, formatDate } from '../contact/profiles';
 import type { DirectoryContact } from '../contact/types';
@@ -40,18 +40,30 @@ export type CardIcon =
   | 'company'
   | 'location'
   | 'vehicles'
-  | 'role';
+  | 'active'
+  | 'inactive';
 
 /** Rounded pill, normal-case text (one style for every role). */
 export type CardBadge = { label: string; bg: string; fg: string };
 
-export type CardLine = { key: string; icon: CardIcon; text: string };
+export type CardLineTone = 'muted' | 'success';
+
+export type CardLine = {
+  key: string;
+  icon: CardIcon;
+  text: string;
+  /** Text + icon colour. Defaults to 'muted' (grey). */
+  tone?: CardLineTone;
+};
 
 export type CardFooterItem = {
   icon: CardIcon;
   text: string;
   /** Green + semibold (counts such as trips / vehicles). */
   emphasis: boolean;
+  /** May be shortened with "…" when space runs out. The other footer
+   *  item then always shows in full. */
+  shrink: boolean;
 };
 
 export type DirectoryCardModel = {
@@ -66,8 +78,11 @@ export type DirectoryCardModel = {
 };
 
 /* ------------------------------------------------------------------ */
-/* Colours (carried over from the four former cards)                  */
+/* Colours                                                            */
 /* ------------------------------------------------------------------ */
+
+/** Grey pill: readable textSecondary on the light-grey background. */
+const GREY = { bg: Colors.borderLight, fg: Colors.textSecondary };
 
 const VENDOR_STATUS_COLOUR: Record<
   Vendor['status'],
@@ -76,6 +91,7 @@ const VENDOR_STATUS_COLOUR: Record<
   active: { bg: '#E7F7EC', fg: '#049856' },
   pending: { bg: '#FEF3C7', fg: '#B45309' },
   suspended: { bg: '#FEE2E2', fg: '#B91C1C' },
+  inactive: GREY,
 };
 
 const DRIVER_VERIFICATION_COLOUR: Record<
@@ -87,9 +103,9 @@ const DRIVER_VERIFICATION_COLOUR: Record<
   rejected: { bg: '#FEE2E2', fg: '#B91C1C' },
 };
 
-/** Inactive staff. textSecondary (not textMuted) keeps the label
- *  readable on the light-grey pill. */
-const INACTIVE_COLOUR = { bg: Colors.borderLight, fg: Colors.textSecondary };
+/** Staff department badge — one neutral colour for every department,
+ *  because department names are free text from the server. */
+const DEPARTMENT_COLOUR = { bg: '#EEF2FF', fg: '#4F46E5' };
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
@@ -113,6 +129,22 @@ const optionalLine = (
   return t ? [{ key, icon, text: t }] : [];
 };
 
+/** City-style footer item that may shorten when space runs out. */
+const shrinkable = (icon: CardIcon, value: string): CardFooterItem => ({
+  icon,
+  text: value,
+  emphasis: false,
+  shrink: true,
+});
+
+/** Green count (trips / vehicles) that always shows in full. */
+const count = (icon: CardIcon, value: string): CardFooterItem => ({
+  icon,
+  text: value,
+  emphasis: true,
+  shrink: false,
+});
+
 /* ------------------------------------------------------------------ */
 /* Per-role mappers                                                   */
 /* ------------------------------------------------------------------ */
@@ -129,12 +161,8 @@ function customerCard(c: Customer): DirectoryCardModel {
       ...optionalLine('email', 'mail', c.email),
     ],
     footer: {
-      left: { icon: 'calendar', text: joined, emphasis: false },
-      right: {
-        icon: 'trips',
-        text: countLabel(c.totalBookings, 'Trip', 'Trips'),
-        emphasis: true,
-      },
+      left: shrinkable('calendar', joined),
+      right: count('trips', countLabel(c.totalBookings, 'Trip', 'Trips')),
     },
     accessibilityLabel: `${orEmpty(
       c.name,
@@ -155,12 +183,11 @@ function vendorCard(v: Vendor): DirectoryCardModel {
     badge: { label: status, ...VENDOR_STATUS_COLOUR[v.status] },
     lines: optionalLine('owner', 'company', v.ownerName),
     footer: {
-      left: { icon: 'location', text: orEmpty(v.city), emphasis: false },
-      right: {
-        icon: 'vehicles',
-        text: countLabel(v.vehicleCount, 'vehicle', 'vehicles'),
-        emphasis: true,
-      },
+      left: shrinkable('location', orEmpty(v.city)),
+      right: count(
+        'vehicles',
+        countLabel(v.vehicleCount, 'vehicle', 'vehicles'),
+      ),
     },
     accessibilityLabel: `Vendor ${orEmpty(v.companyName)}, ${status}`,
     accessibilityHint: 'Opens contact actions',
@@ -168,21 +195,35 @@ function vendorCard(v: Vendor): DirectoryCardModel {
 }
 
 function staffCard(s: Staff): DirectoryCardModel {
+  const department = text(s.department);
+  const status = s.active ? 'Active' : 'Inactive';
   return {
     id: s.id,
     title: orEmpty(s.name),
-    // Active staff show no badge; inactive staff get a grey pill.
-    badge: s.active ? null : { label: 'Inactive', ...INACTIVE_COLOUR },
+    // Department badge; no badge when the server sends no department.
+    badge: department ? { label: department, ...DEPARTMENT_COLOUR } : null,
     lines: [
-      { key: 'role', icon: 'role', text: STAFF_SUBROLE_LABEL[s.subRole] },
+      s.active
+        ? { key: 'status', icon: 'active', text: status, tone: 'success' }
+        : { key: 'status', icon: 'inactive', text: status, tone: 'muted' },
     ],
     footer: {
-      left: { icon: 'location', text: orEmpty(s.city), emphasis: false },
-      right: { icon: 'mail', text: orEmpty(s.email), emphasis: false },
+      // City always in full; only the (long) email is shortened.
+      left: {
+        icon: 'location',
+        text: orEmpty(s.city),
+        emphasis: false,
+        shrink: false,
+      },
+      right: shrinkable('mail', orEmpty(s.email)),
     },
-    accessibilityLabel: `Staff ${orEmpty(s.name)}${
-      s.active ? '' : ', inactive'
-    }`,
+    accessibilityLabel: [
+      `Staff ${orEmpty(s.name)}`,
+      department,
+      status.toLowerCase(),
+    ]
+      .filter(Boolean)
+      .join(', '),
     accessibilityHint: 'Opens contact actions',
   };
 }
@@ -198,12 +239,8 @@ function driverCard(d: Driver): DirectoryCardModel {
     },
     lines: optionalLine('vendor', 'company', d.vendorName),
     footer: {
-      left: { icon: 'location', text: orEmpty(d.city), emphasis: false },
-      right: {
-        icon: 'trips',
-        text: countLabel(d.completedTrips, 'trip', 'trips'),
-        emphasis: true,
-      },
+      left: shrinkable('location', orEmpty(d.city)),
+      right: count('trips', countLabel(d.completedTrips, 'trip', 'trips')),
     },
     accessibilityLabel: `Driver ${orEmpty(d.name)}, ${verification}`,
     accessibilityHint: 'Opens contact actions',

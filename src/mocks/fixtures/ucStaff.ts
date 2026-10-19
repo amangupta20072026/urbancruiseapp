@@ -62,10 +62,21 @@ function daysAgo(days: number): ISODateTime {
   return asISODateTime(d.toISOString());
 }
 
+/** Mock departments (free text on the server; this is sample data). */
+const DEPARTMENTS = [
+  'Admin',
+  'IT',
+  'HR',
+  'Sales',
+  'Accounts',
+  'Graphics',
+  'SEO',
+];
+
 export const fixtureUcStaffAll: Staff[] = NAMES.map((name, i) => ({
   id: `s_${i + 1}`,
   name,
-  subRole: 'admin',
+  department: DEPARTMENTS[i % DEPARTMENTS.length],
   phone: phoneFor(i),
   phoneAlt: i % 4 === 0 ? phoneFor(i, 1) : undefined,
   email: emailFor(name),

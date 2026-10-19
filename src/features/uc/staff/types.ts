@@ -7,9 +7,9 @@
  * or message a teammate directly from the app instead of hunting for
  * numbers in a spreadsheet.
  *
- * Sub-role is deliberately kept LOOSE for now (single 'admin' value)
- * per product decision — expand the union later without renaming
- * anything.
+ * Department is FREE TEXT, shown exactly as the server sends it
+ * (backend column uc_staff.department). The app keeps no fixed list,
+ * so a new department (e.g. 'Marketing') needs no app update.
  *
  * RBAC:
  *   Any UC user can see any other UC user's phone/email — confirmed
@@ -21,17 +21,12 @@
 
 import type { ISODateTime } from '@app-types/datetime';
 
-/** UC sub-role. Starts single-valued; extend later without renaming. */
-export type StaffSubRole = 'admin';
-
-export const STAFF_SUBROLE_LABEL: Record<StaffSubRole, string> = {
-  admin: 'Admin',
-};
-
 export type Staff = {
   id: string;
   name: string;
-  subRole: StaffSubRole;
+  /** Department, e.g. 'Admin', 'IT', 'HR', 'Sales'. Free text from the
+   * server; empty string when not set. */
+  department: string;
   /** Work phone. */
   phone: string;
   /** Personal / alternate phone. Optional. */
@@ -40,7 +35,7 @@ export type Staff = {
   /** Branch / office. */
   city: string;
   /** Whether the account is currently active. Inactive staff still
-   * show up (greyed) so old records remain reachable. */
+   * show up (marked "Inactive") so old records remain reachable. */
   active: boolean;
   joinedAt: ISODateTime;
 };

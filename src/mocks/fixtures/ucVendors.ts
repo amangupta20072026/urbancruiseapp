@@ -95,7 +95,7 @@ const STATUS_CYCLE: VendorStatus[] = [
   'pending',
   'suspended',
   'active',
-  'active',
+  'inactive',
 ];
 
 /** Deterministic phone: 9<8 digits derived from index>. */
