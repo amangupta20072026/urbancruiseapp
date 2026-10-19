@@ -36,6 +36,9 @@ export type Vendor = {
   phoneAlt?: string;
   email: string;
   city: string;
+  /** Full postal address as one text (DB: single full-address column).
+   * Shown on the directory card. Empty string when not set. */
+  address: string;
   /** GST number, when registered. Displayed on the sheet. */
   gstin?: string;
   status: VendorStatus;

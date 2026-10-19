@@ -85,6 +85,30 @@ const CITIES = [
   'Kochi',
 ];
 
+/** Sample street, state and PIN per city — mock data only. */
+const ADDRESS_PARTS: Record<string, [string, string, string]> = {
+  Mumbai: ['Andheri Kurla Road, Andheri East', 'Maharashtra', '400069'],
+  Pune: ['FC Road, Shivajinagar', 'Maharashtra', '411005'],
+  Bengaluru: ['MG Road, Ashok Nagar', 'Karnataka', '560001'],
+  Hyderabad: ['Road No. 2, Banjara Hills', 'Telangana', '500034'],
+  Chennai: ['Usman Road, T Nagar', 'Tamil Nadu', '600017'],
+  Delhi: ['Barakhamba Road, Connaught Place', 'Delhi', '110001'],
+  Ahmedabad: ['CG Road, Navrangpura', 'Gujarat', '380009'],
+  Kolkata: ['Park Street, Mullick Bazar', 'West Bengal', '700016'],
+  Jaipur: ['MI Road, Panch Batti', 'Rajasthan', '302001'],
+  Kochi: ['MG Road, Ernakulam', 'Kerala', '682016'],
+};
+
+/** Deterministic sample address; every 13th vendor has none, to
+ *  exercise the "no address" case. */
+function addressFor(index: number, city: string): string {
+  if (index % 13 === 12) return '';
+  const parts = ADDRESS_PARTS[city];
+  if (!parts) return '';
+  const [street, state, pin] = parts;
+  return `Shop ${((index * 7) % 90) + 1}, ${street}, ${city}, ${state} ${pin}`;
+}
+
 const STATUS_CYCLE: VendorStatus[] = [
   'active',
   'active',
@@ -127,6 +151,7 @@ export const fixtureUcVendorsAll: Vendor[] = COMPANIES.map((company, i) => ({
   phoneAlt: i % 3 === 0 ? phoneFor(i, 1) : undefined,
   email: emailFor(company),
   city: CITIES[i % CITIES.length],
+  address: addressFor(i, CITIES[i % CITIES.length]),
   gstin: i % 4 === 0 ? undefined : `27ABCDE${1000 + i}F1Z${i % 10}`,
   status: STATUS_CYCLE[i % STATUS_CYCLE.length],
   vehicleCount: 3 + ((i * 7) % 40),

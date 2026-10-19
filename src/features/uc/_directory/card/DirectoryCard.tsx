@@ -32,7 +32,6 @@ import {
   Mail,
   MapPin,
   Phone,
-  Truck,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -60,7 +59,6 @@ const ICON: Record<CardIcon, LucideIcon> = {
   trips: Briefcase,
   company: Building2,
   location: MapPin,
-  vehicles: Truck,
   active: CircleCheck,
   inactive: CircleX,
 };
@@ -109,19 +107,28 @@ const DirectoryCardComponent: React.FC<Props> = ({ contact, onPress }) => {
           const color = LINE_COLOUR[line.tone ?? 'muted'];
           return (
             <View key={line.key} style={styles.metaRow}>
-              <LineIcon size={13} color={color} />
-              <Text style={[styles.metaText, { color }]} numberOfLines={1}>
+              {/* One text-line tall, so the icon stays on the FIRST line
+                  when the text wraps (e.g. a long address). */}
+              <View style={styles.metaIconSlot}>
+                <LineIcon size={13} color={color} />
+              </View>
+              <Text
+                style={[styles.metaText, { color }]}
+                numberOfLines={line.wrap ? undefined : 1}
+              >
                 {line.text}
               </Text>
             </View>
           );
         })}
 
-        <View style={styles.footerRow}>
-          <FooterItem item={model.footer.left} gap={6} />
-          <View style={styles.sep} />
-          <FooterItem item={model.footer.right} gap={4} />
-        </View>
+        {model.footer ? (
+          <View style={styles.footerRow}>
+            <FooterItem item={model.footer.left} gap={6} />
+            <View style={styles.sep} />
+            <FooterItem item={model.footer.right} gap={4} />
+          </View>
+        ) : null}
       </View>
 
       <ChevronRight size={20} color={Colors.textTertiary} />
@@ -215,7 +222,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   badgeText: { ...Typography.caption, fontWeight: '600' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  metaIconSlot: {
+    height: Typography.bodySmall.lineHeight,
+    justifyContent: 'center',
+  },
   metaText: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,

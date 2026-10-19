@@ -39,7 +39,6 @@ export type CardIcon =
   | 'trips'
   | 'company'
   | 'location'
-  | 'vehicles'
   | 'active'
   | 'inactive';
 
@@ -54,6 +53,9 @@ export type CardLine = {
   text: string;
   /** Text + icon colour. Defaults to 'muted' (grey). */
   tone?: CardLineTone;
+  /** Show the full text on as many lines as needed (e.g. an address).
+   *  Default: one line, shortened with "…". */
+  wrap?: boolean;
 };
 
 export type CardFooterItem = {
@@ -72,7 +74,8 @@ export type DirectoryCardModel = {
   title: string;
   badge: CardBadge | null;
   lines: CardLine[];
-  footer: { left: CardFooterItem; right: CardFooterItem };
+  /** Bottom "left | right" row; null when the role has none (vendors). */
+  footer: { left: CardFooterItem; right: CardFooterItem } | null;
   accessibilityLabel: string;
   accessibilityHint: string;
 };
@@ -177,18 +180,29 @@ function customerCard(c: Customer): DirectoryCardModel {
 
 function vendorCard(v: Vendor): DirectoryCardModel {
   const status = VENDOR_STATUS_LABEL[v.status];
+  // Full address; falls back to the city when no address is saved.
+  const location = text(v.address) || text(v.city);
   return {
     id: v.id,
     title: orEmpty(v.companyName),
     badge: { label: status, ...VENDOR_STATUS_COLOUR[v.status] },
-    lines: optionalLine('owner', 'company', v.ownerName),
-    footer: {
-      left: shrinkable('location', orEmpty(v.city)),
-      right: count(
-        'vehicles',
-        countLabel(v.vehicleCount, 'vehicle', 'vehicles'),
-      ),
-    },
+    lines: [
+      ...optionalLine('owner', 'company', v.ownerName),
+      ...optionalLine('phone', 'phone', v.phone),
+      ...optionalLine('email', 'mail', v.email),
+      ...(location
+        ? [
+            {
+              key: 'address',
+              icon: 'location' as const,
+              text: location,
+              wrap: true,
+            },
+          ]
+        : []),
+    ],
+    // No footer: vehicle count removed; city is part of the address.
+    footer: null,
     accessibilityLabel: `Vendor ${orEmpty(v.companyName)}, ${status}`,
     accessibilityHint: 'Opens contact actions',
   };
