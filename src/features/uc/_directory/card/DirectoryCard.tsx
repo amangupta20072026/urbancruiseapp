@@ -1,0 +1,219 @@
+/**
+ * ------------------------------------------------------------------
+ * DirectoryCard — ONE list row for every directory role
+ * ------------------------------------------------------------------
+ * Replaces CustomerCard, VendorCard, StaffCard and DriverCard. The
+ * layout is identical for all roles; what goes in each slot comes
+ * from toCardModel() (cardModel.ts).
+ *
+ *   - Title is never truncated: it wraps onto as many lines as needed.
+ *   - The badge (customer-style rounded pill) sits in a slot exactly
+ *     one title-line tall, so it stays centred on the FIRST line.
+ *
+ * Performance: memoised on (kind, data identity, onPress). Screens
+ * create `{ kind, data }` inline in renderItem, so a plain shallow
+ * memo would never hit — the custom comparator compares the record
+ * itself instead of the wrapper object.
+ *
+ * Usage:
+ *   <DirectoryCard contact={{ kind: 'vendor', data: item }} onPress={onRowPress} />
+ * ------------------------------------------------------------------
+ */
+
+import React, { memo, useCallback, useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Briefcase,
+  Building2,
+  Calendar,
+  ChevronRight,
+  Mail,
+  MapPin,
+  Phone,
+  ShieldCheck,
+  Truck,
+  type LucideIcon,
+} from 'lucide-react-native';
+
+import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
+
+import { avatarColorFor, initials } from '../../customers/utils/avatar';
+import type { DirectoryContact } from '../contact/types';
+import { toCardModel, type CardFooterItem, type CardIcon } from './cardModel';
+
+type Props = {
+  contact: DirectoryContact;
+  /** Receives the same typed contact, ready for DirectoryContactSheet. */
+  onPress: (contact: DirectoryContact) => void;
+};
+
+const ICON: Record<CardIcon, LucideIcon> = {
+  phone: Phone,
+  mail: Mail,
+  calendar: Calendar,
+  trips: Briefcase,
+  company: Building2,
+  location: MapPin,
+  vehicles: Truck,
+  role: ShieldCheck,
+};
+
+const DirectoryCardComponent: React.FC<Props> = ({ contact, onPress }) => {
+  const model = useMemo(() => toCardModel(contact), [contact]);
+  const avatar = avatarColorFor(model.id);
+  const handlePress = useCallback(() => onPress(contact), [onPress, contact]);
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={model.accessibilityLabel}
+      accessibilityHint={model.accessibilityHint}
+    >
+      <View style={[styles.avatar, { backgroundColor: avatar.bg }]}>
+        <Text style={[styles.avatarText, { color: avatar.fg }]}>
+          {initials(model.title)}
+        </Text>
+      </View>
+
+      <View style={styles.body}>
+        <View style={styles.headerRow}>
+          {/* Full title — wraps, never truncated. */}
+          <Text style={styles.title}>{model.title}</Text>
+          {model.badge ? (
+            <View style={styles.badgeSlot}>
+              <View style={[styles.badge, { backgroundColor: model.badge.bg }]}>
+                <Text style={[styles.badgeText, { color: model.badge.fg }]}>
+                  {model.badge.label}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+        </View>
+
+        {model.lines.map(line => {
+          const LineIcon = ICON[line.icon];
+          return (
+            <View key={line.key} style={styles.metaRow}>
+              <LineIcon size={13} color={Colors.textSecondary} />
+              <Text style={styles.metaText} numberOfLines={1}>
+                {line.text}
+              </Text>
+            </View>
+          );
+        })}
+
+        <View style={styles.footerRow}>
+          <FooterItem item={model.footer.left} gap={6} />
+          <View style={styles.sep} />
+          <FooterItem item={model.footer.right} gap={4} />
+        </View>
+      </View>
+
+      <ChevronRight size={20} color={Colors.textTertiary} />
+    </Pressable>
+  );
+};
+
+const FooterItem: React.FC<{ item: CardFooterItem; gap: number }> = ({
+  item,
+  gap,
+}) => {
+  const FooterIcon = ICON[item.icon];
+  const color = item.emphasis ? Colors.success : Colors.textSecondary;
+  return (
+    <View style={[styles.footerItem, { gap }]}>
+      <FooterIcon size={13} color={color} />
+      <Text
+        style={[styles.footerText, item.emphasis && styles.footerEmphasis]}
+        numberOfLines={1}
+      >
+        {item.text}
+      </Text>
+    </View>
+  );
+};
+
+/** Re-render only when the underlying record or handler changes. */
+const areEqual = (prev: Props, next: Props): boolean =>
+  prev.onPress === next.onPress &&
+  prev.contact.kind === next.contact.kind &&
+  prev.contact.data === next.contact.data;
+
+export const DirectoryCard = memo(DirectoryCardComponent, areEqual);
+DirectoryCard.displayName = 'DirectoryCard';
+
+/* ------------------------------------------------------------------ */
+/* Styles (carried over from the former cards)                        */
+/* ------------------------------------------------------------------ */
+
+const styles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm + 4,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm + 4,
+    marginBottom: Spacing.md,
+    ...Shadows.xs,
+  },
+  pressed: { opacity: 0.85 },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { ...Typography.body, fontWeight: '700' },
+  body: { flex: 1, gap: 4 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  title: {
+    ...Typography.subtitle,
+    color: Colors.textPrimary,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  /* One title-line tall: keeps the badge centred on the FIRST line of
+   * the title, however many lines the title wraps to. */
+  badgeSlot: {
+    height: Typography.subtitle.lineHeight,
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  badge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  badgeText: { ...Typography.caption, fontWeight: '600' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    flexShrink: 1,
+  },
+  footerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  footerItem: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
+  footerText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    flexShrink: 1,
+  },
+  footerEmphasis: { color: Colors.success, fontWeight: '600' },
+  sep: {
+    width: 1,
+    height: 12,
+    backgroundColor: Colors.border,
+    marginHorizontal: Spacing.sm,
+  },
+});

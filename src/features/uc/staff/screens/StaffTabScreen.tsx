@@ -4,7 +4,7 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 
@@ -12,29 +12,25 @@ import { SearchBar } from '@shared/components';
 import { Spacing } from '@theme';
 import {
   DirectoryListView,
+  DirectoryCard,
   DirectoryContactSheet,
   type DirectoryContact,
 } from '@features/uc/_directory';
 
 import { useStaffList } from '../hooks/useStaffList';
-import { StaffCard } from '../components/StaffCard';
 import { DEFAULT_STAFF_FILTERS, type Staff } from '../types';
 
 const StaffTabScreen: React.FC = () => {
   const [search, setSearch] = useState('');
   const [filters] = useState(DEFAULT_STAFF_FILTERS);
 
-  const [selected, setSelected] = useState<Staff | null>(null);
-  const contact = useMemo<DirectoryContact | null>(
-    () => (selected ? { kind: 'staff', data: selected } : null),
-    [selected],
-  );
+  const [selected, setSelected] = useState<DirectoryContact | null>(null);
   const contactSheetRef = useRef<BottomSheetModal>(null);
 
   const state = useStaffList({ search, filters });
 
-  const onRowPress = useCallback((s: Staff) => {
-    setSelected(s);
+  const onRowPress = useCallback((c: DirectoryContact) => {
+    setSelected(c);
     contactSheetRef.current?.present();
   }, []);
 
@@ -44,7 +40,10 @@ const StaffTabScreen: React.FC = () => {
 
   const renderItem = useCallback(
     ({ item }: { item: Staff }) => (
-      <StaffCard staff={item} onPress={onRowPress} />
+      <DirectoryCard
+        contact={{ kind: 'staff', data: item }}
+        onPress={onRowPress}
+      />
     ),
     [onRowPress],
   );
@@ -70,7 +69,7 @@ const StaffTabScreen: React.FC = () => {
 
       <DirectoryContactSheet
         ref={contactSheetRef}
-        contact={contact}
+        contact={selected}
         onDismiss={onContactDismiss}
       />
     </View>

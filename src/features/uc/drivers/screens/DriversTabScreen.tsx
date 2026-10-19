@@ -10,7 +10,7 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Building2, X } from 'lucide-react-native';
@@ -19,12 +19,12 @@ import { SearchBar } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
 import {
   DirectoryListView,
+  DirectoryCard,
   DirectoryContactSheet,
   type DirectoryContact,
 } from '@features/uc/_directory';
 
 import { useDriverList } from '../hooks/useDriverList';
-import { DriverCard } from '../components/DriverCard';
 import {
   DEFAULT_DRIVER_FILTERS,
   type Driver,
@@ -35,17 +35,13 @@ const DriversTabScreen: React.FC = () => {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<DriverFilters>(DEFAULT_DRIVER_FILTERS);
 
-  const [selected, setSelected] = useState<Driver | null>(null);
-  const contact = useMemo<DirectoryContact | null>(
-    () => (selected ? { kind: 'driver', data: selected } : null),
-    [selected],
-  );
+  const [selected, setSelected] = useState<DirectoryContact | null>(null);
   const contactSheetRef = useRef<BottomSheetModal>(null);
 
   const state = useDriverList({ search, filters });
 
-  const onRowPress = useCallback((d: Driver) => {
-    setSelected(d);
+  const onRowPress = useCallback((c: DirectoryContact) => {
+    setSelected(c);
     contactSheetRef.current?.present();
   }, []);
 
@@ -55,7 +51,10 @@ const DriversTabScreen: React.FC = () => {
 
   const renderItem = useCallback(
     ({ item }: { item: Driver }) => (
-      <DriverCard driver={item} onPress={onRowPress} />
+      <DirectoryCard
+        contact={{ kind: 'driver', data: item }}
+        onPress={onRowPress}
+      />
     ),
     [onRowPress],
   );
@@ -100,7 +99,7 @@ const DriversTabScreen: React.FC = () => {
 
       <DirectoryContactSheet
         ref={contactSheetRef}
-        contact={contact}
+        contact={selected}
         onDismiss={onContactDismiss}
       />
     </View>

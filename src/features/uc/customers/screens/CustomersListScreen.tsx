@@ -18,6 +18,7 @@ import {
 } from '@shared/components';
 import { Colors, Spacing } from '@theme';
 import {
+  DirectoryCard,
   DirectoryContactSheet,
   type DirectoryContact,
 } from '@features/uc/_directory';
@@ -25,7 +26,6 @@ import {
 import type { UcStackParamList } from '@navigation/types';
 
 import { useCustomerList } from '../hooks/useCustomerList';
-import { CustomerCard } from '../components/CustomerCard';
 import { CustomerListHeader } from '../components/CustomerListHeader';
 import { ListMeta } from '../components/ListMeta';
 import { ListFooterLoader } from '../components/ListFooterLoader';
@@ -52,11 +52,7 @@ const CustomersListScreen: React.FC = () => {
     DEFAULT_CUSTOMER_FILTERS,
   );
 
-  const [selected, setSelected] = useState<Customer | null>(null);
-  const contact = useMemo<DirectoryContact | null>(
-    () => (selected ? { kind: 'customer', data: selected } : null),
-    [selected],
-  );
+  const [selected, setSelected] = useState<DirectoryContact | null>(null);
   const contactSheetRef = useRef<BottomSheetModal>(null);
   const filterSheetRef = useRef<BottomSheetModal>(null);
 
@@ -73,7 +69,7 @@ const CustomersListScreen: React.FC = () => {
     refetch,
   } = useCustomerList({ search, filters });
 
-  const onRowPress = useCallback((c: Customer) => {
+  const onRowPress = useCallback((c: DirectoryContact) => {
     setSelected(c);
     contactSheetRef.current?.present();
   }, []);
@@ -129,7 +125,7 @@ const CustomersListScreen: React.FC = () => {
         null;
 
       if (target) {
-        setSelected(target);
+        setSelected({ kind: 'customer', data: target });
         contactSheetRef.current?.present();
       }
 
@@ -165,8 +161,11 @@ const CustomersListScreen: React.FC = () => {
         <FlashList
           data={data}
           keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <CustomerCard customer={item} onPress={onRowPress} />
+          renderItem={({ item }: { item: Customer }) => (
+            <DirectoryCard
+              contact={{ kind: 'customer', data: item }}
+              onPress={onRowPress}
+            />
           )}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -190,7 +189,7 @@ const CustomersListScreen: React.FC = () => {
 
       <DirectoryContactSheet
         ref={contactSheetRef}
-        contact={contact}
+        contact={selected}
         onDismiss={onContactDismiss}
       />
 

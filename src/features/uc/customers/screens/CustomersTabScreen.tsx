@@ -3,7 +3,7 @@
  * CustomersTabScreen — Directory > Customers tab body
  * ------------------------------------------------------------------
  * Thin tab wrapper around the existing customer domain — reuses the
- * production useCustomerList hook, CustomerCard, and the shared
+ * production useCustomerList hook and the shared DirectoryCard and
  * DirectoryContactSheet. Only the layout (no back button, no stack
  * header) is different from the standalone CustomersListScreen.
  *
@@ -14,7 +14,7 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 
@@ -22,12 +22,12 @@ import { SearchBar } from '@shared/components';
 import { Spacing } from '@theme';
 import {
   DirectoryListView,
+  DirectoryCard,
   DirectoryContactSheet,
   type DirectoryContact,
 } from '@features/uc/_directory';
 
 import { useCustomerList } from '../hooks/useCustomerList';
-import { CustomerCard } from '../components/CustomerCard';
 import {
   DEFAULT_CUSTOMER_FILTERS,
   type Customer,
@@ -38,16 +38,12 @@ const CustomersTabScreen: React.FC = () => {
   const [search, setSearch] = useState('');
   const [filters] = useState<CustomerFilters>(DEFAULT_CUSTOMER_FILTERS);
 
-  const [selected, setSelected] = useState<Customer | null>(null);
-  const contact = useMemo<DirectoryContact | null>(
-    () => (selected ? { kind: 'customer', data: selected } : null),
-    [selected],
-  );
+  const [selected, setSelected] = useState<DirectoryContact | null>(null);
   const contactSheetRef = useRef<BottomSheetModal>(null);
 
   const state = useCustomerList({ search, filters });
 
-  const onRowPress = useCallback((c: Customer) => {
+  const onRowPress = useCallback((c: DirectoryContact) => {
     setSelected(c);
     contactSheetRef.current?.present();
   }, []);
@@ -58,7 +54,10 @@ const CustomersTabScreen: React.FC = () => {
 
   const renderItem = useCallback(
     ({ item }: { item: Customer }) => (
-      <CustomerCard customer={item} onPress={onRowPress} />
+      <DirectoryCard
+        contact={{ kind: 'customer', data: item }}
+        onPress={onRowPress}
+      />
     ),
     [onRowPress],
   );
@@ -84,7 +83,7 @@ const CustomersTabScreen: React.FC = () => {
 
       <DirectoryContactSheet
         ref={contactSheetRef}
-        contact={contact}
+        contact={selected}
         onDismiss={onContactDismiss}
       />
     </View>
