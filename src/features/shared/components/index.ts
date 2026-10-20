@@ -7,3 +7,4 @@ export { ErrorView } from './ErrorView';
 export { Skeleton } from './Skeleton';
 export { ScreenHeader } from './ScreenHeader';
 export { ComingSoon } from './ComingSoon';
+export { AppHeader } from './AppHeader';

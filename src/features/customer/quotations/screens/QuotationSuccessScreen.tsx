@@ -139,7 +139,7 @@ const QuotationSuccessScreen: React.FC = () => {
          * ucwithtext.png has transparent top/bottom padding baked
          * into the canvas (visible content occupies rows 651–1776
          * of a 2376×2091 file). We reuse the clip-container trick
-         * from `HomeHeader` so the padding never adds dead space:
+         * from `AppHeader` so the padding never adds dead space:
          * the outer view is sized to the SCALED VISIBLE region
          * (BRAND_W × BRAND_H) and clips the Image, which is drawn
          * at the full scaled canvas height (IMG_H) and shifted up

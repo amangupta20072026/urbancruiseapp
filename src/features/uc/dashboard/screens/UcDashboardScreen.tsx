@@ -3,7 +3,8 @@
  * UcDashboardScreen — UC (admin) home tab
  * ------------------------------------------------------------------
  * LAYOUT (top → bottom):
- *   DashboardHeader      logo · notifications · profile
+ *   AppHeader            logo · notifications · profile (shared by
+ *                        every role; opens NotificationCentre/Profile)
  *   GreetingBlock        "Good morning, Admin 👋" + today's date card
  *   Stats (2×2)          Trips · Customers · Bookings · Quotations
  *   BookingsTrendChart   daily bookings, Last 7 / 15 / 30 / 90 days
@@ -44,13 +45,12 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 
-import { SafeScreen } from '@shared/components/SafeScreen';
+import { AppHeader, SafeScreen } from '@shared/components';
 import { notifyComingSoon } from '@services/comingSoon';
 import { Colors, Spacing, Typography } from '@theme';
 import type { UcStackParamList, UcTabParamList } from '@navigation/types';
 
 import { BookingsTrendChart } from '../components/BookingsTrendChart';
-import { DashboardHeader } from '../components/DashboardHeader';
 import { GreetingBlock } from '../components/GreetingBlock';
 import { RecentBookings } from '../components/RecentBookings';
 import { StatCard } from '../components/StatCard';
@@ -153,14 +153,6 @@ const UcDashboardScreen: React.FC = () => {
   const openBooking = useCallback((_bookingId: string) => {
     notifyComingSoon('uc.bookingDetail');
   }, []);
-  const goToNotifications = useCallback(
-    () => navigation.navigate('NotificationCentre'),
-    [navigation],
-  );
-  const goToProfile = useCallback(
-    () => navigation.navigate('Profile'),
-    [navigation],
-  );
 
   /* -------- Refresh -------- */
 
@@ -187,15 +179,7 @@ const UcDashboardScreen: React.FC = () => {
 
   /* -------- Render -------- */
 
-  const header = (
-    <View style={styles.headerWrap}>
-      <DashboardHeader
-        hasUnread
-        onBellPress={goToNotifications}
-        onAvatarPress={goToProfile}
-      />
-    </View>
-  );
+  const header = <AppHeader />;
 
   if (!dashboard.data) {
     return (
@@ -285,13 +269,6 @@ const UcDashboardScreen: React.FC = () => {
 export default UcDashboardScreen;
 
 const styles = StyleSheet.create({
-  headerWrap: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.background,
-  },
   center: {
     flex: 1,
     alignItems: 'center',

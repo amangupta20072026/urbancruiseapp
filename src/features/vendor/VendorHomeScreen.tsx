@@ -1,12 +1,17 @@
 /**
  * VendorHomeScreen — STUB
  * Proves auth round-trips. Real Vendor tabs come later.
+ *
+ * Top: the shared AppHeader (logo · notifications · profile), the
+ * same header every role's home screen uses. Below it, the stub body
+ * (title + Log out) is unchanged.
  */
 
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppHeader } from '@shared/components';
 import { Colors, Dimensions, Radius, Spacing, Typography } from '../../theme';
 import { useAppDispatch } from '../../store/hooks';
 import { logout } from '../../store/slices/appSlice';
@@ -17,31 +22,34 @@ const VendorHomeScreen: React.FC = () => {
   const handleLogout = useCallback(() => dispatch(logout()), [dispatch]);
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          paddingTop: Math.max(insets.top, Spacing.xl),
-          paddingBottom: Math.max(insets.bottom, Spacing.xl),
-        },
-      ]}
-    >
-      <View style={styles.content}>
-        <Text style={styles.eyebrow}>Signed in</Text>
-        <Text style={styles.title}>Vendor Home</Text>
-        <Text style={styles.description}>
-          Bottom tabs will live here: Dashboard, Bookings, Fleet, Drivers,
-          Profile.
-        </Text>
-      </View>
-      <Pressable
-        onPress={handleLogout}
-        style={({ pressed }) => [styles.logout, pressed && styles.pressed]}
-        accessibilityRole="button"
-        accessibilityLabel="Log out"
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <AppHeader />
+      <View
+        style={[
+          styles.container,
+          {
+            paddingTop: Spacing.xl,
+            paddingBottom: Math.max(insets.bottom, Spacing.xl),
+          },
+        ]}
       >
-        <Text style={styles.logoutText}>Log out</Text>
-      </Pressable>
+        <View style={styles.content}>
+          <Text style={styles.eyebrow}>Signed in</Text>
+          <Text style={styles.title}>Vendor Home</Text>
+          <Text style={styles.description}>
+            Bottom tabs will live here: Dashboard, Bookings, Fleet, Drivers,
+            Profile.
+          </Text>
+        </View>
+        <Pressable
+          onPress={handleLogout}
+          style={({ pressed }) => [styles.logout, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Log out"
+        >
+          <Text style={styles.logoutText}>Log out</Text>
+        </Pressable>
+      </View>
     </View>
   );
 };
@@ -49,6 +57,7 @@ const VendorHomeScreen: React.FC = () => {
 export default VendorHomeScreen;
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.background },
   container: {
     flex: 1,
     backgroundColor: Colors.background,

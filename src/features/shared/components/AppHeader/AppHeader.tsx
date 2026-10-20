@@ -1,10 +1,21 @@
 /**
  * ------------------------------------------------------------------
- * HomeHeader
+ * AppHeader — the ONE home-screen header for every role
  * ------------------------------------------------------------------
- * Top row of the Customer Home screen.
+ *   [ucwithtext brand]                          [🔔 3]  [avatar]
  *
- *   [ucwithtext brand]                          [🔔•]  [avatar]
+ * Used by the Customer home, Vendor home, Driver home and UC
+ * dashboard, so all four look and behave the same. (It replaces the
+ * Customer `HomeHeader` and the UC `DashboardHeader`, and keeps the
+ * Customer design exactly.)
+ *
+ * Self-contained — callers just render <AppHeader />:
+ *   - Name for the profile button's label: signed-in user (Redux).
+ *   - Bell badge: useUnreadNotificationCount (mock 3 for now).
+ *   - Bell → NotificationCentre, avatar → Profile, through
+ *     navigateOrComingSoon: every role registers both screens
+ *     (SCREEN_ACCESS), and a role that ever doesn't gets the standard
+ *     "Coming soon" toast instead of a silent no-op.
  *
  * Brand rendering — asset-padding workaround
  * -----------------------------------------
@@ -31,35 +42,38 @@
  * If the source PNG is ever re-exported with the transparent
  * top/bottom trimmed off, drop the wrapper and go back to a plain
  * `<Image resizeMode="contain">` with the same 110×52 dims.
- * ------------------------------------------------------------------ */
+ * ------------------------------------------------------------------
+ */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Bell } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing } from '@theme';
+import { useAppSelector } from '@store/hooks';
+import { selectDisplayName } from '@store/selectors/userSelectors';
+import { navigateOrComingSoon } from '@navigation/NavigationService';
 
-type Props = {
-  displayName: string;
-  /** Reserved — used once user-uploaded avatars land. */
-  userId: string;
-  /** Unread count for the bell badge. `0` hides the badge. */
-  unreadCount: number;
-  onNotificationsPress: () => void;
-  onProfilePress: () => void;
-};
+import { useUnreadNotificationCount } from '../../notifications/hooks/useUnreadNotificationCount';
 
 const MAX_BADGE = 99;
-const fmtBadge = (n: number): string =>
+
+/** Badge text: '3', …, '99', then '99+'. */
+export const formatBadge = (n: number): string =>
   n > MAX_BADGE ? `${MAX_BADGE}+` : String(n);
 
-export const HomeHeader: React.FC<Props> = ({
-  displayName,
-  unreadCount,
-  onNotificationsPress,
-  onProfilePress,
-}) => {
+export const AppHeader: React.FC = () => {
+  const displayName = useAppSelector(selectDisplayName);
+  const unreadCount = useUnreadNotificationCount();
   const showBadge = unreadCount > 0;
+
+  const openNotifications = useCallback(() => {
+    navigateOrComingSoon('notifications', 'NotificationCentre');
+  }, []);
+
+  const openProfile = useCallback(() => {
+    navigateOrComingSoon('profile', 'Profile');
+  }, []);
 
   return (
     <View style={styles.row}>
@@ -77,7 +91,7 @@ export const HomeHeader: React.FC<Props> = ({
       {/* Actions cluster */}
       <View style={styles.actions}>
         <Pressable
-          onPress={onNotificationsPress}
+          onPress={openNotifications}
           accessibilityRole="button"
           accessibilityLabel={
             showBadge ? `Notifications, ${unreadCount} unread` : 'Notifications'
@@ -88,15 +102,17 @@ export const HomeHeader: React.FC<Props> = ({
           <Bell size={22} color={Colors.textPrimary} strokeWidth={2} />
           {showBadge ? (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{fmtBadge(unreadCount)}</Text>
+              <Text style={styles.badgeText}>{formatBadge(unreadCount)}</Text>
             </View>
           ) : null}
         </Pressable>
 
         <Pressable
-          onPress={onProfilePress}
+          onPress={openProfile}
           accessibilityRole="button"
-          accessibilityLabel={`Profile, ${displayName}`}
+          accessibilityLabel={
+            displayName ? `Profile, ${displayName}` : 'Profile'
+          }
           hitSlop={4}
           style={({ pressed }) => [
             styles.avatarWrap,
@@ -144,7 +160,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xs,
+    // Breathing room below the status bar (was Spacing.xs = 4).
+    paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
     backgroundColor: Colors.background,
   },

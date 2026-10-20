@@ -4,7 +4,7 @@
  * ------------------------------------------------------------------
  * The Customer Home tab. Composition:
  *
- *   [Header: brand + bell + avatar]
+ *   [AppHeader: brand + bell + avatar — shared by every role]
  *   [Greeting]
  *   [Service switcher]
  *   [HERO CARD  — exactly one, chosen by the priority ladder below]
@@ -38,8 +38,8 @@
  *   - Activity empty                        → iconified empty state
  *
  * ── Navigation intents ───────────────────────────────────────────
- *   - Bell         → NotificationCentre (already registered)
- *   - Avatar       → Profile (already registered)
+ *   - Bell / Avatar → handled inside the shared AppHeader
+ *     (NotificationCentre / Profile)
  *   - Card CTAs / View All → TODO(nav) — placeholders emit
  *     home.cta_tapped so we still capture intent while the
  *     destinations are being built.
@@ -59,20 +59,15 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Inbox, CalendarClock } from 'lucide-react-native';
 
-import { SafeScreen, ErrorView } from '@shared/components';
+import { AppHeader, SafeScreen, ErrorView } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
 
 import type { CustomerStackParamList } from '@navigation/types';
 
-import {
-  selectFirstName,
-  selectDisplayName,
-  selectUserId,
-} from '@store/selectors/userSelectors';
+import { selectFirstName } from '@store/selectors/userSelectors';
 
 import { useHomeData } from '../hooks/useHomeData';
 import { useServiceMode } from '../hooks/useServiceMode';
-import { HomeHeader } from '../components/HomeHeader';
 import { GreetingBlock } from '../components/GreetingBlock';
 import { ServiceSwitcher } from '../components/ServiceSwitcher';
 import { QuotationReadyCard } from '../components/QuotationReadyCard';
@@ -85,16 +80,10 @@ import { logEvent } from '@services/telemetry/logEvent';
 
 type CustomerNavigation = NativeStackNavigationProp<CustomerStackParamList>;
 
-/* Unread count for the notification bell. Wired to a real
- * useUnreadCount hook when NotificationCentre gets real. */
-const MOCK_UNREAD = 3;
-
 const CustomerHomeScreen: React.FC = () => {
   const navigation = useNavigation<CustomerNavigation>();
 
   const firstName = useSelector(selectFirstName);
-  const displayName = useSelector(selectDisplayName);
-  const userId = useSelector(selectUserId);
 
   const { mode, change: onServiceModeChange } = useServiceMode();
 
@@ -107,16 +96,6 @@ const CustomerHomeScreen: React.FC = () => {
     error,
     refresh,
   } = useHomeData();
-
-  /* -------- Nav handlers -------- */
-
-  const goToNotifications = useCallback(() => {
-    navigation.navigate('NotificationCentre');
-  }, [navigation]);
-
-  const goToProfile = useCallback(() => {
-    navigation.navigate('Profile');
-  }, [navigation]);
 
   /* -------- Placeholder handlers for CTAs whose destinations
    * haven't been built yet. Grep for TODO(nav) to find them all.
@@ -185,13 +164,7 @@ const CustomerHomeScreen: React.FC = () => {
 
   return (
     <SafeScreen edges={['top']} backgroundColor={Colors.background}>
-      <HomeHeader
-        displayName={displayName}
-        userId={userId}
-        unreadCount={MOCK_UNREAD}
-        onNotificationsPress={goToNotifications}
-        onProfilePress={goToProfile}
-      />
+      <AppHeader />
 
       <ScrollView
         style={styles.scrollBg}
