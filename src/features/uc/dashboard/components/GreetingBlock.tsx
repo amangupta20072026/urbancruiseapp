@@ -1,67 +1,65 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Calendar } from 'lucide-react-native';
-import { Colors, Radius, Spacing, Typography } from '@theme';
-
 /**
- * GreetingBlock — big greeting on the left, date "card" on the right.
- * Matches the reference mock: bold "Good morning, {name} 👋", muted
- * caption underneath, and a right-aligned framed date with day-number
- * / month-year / weekday stacked.
+ * ------------------------------------------------------------------
+ * GreetingBlock — "Good morning, Admin 👋" + today's date card
+ * ------------------------------------------------------------------
+ *   Good morning, Admin 👋             ┌──────────────────┐
+ *   Here's what's happening with       │ (📅)  11         │
+ *   your business today.               │       Aug 2025   │
+ *                                      │       Monday     │
+ *                                      └──────────────────┘
+ * Greeting and date come from the device clock (`now`), so they are
+ * always today's, in the user's time zone. The date card is display
+ * only — not a button.
+ * ------------------------------------------------------------------
  */
 
-const partsOfDay = (d: Date) => {
-  const h = d.getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-};
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { CalendarCheck } from 'lucide-react-native';
+
+import { Colors, Radius, Spacing, Typography } from '@theme';
+
+import { dateCardParts, partOfDay } from '../utils/format';
 
 type Props = {
   name: string;
-  dateISO: string;
-  onPickDate?: () => void;
+  now: Date;
 };
 
-export const GreetingBlock: React.FC<Props> = ({
-  name,
-  dateISO,
-  onPickDate,
-}) => {
-  const date = new Date(dateISO);
-  const day = date.toLocaleDateString('en-GB', { day: '2-digit' });
-  const monthYear = date.toLocaleDateString('en-GB', {
-    month: 'short',
-    year: 'numeric',
-  });
-  const weekday = date.toLocaleDateString('en-GB', { weekday: 'long' });
+export const GreetingBlock: React.FC<Props> = ({ name, now }) => {
+  const { day, monthYear, weekday } = dateCardParts(now);
+  const greeting = `${partOfDay(now)}, ${name}`;
 
   return (
     <View style={styles.row}>
       <View style={styles.left}>
-        <Text style={styles.hello} numberOfLines={1} adjustsFontSizeToFit>
-          {partsOfDay(date)}, {name} 👋
+        <Text
+          style={styles.hello}
+          numberOfLines={2}
+          accessibilityRole="header"
+          accessibilityLabel={greeting}
+        >
+          {greeting} 👋
         </Text>
         <Text style={styles.sub}>
-          Here's what's happening with your business today.
+          Here’s what’s happening with your business today.
         </Text>
       </View>
 
-      <Pressable
-        onPress={onPickDate}
-        style={styles.datePill}
-        accessibilityRole="button"
-        accessibilityLabel="Change date"
+      <View
+        style={styles.dateCard}
+        accessible
+        accessibilityLabel={`Today, ${weekday} ${day} ${monthYear}`}
       >
-        <View style={styles.dateTextCol}>
+        <View style={styles.dateIcon}>
+          <CalendarCheck size={20} color={Colors.success} strokeWidth={2.2} />
+        </View>
+        <View>
           <Text style={styles.dateDay}>{day}</Text>
           <Text style={styles.dateMonth}>{monthYear}</Text>
           <Text style={styles.dateWeekday}>{weekday}</Text>
         </View>
-        <View style={styles.calWrap}>
-          <Calendar size={16} color={Colors.textSecondary} />
-        </View>
-      </Pressable>
+      </View>
     </View>
   );
 };
@@ -72,51 +70,49 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: Spacing.md,
   },
-  left: { flex: 1 },
+  left: { flex: 1, gap: Spacing.xs },
   hello: {
-    ...Typography.h3,
+    ...Typography.h5,
     color: Colors.textPrimary,
     fontWeight: '800',
   },
   sub: {
-    ...Typography.bodySmall,
+    ...Typography.body,
     color: Colors.textSecondary,
-    marginTop: 4,
   },
 
-  datePill: {
+  dateCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.primaryWash,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.primaryTint,
   },
-  dateTextCol: {
-    alignItems: 'flex-end',
+  dateIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dateDay: {
-    ...Typography.h4,
-    color: Colors.primary,
+    ...Typography.h5,
+    lineHeight: 26,
+    color: Colors.success,
     fontWeight: '800',
-    lineHeight: 22,
   },
   dateMonth: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    marginTop: -1,
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    fontWeight: '700',
   },
   dateWeekday: {
-    fontSize: 10,
+    ...Typography.bodySmall,
     color: Colors.textSecondary,
-    marginTop: 1,
-  },
-  calWrap: {
-    width: 20,
-    alignItems: 'center',
   },
 });

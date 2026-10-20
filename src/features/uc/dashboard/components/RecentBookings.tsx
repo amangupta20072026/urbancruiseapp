@@ -1,159 +1,243 @@
-/* eslint-disable react-native/no-inline-styles */
+/**
+ * ------------------------------------------------------------------
+ * RecentBookings — latest bookings card on the UC dashboard
+ * ------------------------------------------------------------------
+ *   Recent Bookings                               View All >
+ *   (RS)  Rahul Sharma        • Connaught Place     ₹1,250    >
+ *         #UC12345            ↓                    [Upcoming]
+ *         📅 01 Aug 2025 • 10:30 AM  • Gurugram
+ *
+ * Status pill colours come from BOOKING_STATUS_VISUAL
+ * (features/shared/bookings): the same as the Customer bookings
+ * screen. Each row is one button. Long place names and the date wrap
+ * instead of being cut off on narrow phones.
+ * ------------------------------------------------------------------
+ */
+
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowDown } from 'lucide-react-native';
-import {
-  Colors,
-  Dimensions,
-  Radius,
-  Shadows,
-  Spacing,
-  Typography,
-} from '@theme';
-import type { BookingStatus, RecentBooking } from '../types';
+import { ArrowDown, Calendar, ChevronRight } from 'lucide-react-native';
 
-const statusStyle: Record<BookingStatus, { bg: string; fg: string }> = {
-  Completed: { bg: '#E7F7EC', fg: Colors.success },
-  Ongoing: { bg: '#E6F0FE', fg: '#2563EB' },
-  Scheduled: { bg: '#FFF3D6', fg: Colors.warning },
-  Cancelled: { bg: '#FDECEC', fg: Colors.error },
+import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
+import { BOOKING_STATUS_VISUAL, isBookingStatus } from '@shared/bookings';
+
+import { avatarColorFor, initials } from '../../customers/utils/avatar';
+import type { RecentBooking } from '../types';
+import { formatBookingDateTime } from '../utils/format';
+
+type Props = {
+  items: readonly RecentBooking[];
+  onViewAll: () => void;
+  onPressBooking: (id: string) => void;
 };
 
-const initials = (name: string) =>
-  name
-    .split(' ')
-    .slice(0, 2)
-    .map(w => w[0])
-    .join('')
-    .toUpperCase();
+export const RecentBookings: React.FC<Props> = ({
+  items,
+  onViewAll,
+  onPressBooking,
+}) => (
+  <View style={styles.card}>
+    <View style={styles.header}>
+      <Text style={styles.title} accessibilityRole="header">
+        Recent Bookings
+      </Text>
+      <Pressable
+        onPress={onViewAll}
+        hitSlop={10}
+        style={({ pressed }) => [styles.viewAll, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel="View all bookings"
+      >
+        <Text style={styles.viewAllText}>View All</Text>
+        <ChevronRight size={16} color={Colors.primaryDark} strokeWidth={2.5} />
+      </Pressable>
+    </View>
 
-const BookingRow: React.FC<{ item: RecentBooking }> = ({ item }) => {
-  const s = statusStyle[item.status];
+    {items.length === 0 ? (
+      <Text style={styles.empty}>No bookings yet.</Text>
+    ) : (
+      items.map((item, idx) => (
+        <React.Fragment key={item.id}>
+          {idx > 0 ? <View style={styles.divider} /> : null}
+          <BookingRow item={item} onPress={() => onPressBooking(item.id)} />
+        </React.Fragment>
+      ))
+    )}
+  </View>
+);
+
+const BookingRow: React.FC<{ item: RecentBooking; onPress: () => void }> = ({
+  item,
+  onPress,
+}) => {
+  const avatar = avatarColorFor(item.id);
+  // A status this app version doesn't know shows no pill (no crash).
+  const status = isBookingStatus(item.status)
+    ? BOOKING_STATUS_VISUAL[item.status]
+    : null;
+  const when = formatBookingDateTime(item.pickupAt);
+
   return (
-    <View style={styles.row}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initials(item.customerName)}</Text>
-      </View>
-      <View style={styles.customerCol}>
-        <Text style={styles.name}>{item.customerName}</Text>
-        <Text style={styles.meta}>
-          #{item.id} • {item.time}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={[
+        item.customerName,
+        `booking ${item.id}`,
+        when,
+        `from ${item.pickup} to ${item.drop}`,
+        item.fare,
+        status?.label,
+      ]
+        .filter(Boolean)
+        .join(', ')}
+      accessibilityHint="Opens bookings"
+    >
+      <View style={[styles.avatar, { backgroundColor: avatar.bg }]}>
+        <Text style={[styles.avatarText, { color: avatar.fg }]}>
+          {initials(item.customerName)}
         </Text>
       </View>
+
+      <View style={styles.customerCol}>
+        <Text style={styles.name} numberOfLines={1}>
+          {item.customerName}
+        </Text>
+        <Text style={styles.meta}>#{item.id}</Text>
+        <View style={styles.whenRow}>
+          <Calendar size={12} color={Colors.textSecondary} strokeWidth={2} />
+          <Text style={styles.meta}>{when}</Text>
+        </View>
+      </View>
+
       <View style={styles.routeCol}>
-        <View style={styles.routeRow}>
-          <View style={[styles.dot, { backgroundColor: Colors.success }]} />
-          <Text style={styles.routeText} numberOfLines={1}>
+        <View style={styles.place}>
+          <View style={[styles.dot, styles.dotPickup]} />
+          <Text style={styles.placeText} numberOfLines={2}>
             {item.pickup}
           </Text>
         </View>
         <ArrowDown
           size={12}
           color={Colors.textTertiary}
-          style={{ marginLeft: 3 }}
+          style={styles.routeArrow}
         />
-        <View style={styles.routeRow}>
-          <View style={[styles.dot, { backgroundColor: Colors.error }]} />
-          <Text style={styles.routeText} numberOfLines={1}>
+        <View style={styles.place}>
+          <View style={[styles.dot, styles.dotDrop]} />
+          <Text style={styles.placeText} numberOfLines={2}>
             {item.drop}
           </Text>
         </View>
       </View>
+
       <View style={styles.rightCol}>
         <Text style={styles.fare}>{item.fare}</Text>
-        <View style={[styles.badge, { backgroundColor: s.bg }]}>
-          <Text style={[styles.badgeText, { color: s.fg }]}>{item.status}</Text>
-        </View>
+        {status ? (
+          <View style={[styles.pill, { backgroundColor: status.bg }]}>
+            <Text style={[styles.pillText, { color: status.fg }]}>
+              {status.label}
+            </Text>
+          </View>
+        ) : null}
       </View>
-    </View>
+
+      <ChevronRight size={16} color={Colors.textTertiary} strokeWidth={2.2} />
+    </Pressable>
   );
 };
 
-type Props = { items: RecentBooking[]; onViewAll?: () => void };
-
-export const RecentBookings: React.FC<Props> = ({ items, onViewAll }) => (
-  <View style={styles.card}>
-    <View style={styles.header}>
-      <Text style={styles.title}>Recent Bookings</Text>
-      <Pressable onPress={onViewAll} hitSlop={8}>
-        <Text style={styles.link}>View All</Text>
-      </Pressable>
-    </View>
-    {items.map((it, idx) => (
-      <React.Fragment key={it.id}>
-        <BookingRow item={it} />
-        {idx < items.length - 1 ? <View style={styles.divider} /> : null}
-      </React.Fragment>
-    ))}
-  </View>
-);
+const AVATAR = 44;
 
 const styles = StyleSheet.create({
   card: {
+    padding: Spacing.lg,
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
-    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.borderLight,
     ...Shadows.xs,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
   },
-  title: { ...Typography.h5, color: Colors.textPrimary },
-  link: { ...Typography.bodySmall, color: Colors.primary, fontWeight: '600' },
+  title: {
+    ...Typography.title,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+  },
+  /* primaryDark on white: 5.1:1 (primary would be 2.8:1). */
+  viewAll: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  viewAllText: {
+    ...Typography.body,
+    color: Colors.primaryDark,
+    fontWeight: '700',
+  },
+  pressed: { opacity: 0.7 },
+  empty: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    paddingVertical: Spacing.lg,
+    textAlign: 'center',
+  },
+  divider: { height: 1, backgroundColor: Colors.divider },
+
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
   },
   avatar: {
-    width: Dimensions.avatarMd,
-    height: Dimensions.avatarMd,
-    borderRadius: Dimensions.avatarMd / 2,
-    backgroundColor: Colors.surfaceMuted,
+    width: AVATAR,
+    height: AVATAR,
+    borderRadius: AVATAR / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    ...Typography.label,
-    color: Colors.textPrimary,
-    fontWeight: '600',
-  },
-  customerCol: { width: 110 },
+  avatarText: { ...Typography.body, fontWeight: '800' },
+
+  customerCol: { flex: 1.2, minWidth: 0, gap: 2 },
   name: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '600',
-  },
-  meta: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
-  routeCol: { flex: 1 },
-  routeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  routeText: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    flexShrink: 1,
-  },
-  rightCol: { alignItems: 'flex-end', gap: 4 },
-  fare: {
-    ...Typography.bodySmall,
+    ...Typography.body,
     color: Colors.textPrimary,
     fontWeight: '700',
   },
-  badge: {
+  meta: {
+    ...Typography.caption,
+    fontSize: 11,
+    color: Colors.textSecondary,
+    flexShrink: 1,
+  },
+  whenRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+
+  routeCol: { flex: 1, minWidth: 0 },
+  place: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  dotPickup: { backgroundColor: Colors.success },
+  dotDrop: { backgroundColor: Colors.error },
+  placeText: {
+    ...Typography.caption,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textPrimary,
+    flexShrink: 1,
+  },
+  routeArrow: { marginLeft: -2, marginVertical: 1 },
+
+  rightCol: { alignItems: 'flex-end', gap: 6 },
+  fare: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+  },
+  pill: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
   },
-  badgeText: { ...Typography.caption, fontWeight: '600' },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.divider,
-    marginVertical: Spacing.xs,
-  },
+  pillText: { ...Typography.caption, fontSize: 11, fontWeight: '700' },
 });

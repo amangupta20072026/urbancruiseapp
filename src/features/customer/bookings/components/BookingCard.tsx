@@ -47,8 +47,6 @@ import {
 import {
   ArrowRight,
   Calendar,
-  CalendarClock,
-  Car,
   Check,
   Clock,
   Copy,
@@ -61,6 +59,10 @@ import Clipboard from '@react-native-clipboard/clipboard';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { getTripTypeOption } from '@features/customer/quotations';
+import {
+  BOOKING_STATUS_VISUAL,
+  type BookingStatusVisual,
+} from '@shared/bookings';
 import type { BookingStatus, CustomerBookingListItem } from '../types';
 import { BookingProgressTracker } from './BookingProgressTracker';
 
@@ -75,11 +77,12 @@ type IconComp = React.ComponentType<{
   fill?: string;
 }>;
 
-type StatusStyle = {
-  label: string;
-  Icon: IconComp | null; // null → pill text only, no glyph
-  fg: string;
-  bg: string;
+/**
+ * Pill label, icon and colours come from BOOKING_STATUS_VISUAL
+ * (features/shared/bookings), shared with every booking surface.
+ * The whole-card wash + border stay here: only this card uses them.
+ */
+type StatusStyle = BookingStatusVisual & {
   /**
    * Whole-card wash + border, one per status (same approach as
    * QuotationCard). Lighter than the pill's `bg` so the pill still
@@ -91,36 +94,24 @@ type StatusStyle = {
 
 const STATUS_STYLE: Record<BookingStatus, StatusStyle> = {
   upcoming: {
-    label: 'Upcoming',
-    Icon: CalendarClock,
-    fg: Colors.textOnPrimary,
-    bg: Colors.primaryDark,
+    ...BOOKING_STATUS_VISUAL.upcoming,
     cardBg: '#EAF7EE', // green hero (unchanged)
     cardBorder: '#C8EBD3',
   },
   ongoing: {
-    label: 'Ongoing',
-    Icon: Car,
-    fg: Colors.info,
-    bg: Colors.infoTint,
+    ...BOOKING_STATUS_VISUAL.ongoing,
     cardBg: '#F0F8FE', // blue wash
     cardBorder: '#CBE6F7',
   },
   completed: {
-    label: 'Completed',
-    Icon: Check,
-    fg: Colors.primary,
-    bg: Colors.primaryTint,
+    ...BOOKING_STATUS_VISUAL.completed,
     // Neutral slate rather than green: Upcoming already owns the green
     // wash, and two green cards side by side are hard to tell apart.
     cardBg: '#F6F7F9',
     cardBorder: '#E1E4E9',
   },
   cancelled: {
-    label: 'Cancelled',
-    Icon: Clock,
-    fg: Colors.error,
-    bg: Colors.errorTint,
+    ...BOOKING_STATUS_VISUAL.cancelled,
     cardBg: '#FEF6F6', // red wash (same as expired quotations)
     cardBorder: '#FAD5D5',
   },
@@ -212,9 +203,7 @@ export const BookingCard: React.FC<Props> = ({
       <View style={styles.headerRow}>
         <View style={styles.tagsRow}>
           <View style={[styles.pill, { backgroundColor: style.bg }]}>
-            {style.Icon ? (
-              <style.Icon size={12} color={style.fg} strokeWidth={2.5} />
-            ) : null}
+            <style.Icon size={12} color={style.fg} strokeWidth={2.5} />
             <Text style={[styles.pillText, { color: style.fg }]}>
               {style.label}
             </Text>

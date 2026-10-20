@@ -1,41 +1,92 @@
+/**
+ * ------------------------------------------------------------------
+ * UC dashboard — data types
+ * ------------------------------------------------------------------
+ * Shapes the dashboard screen renders. Today they come from mocks;
+ * the real `/uc/dashboard` endpoints must return these shapes.
+ * ------------------------------------------------------------------
+ */
+
+import type { ISODateTime } from '@app-types/datetime';
+import type { BookingStatus } from '@shared/bookings';
+
+export type { BookingStatus };
+
 export type Trend = 'up' | 'down';
 
+export const STAT_KEYS = [
+  'trips',
+  'customers',
+  'bookings',
+  'quotations',
+] as const;
+
+export type StatKey = (typeof STAT_KEYS)[number];
+
+/** True for a stat this app version knows how to show. Data from the
+ *  server or the saved cache may carry an unknown one. */
+export function isStatKey(value: unknown): value is StatKey {
+  return (STAT_KEYS as readonly unknown[]).includes(value);
+}
+
 export type StatMetric = {
-  key: 'trips' | 'customers' | 'bookings' | 'revenue';
+  key: StatKey;
   label: string;
-  value: string; // formatted, e.g. "128" or "₹98,450"
-  deltaPct: number; // 12.5
-  trend: Trend;
-  compareLabel: string; // "vs yesterday"
-};
-
-export type RevenuePoint = { label: string; value: number }; // Mon..Sun
-
-export type RevenueSeries = {
-  total: string; // "₹98,450"
+  /** Already formatted for display, e.g. "128" or "1,245". */
+  value: string;
+  /** Size of the change, always ≥ 0; `trend` gives the direction. */
   deltaPct: number;
   trend: Trend;
-  compareLabel: string; // "vs last week"
-  range: 'This Week' | 'This Month';
-  points: RevenuePoint[];
+  /** e.g. "vs yesterday". */
+  compareLabel: string;
 };
 
-export type BookingStatus = 'Completed' | 'Ongoing' | 'Scheduled' | 'Cancelled';
-
 export type RecentBooking = {
-  id: string; // "UC12345"
+  /** Booking number, e.g. "UC12345" (shown as "#UC12345"). */
+  id: string;
   customerName: string;
-  avatarUri?: string;
-  time: string; // "10:30 AM"
+  /** Pickup date and time. */
+  pickupAt: ISODateTime;
   pickup: string;
   drop: string;
-  fare: string; // "₹1,250"
+  /** Already formatted, e.g. "₹1,250". */
+  fare: string;
   status: BookingStatus;
 };
 
 export type DashboardData = {
-  greeting: { name: string; dateISO: string };
+  greeting: { name: string };
   stats: StatMetric[];
-  revenue: RevenueSeries;
   recentBookings: RecentBooking[];
+};
+
+/* ------------------------------------------------------------------ */
+/* Bookings trend                                                     */
+/* ------------------------------------------------------------------ */
+
+/** Days covered by the Bookings Trend chart, in dropdown order. */
+export const TREND_RANGES = [7, 15, 30, 90] as const;
+
+export type TrendRange = (typeof TREND_RANGES)[number];
+
+export const DEFAULT_TREND_RANGE: TrendRange = 7;
+
+export const TREND_RANGE_LABEL: Readonly<Record<TrendRange, string>> = {
+  7: 'Last 7 Days',
+  15: 'Last 15 Days',
+  30: 'Last 30 Days',
+  90: 'Last 90 Days',
+};
+
+export type TrendPoint = {
+  /** Local calendar day, 'YYYY-MM-DD'. */
+  date: string;
+  /** Bookings made that day. */
+  count: number;
+};
+
+export type BookingTrend = {
+  range: TrendRange;
+  /** One point per day, oldest first, ending today. */
+  points: TrendPoint[];
 };

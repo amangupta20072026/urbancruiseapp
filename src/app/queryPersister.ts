@@ -17,6 +17,14 @@
  *
  * Sensitive queries (auth/me, payment tokens) must set
  * `meta: { persist: false }` and get filtered out at dehydrate.
+ *
+ * CACHE VERSION (`QUERY_CACHE_BUSTER`):
+ *   The saved cache is restored on start-up BEFORE any refetch, so a
+ *   screen first renders whatever shape was saved by the previous
+ *   build. When a release changes the shape of ANY persisted query's
+ *   data (renamed field, new enum value, removed key…), bump
+ *   QUERY_CACHE_BUSTER: a saved cache with a different version is
+ *   discarded instead of restored, and screens fetch fresh data.
  * ------------------------------------------------------------------
  */
 
@@ -25,6 +33,14 @@ import { createMMKV } from 'react-native-mmkv';
 import type { PersistedClient } from '@tanstack/react-query-persist-client';
 
 const queryStore = createMMKV({ id: 'urbancruise-query-cache' });
+
+/**
+ * Version of the persisted cache's data shapes. Bump on every change
+ * to the shape of persisted query data (see header). History:
+ *   '2' — UC dashboard redesign: stat keys (revenue → quotations),
+ *         booking statuses (lower-case), recent bookings `pickupAt`.
+ */
+export const QUERY_CACHE_BUSTER = '2';
 
 /**
  * AsyncStorage-shaped adapter over the sync MMKV instance.

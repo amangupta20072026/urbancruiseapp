@@ -46,7 +46,11 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 
 import { store } from './src/store';
 import { queryClient } from '@app/queryClient';
-import { queryPersister, shouldPersistQuery } from '@app/queryPersister';
+import {
+  QUERY_CACHE_BUSTER,
+  queryPersister,
+  shouldPersistQuery,
+} from '@app/queryPersister';
 import { navigationRef } from './src/navigation/NavigationService';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from '@components/ErrorBoundary';
@@ -146,6 +150,9 @@ const App: React.FC = () => {
           persistOptions={{
             persister: queryPersister,
             maxAge: ONE_DAY_MS,
+            // A cache saved under another version is discarded, not
+            // restored (see QUERY_CACHE_BUSTER).
+            buster: QUERY_CACHE_BUSTER,
             dehydrateOptions: {
               // Skip queries flagged with meta.persist === false.
               shouldDehydrateQuery: q => q.meta?.persist !== false,

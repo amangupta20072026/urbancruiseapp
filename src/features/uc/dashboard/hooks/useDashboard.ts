@@ -3,7 +3,7 @@ import { dashboardMock } from '../../../../mocks/data/dashboardMock';
 import type { DashboardData } from '../types';
 
 // TODO(backend): move to src/constants/queryKeys.ts
-const UC_DASHBOARD_KEY = ['uc', 'dashboard'] as const;
+export const UC_DASHBOARD_KEY = ['uc', 'dashboard'] as const;
 
 async function fetchDashboard(): Promise<DashboardData> {
   // TODO(backend): const { data } = await api.get<DashboardData>(endpoints.uc.dashboard);
@@ -14,6 +14,7 @@ async function fetchDashboard(): Promise<DashboardData> {
   return dashboardMock;
 }
 
+/** Greeting, stat cards and recent bookings. */
 export function useDashboard() {
   return useQuery({
     queryKey: UC_DASHBOARD_KEY,

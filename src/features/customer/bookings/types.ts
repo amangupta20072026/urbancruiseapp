@@ -13,6 +13,7 @@
  */
 
 import type { BookingId } from '@app-types/ids';
+import type { BookingStatus } from '@shared/bookings';
 import type { TripType } from '@features/customer/quotations';
 
 /**
@@ -26,8 +27,11 @@ import type { TripType } from '@features/customer/quotations';
  *   ongoing   — trip in progress (driver dispatched / at pickup / rolling)
  *   completed — trip finished
  *   cancelled — booking cancelled (by customer OR ops)
+ *
+ * Defined in features/shared/bookings together with its colours, so
+ * every booking surface (here and the UC dashboard) uses one set.
  */
-export type BookingStatus = 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+export type { BookingStatus };
 
 /** Chip-strip filter buckets. `all` is a virtual filter. */
 export type BookingFilter = 'all' | BookingStatus;
