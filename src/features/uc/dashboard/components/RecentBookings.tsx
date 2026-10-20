@@ -92,7 +92,7 @@ const BookingRow: React.FC<{ item: RecentBooking; onPress: () => void }> = ({
       ]
         .filter(Boolean)
         .join(', ')}
-      accessibilityHint="Opens bookings"
+      accessibilityHint="Opens booking details"
     >
       <View style={[styles.avatar, { backgroundColor: avatar.bg }]}>
         <Text style={[styles.avatarText, { color: avatar.fg }]}>

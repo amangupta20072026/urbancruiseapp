@@ -11,8 +11,9 @@
 import type { TrendPoint } from '../types';
 
 /** `top` leaves room for the latest-day bubble above the highest
- *  possible point. */
-export const CHART_PADDING = { left: 32, right: 12, top: 48, bottom: 28 };
+ *  possible point; `right` leaves room for half of the last date
+ *  label (e.g. "Oct 20"), which is centred on the last point. */
+export const CHART_PADDING = { left: 32, right: 22, top: 48, bottom: 28 };
 
 /** At most this many date labels on the x axis (more would overlap). */
 export const MAX_X_LABELS = 7;

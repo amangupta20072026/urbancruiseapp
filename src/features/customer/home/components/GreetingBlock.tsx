@@ -3,7 +3,8 @@
  * GreetingBlock
  * ------------------------------------------------------------------
  * Time-aware greeting under the header. Composes:
- *   - `Good morning|afternoon|evening` from time-of-day helper
+ *   - `Good morning|afternoon|evening` from the shared getGreeting
+ *     (features/shared/utils), the same as the UC dashboard
  *   - user's first name (or "there" fallback)
  *   - a wave emoji (sized so it visually matches the text baseline)
  *   - a muted subtitle line
@@ -17,7 +18,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Spacing, Typography } from '@theme';
-import { getGreeting } from '../utils/greeting';
+import { getGreeting } from '@shared/utils';
 
 type Props = {
   firstName: string;

@@ -14,7 +14,9 @@
  *   Total Customers    → Directory (opens on Customers)
  *   Total Bookings     → Bookings tab
  *   Total Quotations   → Quotations tab
- *   View All / a row   → Bookings tab (UC has no booking detail yet)
+ *   View All           → Bookings tab
+ *   A booking row      → "Coming soon" toast until the UC booking
+ *                        details screen exists (see openBooking)
  *
  * DATA: stats + recent bookings (useDashboard) and the trend
  * (useBookingTrend, cached per range) load separately, so changing
@@ -43,6 +45,7 @@ import {
 } from 'lucide-react-native';
 
 import { SafeScreen } from '@shared/components/SafeScreen';
+import { notifyComingSoon } from '@services/comingSoon';
 import { Colors, Spacing, Typography } from '@theme';
 import type { UcStackParamList, UcTabParamList } from '@navigation/types';
 
@@ -142,6 +145,14 @@ const UcDashboardScreen: React.FC = () => {
   );
 
   const openBookings = useCallback(() => openTab('Bookings'), [openTab]);
+
+  /* TODO(nav): when the UC booking details screen lands, register it
+   * in UcNavigator and replace this toast with
+   *   navigation.navigate('<BookingDetailRoute>', { bookingId })
+   * — this callback is the ONE place to change. */
+  const openBooking = useCallback((_bookingId: string) => {
+    notifyComingSoon('uc.bookingDetail');
+  }, []);
   const goToNotifications = useCallback(
     () => navigation.navigate('NotificationCentre'),
     [navigation],
@@ -264,7 +275,7 @@ const UcDashboardScreen: React.FC = () => {
         <RecentBookings
           items={data.recentBookings}
           onViewAll={openBookings}
-          onPressBooking={openBookings}
+          onPressBooking={openBooking}
         />
       </ScrollView>
     </SafeScreen>

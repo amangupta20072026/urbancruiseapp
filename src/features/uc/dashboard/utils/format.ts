@@ -4,20 +4,13 @@
  * ------------------------------------------------------------------
  */
 
-/** 'Good morning' before 12:00, 'Good afternoon' before 17:00, else
- *  'Good evening' — in the device's local time. */
-export function partOfDay(now: Date): string {
-  const h = now.getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
-/** The date card's three lines, e.g. { day: '11', monthYear:
- *  'Aug 2025', weekday: 'Monday' }. */
+/** The date card's lines, e.g. { day: '11', monthYear: 'Aug 2025',
+ *  weekdayShort: 'Mon', weekday: 'Monday' }. The card shows the short
+ *  weekday (to stay compact); screen readers get the full one. */
 export function dateCardParts(now: Date): {
   day: string;
   monthYear: string;
+  weekdayShort: string;
   weekday: string;
 } {
   return {
@@ -26,6 +19,7 @@ export function dateCardParts(now: Date): {
       month: 'short',
       year: 'numeric',
     }),
+    weekdayShort: now.toLocaleDateString('en-GB', { weekday: 'short' }),
     weekday: now.toLocaleDateString('en-GB', { weekday: 'long' }),
   };
 }
