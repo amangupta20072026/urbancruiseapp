@@ -26,9 +26,9 @@ export const VENDOR_STATUS_LABEL: Record<VendorStatus, string> = {
 
 export type Vendor = {
   id: string;
-  /** Contact person / owner. Displayed on the card next to the company. */
+  /** Contact person / owner. The directory card's title. */
   ownerName: string;
-  /** Business name — the primary identifier. */
+  /** Business name. Shown on the directory card below the owner name. */
   companyName: string;
   /** Primary business phone (with country code). */
   phone: string;

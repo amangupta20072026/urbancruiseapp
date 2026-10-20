@@ -75,9 +75,9 @@ export type ContactPhone = {
 export type ContactProfile = {
   /** Seed for the deterministic avatar colour. */
   id: string;
-  /** Main heading (person name, or company name for vendors). */
+  /** Main heading: the person's name (the owner's name for vendors). */
   title: string;
-  /** Optional second line under the title (e.g. vendor owner). */
+  /** Optional second line under the title (e.g. vendor company name). */
   subtitle: string | null;
   /** Small icon + text lines under the title (status, role…). */
   meta: ContactMeta[];

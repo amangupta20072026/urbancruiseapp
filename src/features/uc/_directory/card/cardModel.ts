@@ -10,7 +10,7 @@
  * Every row has the same skeleton:
  *
  *   [Avatar]  Title (full, wraps) ........ [Badge]   >
- *             (icon) line …           (0–2 lines)
+ *             (icon) line …           (0–4 lines)
  *             (icon) left  |  (icon) right
  * ------------------------------------------------------------------
  */
@@ -178,10 +178,11 @@ function vendorCard(v: Vendor): DirectoryCardModel {
   const location = text(v.address) || text(v.city);
   return {
     id: v.id,
-    title: orEmpty(v.companyName),
+    // Owner name is the title; the company name is the first line below it.
+    title: orEmpty(v.ownerName),
     badge: { label: status, ...VENDOR_STATUS_COLOUR[v.status] },
     lines: [
-      ...optionalLine('owner', 'company', v.ownerName),
+      ...optionalLine('company', 'company', v.companyName),
       ...optionalLine('phone', 'phone', v.phone),
       ...optionalLine('email', 'mail', v.email),
       ...(location
@@ -197,7 +198,9 @@ function vendorCard(v: Vendor): DirectoryCardModel {
     ],
     // No footer: vehicle count removed; city is part of the address.
     footer: null,
-    accessibilityLabel: `Vendor ${orEmpty(v.companyName)}, ${status}`,
+    accessibilityLabel: `Vendor ${orEmpty(v.ownerName)}, ${orEmpty(
+      v.companyName,
+    )}, ${status}`,
     accessibilityHint: 'Opens contact actions',
   };
 }
@@ -232,7 +235,13 @@ function driverCard(d: Driver): DirectoryCardModel {
       label: verification,
       ...DRIVER_VERIFICATION_COLOUR[d.verification],
     },
-    lines: optionalLine('vendor', 'company', d.vendorName),
+    // Phone, then email, then vendor. Same as the customer card: a missing
+    // or blank email gets no line at all.
+    lines: [
+      ...optionalLine('phone', 'phone', d.phone),
+      ...optionalLine('email', 'mail', d.email),
+      ...optionalLine('vendor', 'company', d.vendorName),
+    ],
     footer: {
       left: shrinkable('location', orEmpty(d.city)),
       right: count('trips', countLabel(d.completedTrips, 'trip', 'trips')),

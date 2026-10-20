@@ -189,8 +189,9 @@ function customerProfile(c: Customer): ContactProfile {
 function vendorProfile(v: Vendor): ContactProfile {
   return {
     id: v.id,
-    title: trimmed(v.companyName) || EMPTY_VALUE,
-    subtitle: present(v.ownerName),
+    // Owner name first, company below: same order as the directory card.
+    title: trimmed(v.ownerName) || EMPTY_VALUE,
+    subtitle: present(v.companyName),
     meta: [
       { key: 'status', icon: 'status', text: VENDOR_STATUS_LABEL[v.status] },
     ],
