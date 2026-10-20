@@ -13,7 +13,11 @@
  * ------------------------------------------------------------------
  */
 
-import type { Vendor, VendorStatus } from '@features/uc/vendors/types';
+import type {
+  Vendor,
+  VendorStatus,
+  VendorVerification,
+} from '@features/uc/vendors/types';
 import { asISODateTime, type ISODateTime } from '@app-types/datetime';
 
 const COMPANIES = [
@@ -122,10 +126,33 @@ const STATUS_CYCLE: VendorStatus[] = [
   'inactive',
 ];
 
-/** Deterministic phone: 9<8 digits derived from index>. */
+/** Deterministic 10-digit Indian mobile starting with 9, stored as
+ *  '+91XXXXXXXXXX' (no spaces), e.g. '+919000000000'. */
 function phoneFor(index: number, offset = 0): string {
-  const base = 90000000 + index * 1234 + offset * 7;
+  const base = 9000000000 + index * 1234 + offset * 7;
   return `+91${base}`;
+}
+
+const VERIFICATION_CYCLE: VendorVerification[] = [
+  'verified',
+  'verified',
+  'pending',
+  'verified',
+  'verified',
+  'rejected',
+];
+
+const BUSINESS_TYPES = [
+  'Transport Services',
+  'Car Rental',
+  'Fleet Operator',
+  'Tour Operator',
+];
+
+/** Sample PAN. Matches the PAN inside the same vendor's sample GSTIN
+ *  (a GSTIN's characters 3–12 are the holder's PAN). */
+function panFor(index: number): string {
+  return `ABCDE${1000 + index}F`;
 }
 
 function emailFor(company: string): string {
@@ -152,8 +179,14 @@ export const fixtureUcVendorsAll: Vendor[] = COMPANIES.map((company, i) => ({
   email: emailFor(company),
   city: CITIES[i % CITIES.length],
   address: addressFor(i, CITIES[i % CITIES.length]),
-  gstin: i % 4 === 0 ? undefined : `27ABCDE${1000 + i}F1Z${i % 10}`,
+  gstin: i % 4 === 0 ? undefined : `27${panFor(i)}1Z${i % 10}`,
+  // Every 5th vendor has no PAN and every 7th no business type, to
+  // exercise the hidden-row case on the contact sheet.
+  pan: i % 5 === 4 ? undefined : panFor(i),
+  businessType:
+    i % 7 === 6 ? undefined : BUSINESS_TYPES[i % BUSINESS_TYPES.length],
   status: STATUS_CYCLE[i % STATUS_CYCLE.length],
+  verification: VERIFICATION_CYCLE[i % VERIFICATION_CYCLE.length],
   vehicleCount: 3 + ((i * 7) % 40),
   driverCount: 4 + ((i * 5) % 25),
   createdAt: daysAgo(i * 3 + 5),

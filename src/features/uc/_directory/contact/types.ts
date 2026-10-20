@@ -10,9 +10,11 @@
  *     adding a fifth role fails the build until it is handled.
  *
  * `ContactProfile` is the role-agnostic view model the sheet renders.
- * Role differences live ONLY in profiles.ts (data → profile); the
- * sheet itself never branches on role, except for the customer-only
- * "View Full History" action (product decision).
+ * It comes in two layouts: 'list' (customers, staff, drivers) and
+ * 'sections' (vendors). Role differences live ONLY in profiles.ts
+ * (data → profile); the sheet branches on the layout, never on the
+ * role, except for the customer-only "View Full History" action
+ * (product decision).
  * ------------------------------------------------------------------
  */
 
@@ -41,8 +43,6 @@ export type ContactFieldKind =
   | 'location'
   | 'taxId'
   | 'trips'
-  | 'vehicles'
-  | 'drivers'
   | 'license'
   | 'date';
 
@@ -72,15 +72,59 @@ export type ContactPhone = {
   value: string;
 };
 
-export type ContactProfile = {
+/** Colour family of a status pill. The sheet maps each tone to colours. */
+export type ContactTone = 'success' | 'warning' | 'danger' | 'neutral';
+
+/** Rounded status pill, e.g. 'Active' or 'Verified'. */
+export type ContactPill = { label: string; tone: ContactTone };
+
+/** Icon of a row in the sectioned layout. */
+export type ContactRowKind =
+  | 'company'
+  | 'owner'
+  | 'gst'
+  | 'pan'
+  | 'date'
+  | 'businessType'
+  | 'phone'
+  | 'email'
+  | 'city'
+  | 'address'
+  | 'verification';
+
+export type ContactRow = {
+  /** Stable React key, unique within one profile. */
+  key: string;
+  kind: ContactRowKind;
+  label: string;
+  /** Plain text. Shown in full; long values (addresses) wrap. */
+  value: string;
+  /** Small pill after the value (e.g. 'Primary'). */
+  tag?: ContactPill;
+  /** When set, the value itself is shown as a pill of this tone. */
+  valueTone?: ContactTone;
+};
+
+/** Icon in a section's heading. */
+export type ContactSectionIcon = 'business' | 'contact' | 'verification';
+
+export type ContactSection = {
+  key: string;
+  title: string;
+  icon: ContactSectionIcon;
+  /** Row icons on tinted circles (true) or plain grey outlines (false). */
+  tintedIcons: boolean;
+  rows: ContactRow[];
+};
+
+/** What every layout needs: the header, quick actions and messages. */
+type ContactProfileBase = {
   /** Seed for the deterministic avatar colour. */
   id: string;
   /** Main heading: the person's name (the owner's name for vendors). */
   title: string;
   /** Optional second line under the title (e.g. vendor company name). */
   subtitle: string | null;
-  /** Small icon + text lines under the title (status, role…). */
-  meta: ContactMeta[];
   /**
    * Distinct, non-empty numbers in priority order. 0 → Call and
    * WhatsApp disabled; 1 → act directly; 2+ → number picker.
@@ -91,5 +135,22 @@ export type ContactProfile = {
   whatsAppMessage: string;
   emailSubject: string;
   emailBody: string;
+};
+
+/** Centred header and one flat list of rows (customers, staff, drivers). */
+export type ListContactProfile = ContactProfileBase & {
+  layout: 'list';
+  /** Small icon + text lines under the title (status, role…). */
+  meta: ContactMeta[];
   fields: ContactField[];
 };
+
+/** Left-aligned header and titled sections of rows (vendors). */
+export type SectionedContactProfile = ContactProfileBase & {
+  layout: 'sections';
+  /** Pill in the header (e.g. 'Active'). */
+  status: ContactPill;
+  sections: ContactSection[];
+};
+
+export type ContactProfile = ListContactProfile | SectionedContactProfile;

@@ -16,7 +16,13 @@ import {
   CUSTOMER_SUBTYPE_LABEL,
   type Customer,
 } from '../../customers/types';
-import { VENDOR_STATUS_LABEL, type Vendor } from '../../vendors/types';
+import {
+  VENDOR_STATUS_LABEL,
+  VENDOR_VERIFICATION_LABEL,
+  type Vendor,
+  type VendorStatus,
+  type VendorVerification,
+} from '../../vendors/types';
 import type { Staff } from '../../staff/types';
 import { DRIVER_VERIFICATION_LABEL, type Driver } from '../../drivers/types';
 
@@ -24,7 +30,11 @@ import type {
   ContactField,
   ContactPhone,
   ContactProfile,
+  ContactRow,
+  ContactTone,
   DirectoryContact,
+  ListContactProfile,
+  SectionedContactProfile,
 } from './types';
 
 /* ------------------------------------------------------------------ */
@@ -86,6 +96,30 @@ export function distinctPhones(
   return out;
 }
 
+/**
+ * Display form of an Indian mobile: '+91 9000000000'. Accepts
+ * '+91…' (country code read right after the '+'), '91…' (12 digits)
+ * or the bare 10 digits, with any spaces or dashes. Anything that is
+ * not a valid Indian mobile is returned as typed (trimmed), so an
+ * unexpected format is never altered. Display only: dialling always
+ * uses the stored value.
+ */
+export function formatIndianMobile(raw: string | null | undefined): string {
+  const value = trimmed(raw);
+  const digits = value.replace(/\D/g, '');
+  let national: string | null;
+  if (value.startsWith('+')) {
+    national = digits.startsWith('91') ? digits.slice(2) : null;
+  } else if (digits.length === 12 && digits.startsWith('91')) {
+    national = digits.slice(2);
+  } else {
+    national = digits;
+  }
+  return national !== null && /^[6-9]\d{9}$/.test(national)
+    ? `+91 ${national}`
+    : value;
+}
+
 /** A row whose value may be absent: dropped when empty. */
 const optionalField = (
   field: Omit<ContactField, 'value'> & { value: string | null | undefined },
@@ -99,11 +133,37 @@ const requiredField = (
   field: Omit<ContactField, 'value'> & { value: string | null | undefined },
 ): ContactField => ({ ...field, value: present(field.value) ?? EMPTY_VALUE });
 
+/** Sectioned-layout row whose value may be absent: dropped when empty. */
+const optionalRow = (
+  row: Omit<ContactRow, 'value'> & { value: string | null | undefined },
+): ContactRow[] => {
+  const value = present(row.value);
+  return value ? [{ ...row, value }] : [];
+};
+
+/** Sectioned-layout row that is always shown: EMPTY_VALUE when missing. */
+const requiredRow = (
+  row: Omit<ContactRow, 'value'> & { value: string | null | undefined },
+): ContactRow => ({ ...row, value: present(row.value) ?? EMPTY_VALUE });
+
+const VENDOR_STATUS_TONE: Record<VendorStatus, ContactTone> = {
+  active: 'success',
+  pending: 'warning',
+  suspended: 'danger',
+  inactive: 'neutral',
+};
+
+const VENDOR_VERIFICATION_TONE: Record<VendorVerification, ContactTone> = {
+  verified: 'success',
+  pending: 'warning',
+  rejected: 'danger',
+};
+
 /* ------------------------------------------------------------------ */
 /* Per-role mappers                                                   */
 /* ------------------------------------------------------------------ */
 
-function customerProfile(c: Customer): ContactProfile {
+function customerProfile(c: Customer): ListContactProfile {
   const category = CUSTOMER_CATEGORY_LABEL[c.category];
   const subType = CUSTOMER_SUBTYPE_LABEL[c.customerType];
   // 'Personal • Personal' carries no information — show it once.
@@ -111,6 +171,7 @@ function customerProfile(c: Customer): ContactProfile {
     category === subType ? category : `${category} • ${subType}`;
 
   return {
+    layout: 'list',
     id: c.id,
     title: trimmed(c.name) || EMPTY_VALUE,
     subtitle: null,
@@ -186,15 +247,19 @@ function customerProfile(c: Customer): ContactProfile {
   };
 }
 
-function vendorProfile(v: Vendor): ContactProfile {
+function vendorProfile(v: Vendor): SectionedContactProfile {
+  const since = formatDate(v.createdAt);
+  const primaryPhone = formatIndianMobile(v.phone);
   return {
+    layout: 'sections',
     id: v.id,
     // Owner name first, company below: same order as the directory card.
     title: trimmed(v.ownerName) || EMPTY_VALUE,
     subtitle: present(v.companyName),
-    meta: [
-      { key: 'status', icon: 'status', text: VENDOR_STATUS_LABEL[v.status] },
-    ],
+    status: {
+      label: VENDOR_STATUS_LABEL[v.status],
+      tone: VENDOR_STATUS_TONE[v.status],
+    },
     phones: distinctPhones([
       { label: 'Primary', value: v.phone },
       { label: 'Secondary', value: v.phoneAlt },
@@ -205,65 +270,116 @@ function vendorProfile(v: Vendor): ContactProfile {
     }.`,
     emailSubject: 'Urban Cruise — Vendor follow up',
     emailBody: `${salutation(v.ownerName)},\n\n`,
-    fields: [
-      requiredField({
-        key: 'phone',
-        kind: 'phone',
-        label: 'Primary Phone',
-        value: v.phone,
-      }),
-      ...optionalField({
-        key: 'phoneAlt',
-        kind: 'phone',
-        label: 'Secondary Phone',
-        value: v.phoneAlt,
-      }),
-      ...optionalField({
-        key: 'email',
-        kind: 'email',
-        label: 'Email',
-        value: v.email,
-      }),
-      requiredField({
-        key: 'city',
-        kind: 'location',
-        label: 'City',
-        value: v.city,
-      }),
-      ...optionalField({
-        key: 'gstin',
-        kind: 'taxId',
-        label: 'GSTIN',
-        value: v.gstin,
-      }),
+    sections: [
       {
-        key: 'vehicles',
-        kind: 'vehicles',
-        label: 'Vehicles',
-        value: String(v.vehicleCount),
+        key: 'basic',
+        title: 'Basic Information',
+        icon: 'business',
+        tintedIcons: false,
+        rows: [
+          requiredRow({
+            key: 'company',
+            kind: 'company',
+            label: 'Company Name',
+            value: v.companyName,
+          }),
+          requiredRow({
+            key: 'owner',
+            kind: 'owner',
+            label: 'Owner Name',
+            value: v.ownerName,
+          }),
+          ...optionalRow({
+            key: 'gstin',
+            kind: 'gst',
+            label: 'GST Number',
+            value: v.gstin,
+          }),
+          ...optionalRow({
+            key: 'pan',
+            kind: 'pan',
+            label: 'PAN Number',
+            value: v.pan,
+          }),
+          { key: 'since', kind: 'date', label: 'Vendor Since', value: since },
+          ...optionalRow({
+            key: 'businessType',
+            kind: 'businessType',
+            label: 'Business Type',
+            value: v.businessType,
+          }),
+        ],
       },
       {
-        key: 'drivers',
-        kind: 'drivers',
-        label: 'Drivers',
-        value: String(v.driverCount),
+        key: 'contact',
+        title: 'Contact Information',
+        icon: 'contact',
+        tintedIcons: true,
+        rows: [
+          {
+            ...requiredRow({
+              key: 'phone',
+              kind: 'phone',
+              label: 'Primary Phone',
+              value: primaryPhone,
+            }),
+            // No 'Primary' tag on an empty row.
+            ...(primaryPhone
+              ? { tag: { label: 'Primary', tone: 'success' as const } }
+              : {}),
+          },
+          ...optionalRow({
+            key: 'phoneAlt',
+            kind: 'phone',
+            label: 'Secondary Phone',
+            value: formatIndianMobile(v.phoneAlt),
+          }),
+          ...optionalRow({
+            key: 'email',
+            kind: 'email',
+            label: 'Email',
+            value: v.email,
+          }),
+          requiredRow({
+            key: 'city',
+            kind: 'city',
+            label: 'City',
+            value: v.city,
+          }),
+          ...optionalRow({
+            key: 'address',
+            kind: 'address',
+            label: 'Address',
+            value: v.address,
+          }),
+        ],
       },
       {
-        key: 'onboarded',
-        kind: 'date',
-        label: 'Onboarded',
-        value: formatDate(v.createdAt),
+        key: 'verification',
+        title: 'Verification',
+        icon: 'verification',
+        tintedIcons: true,
+        rows: [
+          {
+            key: 'verification',
+            kind: 'verification',
+            label: 'Verification Status',
+            value: VENDOR_VERIFICATION_LABEL[v.verification],
+            valueTone: VENDOR_VERIFICATION_TONE[v.verification],
+          },
+        ],
       },
     ],
   };
 }
 
-function staffProfile(s: Staff): ContactProfile {
+function staffProfile(s: Staff): ListContactProfile {
   // Department is free text from the server; may be empty.
   const metaText = [present(s.department), s.active ? null : 'Inactive']
     .filter(Boolean)
     .join(' • ');
   return {
+    layout: 'list',
     id: s.id,
     title: trimmed(s.name) || EMPTY_VALUE,
     subtitle: null,
@@ -311,8 +427,9 @@ function staffProfile(s: Staff): ContactProfile {
   };
 }
 
-function driverProfile(d: Driver): ContactProfile {
+function driverProfile(d: Driver): ListContactProfile {
   return {
+    layout: 'list',
     id: d.id,
     title: trimmed(d.name) || EMPTY_VALUE,
     subtitle: null,

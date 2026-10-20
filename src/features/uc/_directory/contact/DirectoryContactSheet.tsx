@@ -8,7 +8,11 @@
  * only the data differs, and all of that lives in profiles.ts.
  *
  * Product decisions (fixed):
- *   - Layout: centred avatar + name, red × close button.
+ *   - Layout: chosen by the profile, never by the role here:
+ *       'list'     — centred avatar + name, one list of rows
+ *                    (customers, staff, drivers);
+ *       'sections' — SectionedContactContent (vendors).
+ *     Both have the red × close button.
  *   - Closing: ONLY via × or Cancel. Swipe-down and backdrop taps are
  *     disabled, and the Android back press is swallowed while open.
  *   - Number picker: a separate sheet (PhoneNumberPickerSheet).
@@ -48,7 +52,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
@@ -66,10 +69,7 @@ import {
   MapPin,
   Phone,
   ShieldCheck,
-  Truck,
   User,
-  UserCheck,
-  X,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -82,12 +82,20 @@ import type { UcStackParamList } from '@navigation/types';
 import { avatarColorFor, initials } from '../../customers/utils/avatar';
 import { toContactProfile } from './profiles';
 import { PhoneNumberPickerSheet } from './PhoneNumberPickerSheet';
+import { SectionedContactContent } from './SectionedContactContent';
+import {
+  CancelButton,
+  CloseButton,
+  QuickActions,
+  type ContactActions,
+} from './contactVisuals';
 import type {
   ContactField,
   ContactFieldKind,
   ContactMetaIcon,
   ContactProfile,
   DirectoryContact,
+  ListContactProfile,
 } from './types';
 
 type Props = {
@@ -100,16 +108,10 @@ type Props = {
 type PhoneAction = 'call' | 'whatsapp';
 
 /* ------------------------------------------------------------------ */
-/* Visual tokens (carried over from the customer sheet)               */
+/* Visual tokens (list layout)                                        */
 /* ------------------------------------------------------------------ */
 
-const CLOSE_BG = '#FF5A5F';
-
-const CALL_TINT = { bg: '#EAF2FF', fg: '#1D6BFF' };
-const WHATSAPP_TINT = { bg: '#E3F9EA', fg: '#1FA855' };
-const EMAIL_TINT = { bg: '#FFF1E0', fg: '#D97B0A' };
-
-/** Icon + tint per info-row kind. One table, all roles. */
+/** Icon + tint per info-row kind (list layout). */
 const FIELD_STYLE: Record<
   ContactFieldKind,
   { Icon: LucideIcon; bg: string; fg: string }
@@ -121,8 +123,6 @@ const FIELD_STYLE: Record<
   location: { Icon: MapPin, bg: '#EDF2FF', fg: '#3B82F6' },
   taxId: { Icon: BadgeCheck, bg: '#F1F3F5', fg: Colors.textSecondary },
   trips: { Icon: Briefcase, bg: '#E7F7EC', fg: Colors.success },
-  vehicles: { Icon: Truck, bg: '#EEF2FF', fg: '#4F46E5' },
-  drivers: { Icon: UserCheck, bg: '#E7F7EC', fg: Colors.success },
   license: { Icon: CreditCard, bg: '#EEF2FF', fg: '#4F46E5' },
   date: { Icon: Calendar, bg: '#F1F3F5', fg: Colors.textSecondary },
 };
@@ -342,8 +342,16 @@ export const DirectoryContactSheet = forwardRef<BottomSheetModal, Props>(
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            {profile ? (
-              <ContactContent
+            {profile?.layout === 'sections' ? (
+              <SectionedContactContent
+                profile={profile}
+                onCall={handleCall}
+                onWhatsApp={handleWhatsApp}
+                onEmail={handleEmail}
+                onClose={close}
+              />
+            ) : profile?.layout === 'list' ? (
+              <ListContactContent
                 profile={profile}
                 onCall={handleCall}
                 onWhatsApp={handleWhatsApp}
@@ -370,20 +378,16 @@ export const DirectoryContactSheet = forwardRef<BottomSheetModal, Props>(
 DirectoryContactSheet.displayName = 'DirectoryContactSheet';
 
 /* ------------------------------------------------------------------ */
-/* Content                                                            */
+/* List layout (customers, staff, drivers)                            */
 /* ------------------------------------------------------------------ */
 
-type ContentProps = {
-  profile: ContactProfile;
-  onCall: () => void;
-  onWhatsApp: () => void;
-  onEmail: () => void;
-  onClose: () => void;
+type ListContentProps = ContactActions & {
+  profile: ListContactProfile;
   /** Present only when the role supports history (customers). */
   onViewHistory?: () => void;
 };
 
-const ContactContent: React.FC<ContentProps> = ({
+const ListContactContent: React.FC<ListContentProps> = ({
   profile,
   onCall,
   onWhatsApp,
@@ -392,24 +396,11 @@ const ContactContent: React.FC<ContentProps> = ({
   onViewHistory,
 }) => {
   const avatar = avatarColorFor(profile.id);
-  const hasPhone = profile.phones.length > 0;
-  const hasEmail = profile.email !== null;
   const lastIndex = profile.fields.length - 1;
 
   return (
     <View>
-      <Pressable
-        onPress={onClose}
-        hitSlop={12}
-        accessibilityRole="button"
-        accessibilityLabel="Close"
-        style={({ pressed }) => [
-          styles.closeBtn,
-          pressed && styles.closePressed,
-        ]}
-      >
-        <X size={16} color={Colors.textInverse} strokeWidth={2.5} />
-      </Pressable>
+      <CloseButton onPress={onClose} />
 
       {/* Identity */}
       <View style={styles.identity}>
@@ -422,7 +413,8 @@ const ContactContent: React.FC<ContentProps> = ({
           {profile.title}
         </Text>
         {profile.subtitle ? (
-          <Text style={styles.subtitle} numberOfLines={1}>
+          // Up to 2 lines, like the title.
+          <Text style={styles.subtitle} numberOfLines={2}>
             {profile.subtitle}
           </Text>
         ) : null}
@@ -439,33 +431,14 @@ const ContactContent: React.FC<ContentProps> = ({
         })}
       </View>
 
-      {/* Quick actions */}
-      <View style={styles.quickRow}>
-        <QuickAction
-          label="Call"
-          tint={CALL_TINT}
-          onPress={onCall}
-          disabled={!hasPhone}
-          disabledHint="No phone number on file"
-          icon={<Phone size={22} color={CALL_TINT.fg} strokeWidth={2.2} />}
-        />
-        <QuickAction
-          label="WhatsApp"
-          tint={WHATSAPP_TINT}
-          onPress={onWhatsApp}
-          disabled={!hasPhone}
-          disabledHint="No phone number on file"
-          icon={<WhatsAppIcon size={22} color={WHATSAPP_TINT.fg} />}
-        />
-        <QuickAction
-          label="Email"
-          tint={EMAIL_TINT}
-          onPress={onEmail}
-          disabled={!hasEmail}
-          disabledHint="No email address on file"
-          icon={<Mail size={22} color={EMAIL_TINT.fg} strokeWidth={2.2} />}
-        />
-      </View>
+      <QuickActions
+        variant="plain"
+        hasPhone={profile.phones.length > 0}
+        hasEmail={profile.email !== null}
+        onCall={onCall}
+        onWhatsApp={onWhatsApp}
+        onEmail={onEmail}
+      />
 
       {/* Info card */}
       <View style={styles.infoCard}>
@@ -493,54 +466,10 @@ const ContactContent: React.FC<ContentProps> = ({
         </Pressable>
       ) : null}
 
-      {/* Cancel — one of only two ways to close (with ×). */}
-      <Pressable
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Cancel and close"
-        style={({ pressed }) => [
-          styles.cancelBtn,
-          pressed && styles.buttonPressed,
-        ]}
-      >
-        <Text style={styles.cancelText}>Cancel</Text>
-      </Pressable>
+      <CancelButton onPress={onClose} />
     </View>
   );
 };
-
-/* ------------------------------------------------------------------ */
-/* Sub-components                                                     */
-/* ------------------------------------------------------------------ */
-
-const QuickAction: React.FC<{
-  label: string;
-  icon: React.ReactNode;
-  tint: { bg: string; fg: string };
-  onPress: () => void;
-  disabled: boolean;
-  /** Read by screen readers when the action is disabled. */
-  disabledHint: string;
-}> = ({ label, icon, tint, onPress, disabled, disabledHint }) => (
-  <Pressable
-    onPress={onPress}
-    disabled={disabled}
-    accessibilityRole="button"
-    accessibilityLabel={label}
-    accessibilityState={{ disabled }}
-    accessibilityHint={disabled ? disabledHint : undefined}
-    style={({ pressed }) => [
-      styles.quickWrap,
-      pressed && !disabled && styles.quickPressed,
-      disabled && styles.quickDisabled,
-    ]}
-  >
-    <View style={[styles.quickCircle, { backgroundColor: tint.bg }]}>
-      {icon}
-    </View>
-    <Text style={[styles.quickLabel, { color: tint.fg }]}>{label}</Text>
-  </Pressable>
-);
 
 const InfoRow: React.FC<{ field: ContactField; last: boolean }> = ({
   field,
@@ -573,19 +502,6 @@ const InfoRow: React.FC<{ field: ContactField; last: boolean }> = ({
   );
 };
 
-/** WhatsApp brand glyph (lucide has no brand icons). */
-const WhatsAppIcon: React.FC<{ size: number; color: string }> = ({
-  size,
-  color,
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path
-      fill={color}
-      d="M20.52 3.48A11.9 11.9 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 5.99L0 24l6.2-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.25-6.19-3.48-8.52ZM12 21.82a9.83 9.83 0 0 1-5.02-1.37l-.36-.21-3.68.96.98-3.58-.24-.37A9.83 9.83 0 1 1 21.82 12 9.83 9.83 0 0 1 12 21.82Zm5.4-7.36c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15s-.77.96-.94 1.16c-.17.2-.35.22-.65.08-.3-.15-1.25-.46-2.38-1.47a8.9 8.9 0 0 1-1.65-2.05c-.17-.3 0-.45.13-.6.13-.13.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.6-.91-2.2-.24-.58-.49-.5-.67-.5H8c-.2 0-.52.07-.8.37-.28.3-1.05 1.02-1.05 2.5s1.08 2.9 1.23 3.1c.15.2 2.13 3.26 5.16 4.57.72.31 1.28.5 1.72.64.72.23 1.38.2 1.9.12.58-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.13-.27-.2-.57-.35Z"
-    />
-  </Svg>
-);
-
 /* ------------------------------------------------------------------ */
 /* Styles                                                             */
 /* ------------------------------------------------------------------ */
@@ -598,21 +514,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
   },
   scrollContent: { paddingBottom: Spacing.xxl },
-
-  closeBtn: {
-    position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.md,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: CLOSE_BG,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-    ...Shadows.xs,
-  },
-  closePressed: { transform: [{ scale: 0.94 }], opacity: 0.9 },
 
   /* Identity */
   identity: {
@@ -655,26 +556,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     flexShrink: 1,
   },
-
-  /* Quick actions */
-  quickRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-  },
-  quickWrap: { alignItems: 'center', gap: 8 },
-  quickPressed: { transform: [{ scale: 0.96 }] },
-  quickDisabled: { opacity: 0.4 },
-  quickCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickLabel: { ...Typography.caption, fontWeight: '700', fontSize: 12 },
 
   /* Info card */
   infoCard: {
@@ -738,16 +619,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   buttonPressed: { opacity: 0.85 },
-  cancelBtn: {
-    alignSelf: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  cancelText: {
-    ...Typography.body,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
 });

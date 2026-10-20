@@ -24,6 +24,16 @@ export const VENDOR_STATUS_LABEL: Record<VendorStatus, string> = {
   inactive: 'Inactive',
 };
 
+/** KYC verification of the vendor's documents. Separate from `status`,
+ *  which says whether the vendor may take work. */
+export type VendorVerification = 'verified' | 'pending' | 'rejected';
+
+export const VENDOR_VERIFICATION_LABEL: Record<VendorVerification, string> = {
+  verified: 'Verified',
+  pending: 'Pending',
+  rejected: 'Rejected',
+};
+
 export type Vendor = {
   id: string;
   /** Contact person / owner. The directory card's title. */
@@ -41,7 +51,12 @@ export type Vendor = {
   address: string;
   /** GST number, when registered. Displayed on the sheet. */
   gstin?: string;
+  /** PAN (Permanent Account Number), when on file. Displayed on the sheet. */
+  pan?: string;
+  /** Free text from the server (e.g. 'Transport Services'), when set. */
+  businessType?: string;
   status: VendorStatus;
+  verification: VendorVerification;
   /** Number of vehicles onboarded — proxy for vendor size. */
   vehicleCount: number;
   /** Number of active drivers. Used by the Drivers tab's vendor filter. */
