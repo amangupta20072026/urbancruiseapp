@@ -81,7 +81,8 @@ export const CloseButton: React.FC<{ onPress: () => void }> = ({ onPress }) => (
   </Pressable>
 );
 
-/** Cancel at the bottom — the other way to close (with ×). */
+/** Cancel at the bottom — the other way to close (with ×). Full-width
+ *  light-green pill: primaryDark on primaryTint is 4.6:1 (WCAG AA). */
 export const CancelButton: React.FC<{ onPress: () => void }> = ({
   onPress,
 }) => (
@@ -226,16 +227,20 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
 
   cancelBtn: {
-    alignSelf: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    marginTop: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
     marginBottom: Spacing.lg,
+    paddingVertical: Spacing.md + 2,
+    backgroundColor: Colors.primaryTint,
+    borderRadius: Radius.lg,
   },
   cancelText: {
     ...Typography.body,
-    color: Colors.primary,
+    color: Colors.primaryDark,
     fontWeight: '700',
+    fontSize: 16,
   },
 
   /* Quick actions */

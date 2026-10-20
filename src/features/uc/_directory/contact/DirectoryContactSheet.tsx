@@ -460,7 +460,7 @@ const ListContactContent: React.FC<ListContentProps> = ({
           <Text style={styles.historyBtnText}>View Full History</Text>
           <ChevronRight
             size={18}
-            color={Colors.textInverse}
+            color={Colors.textPrimary}
             strokeWidth={2.4}
           />
         </Pressable>
@@ -600,7 +600,8 @@ const styles = StyleSheet.create({
   },
   infoValueEmphasis: { fontWeight: '700' },
 
-  /* Footer */
+  /* Footer. Dark text on the gold secondary: 9:1 contrast (white on
+   * it would be 2:1, below WCAG AA). */
   historyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -608,13 +609,13 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginHorizontal: Spacing.lg,
     paddingVertical: Spacing.md + 2,
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.md,
+    backgroundColor: Colors.secondary,
+    borderRadius: Radius.lg,
     ...Shadows.xs,
   },
   historyBtnText: {
     ...Typography.body,
-    color: Colors.textInverse,
+    color: Colors.textPrimary,
     fontWeight: '700',
     fontSize: 16,
   },

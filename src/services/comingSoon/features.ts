@@ -57,6 +57,7 @@ export type ComingSoonFeature =
   | 'vendor.payouts'
   | 'vendor.maintenance'
   | 'vendor.reports'
+  | 'vendor.businessDetails'
 
   // ── Driver ────────────────────────────────────────────────────
   | 'driver.trips'
@@ -65,6 +66,7 @@ export type ComingSoonFeature =
   | 'driver.fuelLog'
   | 'driver.incidents'
   | 'driver.rewards'
+  | 'driver.documents'
 
   // ── UC ────────────────────────────────────────────────────────
   | 'uc.createQuotation'
@@ -101,6 +103,7 @@ export const COMING_SOON_LABELS: Readonly<Record<ComingSoonFeature, string>> =
     'vendor.payouts': 'Payouts',
     'vendor.maintenance': 'Maintenance',
     'vendor.reports': 'Reports',
+    'vendor.businessDetails': 'Business details',
 
     'driver.trips': 'Trip details',
     'driver.collectPayment': 'Payment collection',
@@ -108,6 +111,7 @@ export const COMING_SOON_LABELS: Readonly<Record<ComingSoonFeature, string>> =
     'driver.fuelLog': 'Fuel log',
     'driver.incidents': 'Incident reporting',
     'driver.rewards': 'Rewards',
+    'driver.documents': 'Licence and documents',
 
     'uc.createQuotation': 'Creating quotations',
     'uc.quotationDetail': 'Quotation details',

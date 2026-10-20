@@ -16,6 +16,16 @@
  *     never point at a screen the role doesn't have.
  *   - `roles`: the card doesn't open a shared screen (toggle, OS
  *     settings, external link, …), so it lists its roles directly.
+ *     Exception: Notifications is listed by role although it opens a
+ *     shared screen — every role sees the card, and a role whose
+ *     navigator doesn't have the screen yet gets the "Coming soon"
+ *     toast (SettingsScreen uses navigateOrComingSoon). Adding the
+ *     role to SCREEN_ACCESS later makes the card open it, no change
+ *     here.
+ *
+ * SUBTITLES: one `subtitle` for every role, optionally replaced per
+ * role by `subtitleByRole` (e.g. a vendor's Personal Information
+ * leaves out date of birth).
  *
  * Groups render in GROUP_ORDER; a group with no visible cards is not
  * rendered.
@@ -25,10 +35,13 @@
 import type { ComponentType } from 'react';
 import {
   Bell,
+  Building2,
   CreditCard,
   FileText,
   HelpCircle,
+  IdCard,
   Info,
+  Landmark,
   Languages,
   Palette,
   Phone,
@@ -59,6 +72,9 @@ const PINK_BG = '#FCE7F3';
 export type SettingsRowId =
   | 'personalInfo'
   | 'savedPayments'
+  | 'businessDetails'
+  | 'payoutAccount'
+  | 'licenceDocuments'
   | 'notifications'
   | 'language'
   | 'appearance'
@@ -82,6 +98,8 @@ type RowDefinition = Access & {
   readonly title: string;
   /** Static text, or built from context (e.g. the app version). */
   readonly subtitle: string | ((ctx: SettingsContext) => string);
+  /** Replaces `subtitle` for the roles listed. */
+  readonly subtitleByRole?: Readonly<Partial<Record<UserRole, string>>>;
   readonly Icon: ComponentType<LucideProps>;
   readonly iconFg: string;
   readonly iconBg: string;
@@ -128,6 +146,8 @@ const GROUP_LABEL: Readonly<Record<SettingsGroup, string>> = {
 };
 
 const ALL_ROLES = ['customer', 'vendor', 'driver', 'uc'] as const;
+/** Everyone except UC staff, whose accounts are managed by an admin. */
+const FIELD_ROLES = ['customer', 'vendor', 'driver'] as const;
 
 /* -----------------------------------------------------------------
  * Cards (render order within each group)
@@ -141,6 +161,10 @@ const ROWS: readonly RowDefinition[] = [
     screen: 'Profile',
     title: 'Personal Information',
     subtitle: 'Name, mobile number, email, date of birth',
+    subtitleByRole: {
+      vendor: 'Owner name, mobile number, email',
+      uc: 'Name, mobile number, email',
+    },
     Icon: User,
     iconFg: Colors.info,
     iconBg: Colors.infoTint,
@@ -156,14 +180,54 @@ const ROWS: readonly RowDefinition[] = [
     iconFg: Colors.accent,
     iconBg: Colors.accentTint,
   },
+  {
+    // The vendor's company record: the same fields UC sees on the
+    // vendor contact sheet.
+    id: 'businessDetails',
+    group: 'account',
+    roles: ['vendor'],
+    title: 'Business Details',
+    subtitle: 'Company name, GST, PAN, business type, address',
+    Icon: Building2,
+    iconFg: Colors.secondaryOnTint,
+    iconBg: Colors.secondaryTint,
+  },
+  {
+    // Vendors receive money instead of paying: their counterpart of
+    // Saved Payment Methods.
+    id: 'payoutAccount',
+    group: 'account',
+    roles: ['vendor'],
+    title: 'Payout Account',
+    subtitle: 'Bank account and UPI for your payouts',
+    Icon: Landmark,
+    iconFg: Colors.accent,
+    iconBg: Colors.accentTint,
+  },
+  {
+    id: 'licenceDocuments',
+    group: 'account',
+    roles: ['driver'],
+    title: 'Licence & Documents',
+    subtitle: 'Driving licence and ID documents',
+    Icon: IdCard,
+    iconFg: Colors.secondaryOnTint,
+    iconBg: Colors.secondaryTint,
+  },
 
   // ── Preferences ────────────────────────────────────────────────
   {
+    // Listed by role, not by screen: see "Exception" in the header.
     id: 'notifications',
     group: 'preferences',
-    screen: 'NotificationPreferences',
+    roles: ALL_ROLES,
     title: 'Notifications',
     subtitle: 'Manage your notification preferences',
+    subtitleByRole: {
+      vendor: 'Booking assignments, trip and payout alerts',
+      driver: 'Trip assignments and trip updates',
+      uc: 'New enquiries, quotation and trip alerts',
+    },
     Icon: Bell,
     iconFg: PURPLE_FG,
     iconBg: PURPLE_BG,
@@ -195,6 +259,10 @@ const ROWS: readonly RowDefinition[] = [
     roles: ALL_ROLES,
     title: 'Permissions',
     subtitle: 'Camera, location, notifications and more',
+    // Drivers share their live location, so it comes first for them.
+    subtitleByRole: {
+      driver: 'Location, camera, notifications and more',
+    },
     Icon: Shield,
     iconFg: Colors.info,
     iconBg: Colors.infoTint,
@@ -246,9 +314,11 @@ const ROWS: readonly RowDefinition[] = [
     iconBg: Colors.infoTint,
   },
   {
+    // UC staff accounts are created and closed by an admin, not by
+    // the staff member.
     id: 'deleteAccount',
     group: 'supportLegal',
-    roles: ALL_ROLES,
+    roles: FIELD_ROLES,
     title: 'Delete Account',
     subtitle: 'Permanently delete your account and data',
     Icon: Trash2,
@@ -268,6 +338,16 @@ function isVisible(row: RowDefinition, role: UserRole | null): boolean {
   return row.roles.includes(role);
 }
 
+function subtitleFor(
+  row: RowDefinition,
+  role: UserRole,
+  ctx: SettingsContext,
+): string {
+  const own = row.subtitleByRole?.[role];
+  if (own !== undefined) return own;
+  return typeof row.subtitle === 'function' ? row.subtitle(ctx) : row.subtitle;
+}
+
 /**
  * The Settings sections for `role`, in display order. Groups with no
  * visible cards are omitted. Returns [] when there is no role.
@@ -276,6 +356,7 @@ export function buildSettingsSections(
   role: UserRole | null,
   ctx: SettingsContext,
 ): SettingsSection[] {
+  if (!role) return []; // fail closed
   const visible = ROWS.filter(row => isVisible(row, role));
 
   return GROUP_ORDER.map(group => ({
@@ -287,10 +368,7 @@ export function buildSettingsSections(
         (row): SettingsRow => ({
           id: row.id,
           title: row.title,
-          subtitle:
-            typeof row.subtitle === 'function'
-              ? row.subtitle(ctx)
-              : row.subtitle,
+          subtitle: subtitleFor(row, role, ctx),
           Icon: row.Icon,
           iconFg: row.iconFg,
           iconBg: row.iconBg,

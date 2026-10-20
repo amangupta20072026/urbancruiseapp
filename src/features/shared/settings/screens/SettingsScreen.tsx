@@ -10,14 +10,16 @@
  * LAYOUT (top → bottom):
  *   ScreenHeader ("Settings" + "Manage your account and app preferences")
  *   ┌─ Account Settings ────────────────────────────────────────┐
- *   │  Personal Information · Saved Payment Methods             │
+ *   │  Personal Information · Saved Payment Methods (customer)  │
+ *   │  Business Details · Payout Account (vendor)               │
+ *   │  Licence & Documents (driver)                             │
  *   └───────────────────────────────────────────────────────────┘
  *   ┌─ App Preferences ─────────────────────────────────────────┐
  *   │  Notifications · Language · Appearance · Permissions      │
  *   └───────────────────────────────────────────────────────────┘
  *   ┌─ Support & Legal ─────────────────────────────────────────┐
  *   │  Terms & Conditions · About · Help & Support ·            │
- *   │  Delete Account                                           │
+ *   │  Delete Account (not UC)                                  │
  *   └───────────────────────────────────────────────────────────┘
  *   [ Logout ]                        ← red-tinted full-width CTA
  *
@@ -31,7 +33,12 @@
  * WHAT EACH CARD DOES (roles in brackets):
  *     Personal Information   → Profile                    [all]
  *     Saved Payment Methods  → toast, not built yet       [customer]
- *     Notifications          → NotificationPreferences    [customer]
+ *     Business Details       → toast, not built yet       [vendor]
+ *     Payout Account         → toast, not built yet       [vendor]
+ *     Licence & Documents    → toast, not built yet       [driver]
+ *     Notifications          → NotificationPreferences    [all: opens
+ *                              for customer; "Coming soon" toast for
+ *                              roles without the screen yet]
  *     Language               → toast (i18n not built)     [all]
  *     Appearance             → toast (dark mode not built)[all]
  *     Permissions            → Linking.openSettings()     [all]
@@ -39,7 +46,8 @@
  *     About Urban Cruise     → AboutUrbanCruise           [all]
  *     Help & Support         → HelpSupport                [customer, vendor, driver]
  *     Contact Support        → Support                    [uc]
- *     Delete Account         → toast, not built yet       [all]
+ *     Delete Account         → toast, not built yet       [customer,
+ *                                                          vendor, driver]
  *     Logout                 → useLogout() with confirm   [all]
  *
  * DESIGN INVARIANTS:
@@ -177,8 +185,23 @@ const SettingsScreen: React.FC = () => {
           navigateOrComingSoon('helpSupport', 'HelpSupport');
           return;
 
+        case 'businessDetails':
+          notifyComingSoon('vendor.businessDetails');
+          return;
+
+        case 'payoutAccount':
+          notifyComingSoon('vendor.payouts');
+          return;
+
+        case 'licenceDocuments':
+          notifyComingSoon('driver.documents');
+          return;
+
         case 'notifications':
-          // Notification preference screen — per-channel toggles.
+          // Notification preference screen — per-channel toggles. Its
+          // categories are customer ones today, so only the customer
+          // navigator registers it (SCREEN_ACCESS); other roles get
+          // the "Coming soon" toast from navigateOrComingSoon.
           navigateOrComingSoon(
             'notificationPreferences',
             'NotificationPreferences',
