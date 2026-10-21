@@ -33,9 +33,19 @@ import type { ContactPill, ContactTone } from './types';
 
 const CLOSE_BG = '#FF5A5F';
 
-const CALL_TINT = { bg: '#EAF2FF', fg: '#1D6BFF' };
-const WHATSAPP_TINT = { bg: '#E3F9EA', fg: '#1FA855' };
-const EMAIL_TINT = { bg: '#FFF1E0', fg: '#D97B0A' };
+/**
+ * Call / WhatsApp / Email colours. Exported so every quick-action row
+ * (contact sheets, Customer History summary card) uses the same values.
+ */
+export const QUICK_ACTION_TINT = {
+  call: { bg: '#EAF2FF', fg: '#1D6BFF' },
+  whatsapp: { bg: '#E3F9EA', fg: '#1FA855' },
+  email: { bg: '#FFF1E0', fg: '#D97B0A' },
+} as const;
+
+const CALL_TINT = QUICK_ACTION_TINT.call;
+const WHATSAPP_TINT = QUICK_ACTION_TINT.whatsapp;
+const EMAIL_TINT = QUICK_ACTION_TINT.email;
 
 /** Pill colours per tone. */
 export const TONE_COLOURS: Record<ContactTone, { bg: string; fg: string }> = {

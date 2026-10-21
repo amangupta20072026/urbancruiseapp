@@ -43,20 +43,23 @@ import {
   type Customer,
 } from '../types';
 import { avatarColorFor, initials } from '../utils/avatar';
-import { PhoneNumberPickerSheet } from '@features/uc/_directory';
+import {
+  PhoneNumberPickerSheet,
+  QUICK_ACTION_TINT,
+} from '@features/uc/_directory';
 
 type Props = {
   customer: Customer;
 };
 
-/* Soft-tinted quick-action colours — same palette as the contact sheet
- * so the two surfaces feel like one system. */
-const CALL_TINT_BG = '#E7F7EC';
-const CALL_TINT_FG = '#049856';
-const WHATSAPP_TINT_BG = '#E3F9EA';
-const WHATSAPP_TINT_FG = '#1FA855';
-const EMAIL_TINT_BG = '#FFF1E0';
-const EMAIL_TINT_FG = '#D97B0A';
+/* Quick-action colours come from the contact sheet (QUICK_ACTION_TINT),
+ * so Call is the same blue on both surfaces and they can't drift. */
+const CALL_TINT_BG = QUICK_ACTION_TINT.call.bg;
+const CALL_TINT_FG = QUICK_ACTION_TINT.call.fg;
+const WHATSAPP_TINT_BG = QUICK_ACTION_TINT.whatsapp.bg;
+const WHATSAPP_TINT_FG = QUICK_ACTION_TINT.whatsapp.fg;
+const EMAIL_TINT_BG = QUICK_ACTION_TINT.email.bg;
+const EMAIL_TINT_FG = QUICK_ACTION_TINT.email.fg;
 
 /* Real WhatsApp brand mark (same SVG used in DirectoryContactSheet). */
 const WhatsAppIcon: React.FC<{ size?: number; color?: string }> = ({

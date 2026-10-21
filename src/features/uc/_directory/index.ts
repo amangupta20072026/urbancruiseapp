@@ -4,6 +4,10 @@ export { avatarColorFor, initials } from '../customers/utils/avatar';
 export { DirectoryListView } from './components/DirectoryListView';
 export { ListMeta } from './components/ListMeta';
 export { ListFooterLoader } from './components/ListFooterLoader';
-export { DirectoryContactSheet, PhoneNumberPickerSheet } from './contact';
+export {
+  DirectoryContactSheet,
+  PhoneNumberPickerSheet,
+  QUICK_ACTION_TINT,
+} from './contact';
 export { DirectoryCard } from './card';
 export type { DirectoryContact, DirectoryContactKind } from './contact';

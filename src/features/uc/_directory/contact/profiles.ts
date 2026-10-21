@@ -29,7 +29,7 @@ import {
 } from '../../vendors/types';
 import { maskPhone } from '@shared/utils';
 import { departmentColor, type Staff } from '../../staff/types';
-import { DRIVER_VERIFICATION_LABEL, type Driver } from '../../drivers/types';
+import type { Driver } from '../../drivers/types';
 
 import type {
   ContactField,
@@ -426,22 +426,9 @@ function driverProfile(d: Driver): ListContactProfile {
     id: d.id,
     title: trimmed(d.name) || EMPTY_VALUE,
     subtitle: null,
-    meta: [
-      ...(present(d.vendorName)
-        ? [
-            {
-              key: 'vendor',
-              icon: 'company' as const,
-              text: trimmed(d.vendorName),
-            },
-          ]
-        : []),
-      {
-        key: 'verification',
-        icon: 'status',
-        text: DRIVER_VERIFICATION_LABEL[d.verification],
-      },
-    ],
+    // Name only in the header (product decision). The vendor is still
+    // the Vendor row below; verification shows on the list card badge.
+    meta: [],
     phones: distinctPhones([
       { label: 'Primary', value: d.phone },
       { label: 'Alternate', value: d.phoneAlt },
