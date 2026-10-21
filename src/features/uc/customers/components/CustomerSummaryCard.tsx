@@ -11,7 +11,7 @@
  *   ┌───────────────────────────────────────────────────────────┐
  *   │  [KM]  Karan Mehta                     ⚙ ⚙ ⚙              │
  *   │        +91 ***** 95284               Call WA  Email       │
- *   │        Corporate · Company                                │
+ *   │        Corporate                                          │
  *   └───────────────────────────────────────────────────────────┘
  *
  * Behaviour:
@@ -37,11 +37,7 @@ import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { makePhoneCall, openWhatsApp, sendEmail } from '@services/contact';
 import { maskPhone } from '@shared/utils';
 
-import {
-  CUSTOMER_CATEGORY_LABEL,
-  CUSTOMER_SUBTYPE_LABEL,
-  type Customer,
-} from '../types';
+import { CUSTOMER_CATEGORY_LABEL, type Customer } from '../types';
 import { avatarColorFor, initials } from '../utils/avatar';
 import {
   PhoneNumberPickerSheet,
@@ -164,8 +160,7 @@ export const CustomerSummaryCard: React.FC<Props> = ({ customer }) => {
             {maskPhone(customer.phoneIndia)}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
-            {CUSTOMER_CATEGORY_LABEL[customer.category]} ·{' '}
-            {CUSTOMER_SUBTYPE_LABEL[customer.customerType]}
+            {CUSTOMER_CATEGORY_LABEL[customer.category]}
           </Text>
         </View>
 
