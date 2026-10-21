@@ -9,6 +9,8 @@
  *   - Title is never truncated: it wraps onto as many lines as needed.
  *   - The badge (customer-style rounded pill) sits in a slot exactly
  *     one title-line tall, so it stays centred on the FIRST line.
+ *   - Lines marked `chip` (company names) get a neutral slate tint
+ *     that hugs the text; long names still shorten with "…".
  *
  * Performance: memoised on (kind, data identity, onPress). Screens
  * create `{ kind, data }` inline in renderItem, so a plain shallow
@@ -90,6 +92,16 @@ const DirectoryCardComponent: React.FC<Props> = ({ contact, onPress }) => {
 
         {model.lines.map(line => {
           const LineIcon = ICON[line.icon];
+          if (line.chip) {
+            return (
+              <View key={line.key} style={styles.chip}>
+                <LineIcon size={13} color={Colors.companyChipText} />
+                <Text style={styles.chipText} numberOfLines={1}>
+                  {line.text}
+                </Text>
+              </View>
+            );
+          }
           return (
             <View key={line.key} style={styles.metaRow}>
               {/* One text-line tall, so the icon stays on the FIRST line
@@ -215,6 +227,24 @@ const styles = StyleSheet.create({
   metaText: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
+    flexShrink: 1,
+  },
+  /* Hugs its text (alignSelf) but never wider than the column. */
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    backgroundColor: Colors.companyChipBg,
+    borderRadius: Radius.xs,
+    paddingHorizontal: Spacing.xs + 2,
+    paddingVertical: Spacing.xxs,
+  },
+  chipText: {
+    ...Typography.bodySmall,
+    color: Colors.companyChipText,
+    fontWeight: '500',
     flexShrink: 1,
   },
   footerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },

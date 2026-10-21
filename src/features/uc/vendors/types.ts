@@ -53,8 +53,15 @@ export type Vendor = {
   gstin?: string;
   /** PAN (Permanent Account Number), when on file. Displayed on the sheet. */
   pan?: string;
-  /** Free text from the server (e.g. 'Transport Services'), when set. */
+  /** Free text from the server (e.g. 'Transport Services'), when set.
+   *  Not shown on the contact sheet (product decision). */
   businessType?: string;
+  /**
+   * The contact person's role in the vendor company, as a key from the
+   * server (e.g. 'operations_manager'). Optional: vendors without one
+   * show no Designation row. Label via vendorDesignationLabel().
+   */
+  designation?: string;
   status: VendorStatus;
   verification: VendorVerification;
   /** Number of vehicles onboarded — proxy for vendor size. */
@@ -63,6 +70,46 @@ export type Vendor = {
   driverCount: number;
   createdAt: ISODateTime;
 };
+
+/* ------------------------------------------------------------------ */
+/* Designation                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Designations known to the app today. The full list will come from
+ * the backend; until then these three keys get fixed labels.
+ */
+export type VendorDesignation =
+  | 'admin'
+  | 'operations_manager'
+  | 'booking_manager';
+
+export const VENDOR_DESIGNATION_LABEL: Record<VendorDesignation, string> = {
+  admin: 'Admin',
+  operations_manager: 'Operations Manager',
+  booking_manager: 'Booking Manager',
+};
+
+const isKnownDesignation = (key: string): key is VendorDesignation =>
+  Object.prototype.hasOwnProperty.call(VENDOR_DESIGNATION_LABEL, key);
+
+/**
+ * Display label for a designation key, or null when there is none.
+ * A key the app doesn't know yet (added on the backend first) is
+ * shown readable instead of hidden: 'fleet_manager' → 'Fleet Manager'.
+ */
+export function vendorDesignationLabel(
+  raw: string | null | undefined,
+): string | null {
+  const key = (raw ?? '').trim();
+  if (!key) return null;
+  if (isKnownDesignation(key)) return VENDOR_DESIGNATION_LABEL[key];
+  return key
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
 
 /* ------------------------------------------------------------------ */
 /* Filters                                                            */

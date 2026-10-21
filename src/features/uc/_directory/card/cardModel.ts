@@ -51,6 +51,8 @@ export type CardLine = {
   /** Show the full text on as many lines as needed (e.g. an address).
    *  Default: one line, shortened with "…". */
   wrap?: boolean;
+  /** Draw as a tinted chip (company names). Default: plain line. */
+  chip?: boolean;
 };
 
 export type CardFooterItem = {
@@ -127,6 +129,13 @@ const optionalLine = (
   return t ? [{ key, icon, text: t }] : [];
 };
 
+/** Company name as a tinted chip; dropped when blank. */
+const companyLine = (
+  key: string,
+  value: string | null | undefined,
+): CardLine[] =>
+  optionalLine(key, 'company', value).map(line => ({ ...line, chip: true }));
+
 /** Phone line, masked for display (see shared/utils/phone.ts). */
 const phoneLine = (value: string | null | undefined): CardLine[] =>
   optionalLine('phone', 'phone', maskPhone(value));
@@ -159,6 +168,11 @@ function customerCard(c: Customer): DirectoryCardModel {
     title: orEmpty(c.name),
     badge: { label: categoryLabel, ...CUSTOMER_CATEGORY_COLOR[c.category] },
     lines: [
+      // Company name under the title, corporate + agent only (same
+      // line style as the vendor card). Dropped when blank.
+      ...(c.category !== 'personal'
+        ? companyLine('company', c.companyName)
+        : []),
       ...phoneLine(c.phoneIndia),
       ...optionalLine('email', 'mail', c.email),
     ],
@@ -187,7 +201,7 @@ function vendorCard(v: Vendor): DirectoryCardModel {
     title: orEmpty(v.ownerName),
     badge: { label: status, ...VENDOR_STATUS_COLOUR[v.status] },
     lines: [
-      ...optionalLine('company', 'company', v.companyName),
+      ...companyLine('company', v.companyName),
       ...phoneLine(v.phone),
       ...optionalLine('email', 'mail', v.email),
       ...(location
@@ -245,7 +259,7 @@ function driverCard(d: Driver): DirectoryCardModel {
     lines: [
       ...phoneLine(d.phone),
       ...optionalLine('email', 'mail', d.email),
-      ...optionalLine('vendor', 'company', d.vendorName),
+      ...companyLine('vendor', d.vendorName),
     ],
     footer: {
       left: shrinkable('location', orEmpty(d.city)),

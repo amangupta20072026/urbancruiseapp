@@ -81,11 +81,10 @@ export type ContactPill = { label: string; tone: ContactTone };
 /** Icon of a row in the sectioned layout. */
 export type ContactRowKind =
   | 'company'
-  | 'owner'
+  | 'designation'
   | 'gst'
   | 'pan'
   | 'date'
-  | 'businessType'
   | 'phone'
   | 'email'
   | 'city'

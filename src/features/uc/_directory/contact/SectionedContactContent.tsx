@@ -8,13 +8,15 @@
  *             Company name
  *             (✓ Active)
  *   [ Call ]  [ WhatsApp ]  [ Email ]        ← bordered cards
- *   ▣ Basic Information   (rows, plain grey icons)
+ *   ▣ Basic Information   (rows, plain grey icons): company,
+ *                         designation, GST, PAN, vendor since
  *   ☎ Contact Information (rows, icons on tinted circles)
  *   ⛨ Verification        (status shown as a pill)
  *   Cancel
  *
  * Every row is label | value. Values are never cut short: long ones
- * (addresses, emails) wrap. Which rows exist, and in what order, is
+ * (addresses, emails) wrap. Emails may wrap only after the '@' (see
+ * emailDisplay), never in the middle of a word. Which rows exist, and in what order, is
  * decided in profiles.ts; this file only draws them.
  * ------------------------------------------------------------------
  */
@@ -22,6 +24,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import {
+  BriefcaseBusiness,
   Building,
   Building2,
   Calendar,
@@ -31,9 +34,7 @@ import {
   MapPin,
   Phone,
   ShieldCheck,
-  ShoppingBasket,
   Store,
-  User,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -73,15 +74,14 @@ const ROW_STYLE: Record<
   { Icon: LucideIcon; bg: string; fg: string }
 > = {
   company: { Icon: Store, bg: Colors.surfaceMuted, fg: Colors.textSecondary },
-  owner: { Icon: User, bg: Colors.surfaceMuted, fg: Colors.textSecondary },
-  gst: { Icon: Building, bg: Colors.surfaceMuted, fg: Colors.textSecondary },
-  pan: { Icon: IdCard, bg: Colors.surfaceMuted, fg: Colors.textSecondary },
-  date: { Icon: Calendar, bg: Colors.surfaceMuted, fg: Colors.textSecondary },
-  businessType: {
-    Icon: ShoppingBasket,
+  designation: {
+    Icon: BriefcaseBusiness,
     bg: Colors.surfaceMuted,
     fg: Colors.textSecondary,
   },
+  gst: { Icon: Building, bg: Colors.surfaceMuted, fg: Colors.textSecondary },
+  pan: { Icon: IdCard, bg: Colors.surfaceMuted, fg: Colors.textSecondary },
+  date: { Icon: Calendar, bg: Colors.surfaceMuted, fg: Colors.textSecondary },
   phone: { Icon: Phone, bg: Colors.primaryTint, fg: Colors.success },
   email: { Icon: Mail, bg: '#FFF1E0', fg: '#FB8C00' },
   city: { Icon: MapPin, bg: '#EDF2FF', fg: '#3B82F6' },
@@ -187,6 +187,18 @@ const Section: React.FC<{ section: ContactSection }> = ({ section }) => {
   );
 };
 
+/** Zero-width space: an invisible point where a line may break. */
+const ZWSP = '\u200B';
+
+/**
+ * An email has no spaces, so Android treats it as one long word and,
+ * when it is wider than the column, splits it at arbitrary letters
+ * ('contact@hi / ghwaykings / .in'). A break point after the '@' lets
+ * it wrap as 'contact@ / highwaykings.in'. Display only: the
+ * accessibility label and the Email action use the plain address.
+ */
+const emailDisplay = (value: string): string => value.replace('@', `@${ZWSP}`);
+
 const Row: React.FC<{ row: ContactRow; tinted: boolean; last: boolean }> = ({
   row,
   tinted,
@@ -215,7 +227,9 @@ const Row: React.FC<{ row: ContactRow; tinted: boolean; last: boolean }> = ({
           {row.valueTone ? (
             <StatusPill pill={{ label: row.value, tone: row.valueTone }} />
           ) : (
-            <Text style={styles.rowValue}>{row.value}</Text>
+            <Text style={styles.rowValue}>
+              {row.kind === 'email' ? emailDisplay(row.value) : row.value}
+            </Text>
           )}
           {row.tag ? <TagPill pill={row.tag} /> : null}
         </View>

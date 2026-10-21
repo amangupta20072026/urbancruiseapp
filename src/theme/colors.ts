@@ -120,6 +120,19 @@ export const Colors = {
 
   /**
    * ------------------------------------------------------------
+   * Company chip (Directory cards)
+   * ------------------------------------------------------------
+   * Neutral slate tint behind company names. Kept neutral on
+   * purpose: yellow / blue / purple / green / amber / red already
+   * mean something on these cards (customer category, status).
+   * Text on bg: 9.45:1 (WCAG AA).
+   * ------------------------------------------------------------
+   */
+  companyChipBg: '#F1F5F9',
+  companyChipText: '#334155',
+
+  /**
+   * ------------------------------------------------------------
    * Buttons
    * ------------------------------------------------------------
    */

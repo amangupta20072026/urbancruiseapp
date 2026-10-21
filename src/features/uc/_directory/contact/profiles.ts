@@ -22,6 +22,7 @@ import {
 import {
   VENDOR_STATUS_LABEL,
   VENDOR_VERIFICATION_LABEL,
+  vendorDesignationLabel,
   type Vendor,
   type VendorStatus,
   type VendorVerification,
@@ -263,11 +264,12 @@ function vendorProfile(v: Vendor): SectionedContactProfile {
             label: 'Company Name',
             value: v.companyName,
           }),
-          requiredRow({
-            key: 'owner',
-            kind: 'owner',
-            label: 'Owner Name',
-            value: v.ownerName,
+          // Hidden until the vendor has a designation.
+          ...optionalRow({
+            key: 'designation',
+            kind: 'designation',
+            label: 'Designation',
+            value: vendorDesignationLabel(v.designation),
           }),
           ...optionalRow({
             key: 'gstin',
@@ -282,12 +284,6 @@ function vendorProfile(v: Vendor): SectionedContactProfile {
             value: v.pan,
           }),
           { key: 'since', kind: 'date', label: 'Vendor Since', value: since },
-          ...optionalRow({
-            key: 'businessType',
-            kind: 'businessType',
-            label: 'Business Type',
-            value: v.businessType,
-          }),
         ],
       },
       {

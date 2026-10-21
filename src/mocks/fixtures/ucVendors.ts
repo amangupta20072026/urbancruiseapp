@@ -149,6 +149,9 @@ const BUSINESS_TYPES = [
   'Tour Operator',
 ];
 
+/** Designation keys known to the app today (see vendors/types.ts). */
+const DESIGNATIONS = ['admin', 'operations_manager', 'booking_manager'];
+
 /** Sample PAN. Matches the PAN inside the same vendor's sample GSTIN
  *  (a GSTIN's characters 3–12 are the holder's PAN). */
 function panFor(index: number): string {
@@ -185,6 +188,8 @@ export const fixtureUcVendorsAll: Vendor[] = COMPANIES.map((company, i) => ({
   pan: i % 5 === 4 ? undefined : panFor(i),
   businessType:
     i % 7 === 6 ? undefined : BUSINESS_TYPES[i % BUSINESS_TYPES.length],
+  // Every 6th vendor has no designation: exercises the hidden row.
+  designation: i % 6 === 5 ? undefined : DESIGNATIONS[i % DESIGNATIONS.length],
   status: STATUS_CYCLE[i % STATUS_CYCLE.length],
   verification: VERIFICATION_CYCLE[i % VERIFICATION_CYCLE.length],
   vehicleCount: 3 + ((i * 7) % 40),
