@@ -29,6 +29,16 @@ jest.mock('redux-persist', () => {
   };
 });
 
+jest.mock('react-native-config', () => ({
+  __esModule: true,
+  default: {
+    API_BASE_URL: 'https://api.example.test',
+    SOCKET_URL: 'https://socket.example.test',
+    IMAGE_BASE_URL: 'https://images.example.test',
+    PDF_BASE_URL: 'https://pdf.example.test',
+  },
+}));
+
 import App from '../App';
 
 test('renders correctly', async () => {

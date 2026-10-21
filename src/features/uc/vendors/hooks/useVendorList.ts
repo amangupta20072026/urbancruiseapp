@@ -27,6 +27,7 @@ import { endpoints } from '@api/endpoints';
 import { queryKeys } from '@constants/queryKeys';
 import { fixtureUcVendorsAll } from '@mocks/fixtures/ucVendors';
 import { delayLikeApi } from '@mocks/helpers/delay';
+import { phoneMatchesQuery } from '@shared/utils';
 
 import {
   DEFAULT_VENDOR_FILTERS,
@@ -101,12 +102,15 @@ async function fetchVendors(params: VendorListParams): Promise<VendorListPage> {
   const q = search.trim().toLowerCase();
 
   const matched = fixtureUcVendorsAll.filter(v => {
+    // Phones match only the complete number (phoneMatchesQuery), so
+    // partial digits can't reveal the masked part. The backend search
+    // for this tab must apply the same rule.
     if (q) {
       const hit =
         v.companyName.toLowerCase().includes(q) ||
         v.ownerName.toLowerCase().includes(q) ||
-        v.phone.includes(q) ||
-        (v.phoneAlt?.includes(q) ?? false) ||
+        phoneMatchesQuery(v.phone, q) ||
+        phoneMatchesQuery(v.phoneAlt, q) ||
         v.email.toLowerCase().includes(q) ||
         v.city.toLowerCase().includes(q);
       if (!hit) return false;

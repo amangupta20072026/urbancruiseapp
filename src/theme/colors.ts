@@ -103,6 +103,23 @@ export const Colors = {
 
   /**
    * ------------------------------------------------------------
+   * Role identity (Directory tabs)
+   * ------------------------------------------------------------
+   * One color per user role, used as TEXT/ICON tint on white.
+   * Every value is >= 4.5:1 against #FFFFFF (WCAG AA, small text):
+   *   roleCustomer 5.17:1 · roleVendor 5.18:1
+   *   roleStaff    5.13:1 · roleDriver 4.60:1
+   * Don't swap in lighter shades (e.g. primary #4CAF50 or accent
+   * #FF6F00, both ~2.8:1) — they fail AA for label text.
+   * ------------------------------------------------------------
+   */
+  roleCustomer: '#2563EB', // blue
+  roleVendor: '#C2410C', // dark orange
+  roleStaff: '#2E7D32', // green (same as primaryDark)
+  roleDriver: '#DB2777', // pink
+
+  /**
+   * ------------------------------------------------------------
    * Buttons
    * ------------------------------------------------------------
    */

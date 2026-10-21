@@ -16,6 +16,7 @@
  */
 
 import { Colors } from '@theme';
+import { maskPhone } from '@shared/utils';
 
 import {
   CUSTOMER_CATEGORY_COLOR,
@@ -126,6 +127,10 @@ const optionalLine = (
   return t ? [{ key, icon, text: t }] : [];
 };
 
+/** Phone line, masked for display (see shared/utils/phone.ts). */
+const phoneLine = (value: string | null | undefined): CardLine[] =>
+  optionalLine('phone', 'phone', maskPhone(value));
+
 /** City-style footer item that may shorten when space runs out. */
 const shrinkable = (icon: CardIcon, value: string): CardFooterItem => ({
   icon,
@@ -154,7 +159,7 @@ function customerCard(c: Customer): DirectoryCardModel {
     title: orEmpty(c.name),
     badge: { label: categoryLabel, ...CUSTOMER_CATEGORY_COLOR[c.category] },
     lines: [
-      ...optionalLine('phone', 'phone', c.phoneIndia),
+      ...phoneLine(c.phoneIndia),
       ...optionalLine('email', 'mail', c.email),
     ],
     footer: {
@@ -183,7 +188,7 @@ function vendorCard(v: Vendor): DirectoryCardModel {
     badge: { label: status, ...VENDOR_STATUS_COLOUR[v.status] },
     lines: [
       ...optionalLine('company', 'company', v.companyName),
-      ...optionalLine('phone', 'phone', v.phone),
+      ...phoneLine(v.phone),
       ...optionalLine('email', 'mail', v.email),
       ...(location
         ? [
@@ -214,7 +219,7 @@ function staffCard(s: Staff): DirectoryCardModel {
     badge: department ? { label: department, ...DEPARTMENT_COLOUR } : null,
     // No active / inactive status on the card (product decision).
     lines: [
-      ...optionalLine('phone', 'phone', s.phone),
+      ...phoneLine(s.phone),
       ...optionalLine('email', 'mail', s.email),
       ...optionalLine('city', 'location', s.city),
     ],
@@ -238,7 +243,7 @@ function driverCard(d: Driver): DirectoryCardModel {
     // Phone, then email, then vendor. Same as the customer card: a missing
     // or blank email gets no line at all.
     lines: [
-      ...optionalLine('phone', 'phone', d.phone),
+      ...phoneLine(d.phone),
       ...optionalLine('email', 'mail', d.email),
       ...optionalLine('vendor', 'company', d.vendorName),
     ],

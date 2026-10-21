@@ -8,6 +8,9 @@
  *
  * Copy (labels, WhatsApp / email text) is carried over unchanged from
  * the four per-role sheets this replaces.
+ *
+ * Phone rows show maskPhone() values (display only). `phones` keeps
+ * the raw numbers, because Call / WhatsApp must dial the real one.
  * ------------------------------------------------------------------
  */
 
@@ -23,6 +26,7 @@ import {
   type VendorStatus,
   type VendorVerification,
 } from '../../vendors/types';
+import { maskPhone } from '@shared/utils';
 import type { Staff } from '../../staff/types';
 import { DRIVER_VERIFICATION_LABEL, type Driver } from '../../drivers/types';
 
@@ -94,30 +98,6 @@ export function distinctPhones(
     out.push({ label: c.label, value });
   }
   return out;
-}
-
-/**
- * Display form of an Indian mobile: '+91 9000000000'. Accepts
- * '+91…' (country code read right after the '+'), '91…' (12 digits)
- * or the bare 10 digits, with any spaces or dashes. Anything that is
- * not a valid Indian mobile is returned as typed (trimmed), so an
- * unexpected format is never altered. Display only: dialling always
- * uses the stored value.
- */
-export function formatIndianMobile(raw: string | null | undefined): string {
-  const value = trimmed(raw);
-  const digits = value.replace(/\D/g, '');
-  let national: string | null;
-  if (value.startsWith('+')) {
-    national = digits.startsWith('91') ? digits.slice(2) : null;
-  } else if (digits.length === 12 && digits.startsWith('91')) {
-    national = digits.slice(2);
-  } else {
-    national = digits;
-  }
-  return national !== null && /^[6-9]\d{9}$/.test(national)
-    ? `+91 ${national}`
-    : value;
 }
 
 /** A row whose value may be absent: dropped when empty. */
@@ -204,13 +184,13 @@ function customerProfile(c: Customer): ListContactProfile {
         key: 'phoneIndia',
         kind: 'phone',
         label: 'Phone (India)',
-        value: c.phoneIndia,
+        value: maskPhone(c.phoneIndia),
       }),
       ...optionalField({
         key: 'phoneGlobal',
         kind: 'phone',
         label: 'Phone (Global)',
-        value: c.phoneGlobal,
+        value: maskPhone(c.phoneGlobal),
       }),
       ...optionalField({
         key: 'email',
@@ -249,7 +229,7 @@ function customerProfile(c: Customer): ListContactProfile {
 
 function vendorProfile(v: Vendor): SectionedContactProfile {
   const since = formatDate(v.createdAt);
-  const primaryPhone = formatIndianMobile(v.phone);
+  const primaryPhone = maskPhone(v.phone);
   return {
     layout: 'sections',
     id: v.id,
@@ -332,7 +312,7 @@ function vendorProfile(v: Vendor): SectionedContactProfile {
             key: 'phoneAlt',
             kind: 'phone',
             label: 'Secondary Phone',
-            value: formatIndianMobile(v.phoneAlt),
+            value: maskPhone(v.phoneAlt),
           }),
           ...optionalRow({
             key: 'email',
@@ -397,13 +377,13 @@ function staffProfile(s: Staff): ListContactProfile {
         key: 'phone',
         kind: 'phone',
         label: 'Work Phone',
-        value: s.phone,
+        value: maskPhone(s.phone),
       }),
       ...optionalField({
         key: 'phoneAlt',
         kind: 'phone',
         label: 'Alternate Phone',
-        value: s.phoneAlt,
+        value: maskPhone(s.phoneAlt),
       }),
       ...optionalField({
         key: 'email',
@@ -462,13 +442,13 @@ function driverProfile(d: Driver): ListContactProfile {
         key: 'phone',
         kind: 'phone',
         label: 'Primary Phone',
-        value: d.phone,
+        value: maskPhone(d.phone),
       }),
       ...optionalField({
         key: 'phoneAlt',
         kind: 'phone',
         label: 'Alternate Phone',
-        value: d.phoneAlt,
+        value: maskPhone(d.phoneAlt),
       }),
       ...optionalField({
         key: 'email',

@@ -17,6 +17,7 @@ import { endpoints } from '@api/endpoints';
 import { queryKeys } from '@constants/queryKeys';
 import { fixtureUcDriversAll } from '@mocks/fixtures/ucDrivers';
 import { delayLikeApi } from '@mocks/helpers/delay';
+import { phoneMatchesQuery } from '@shared/utils';
 
 import {
   DEFAULT_DRIVER_FILTERS,
@@ -83,11 +84,14 @@ async function fetchDrivers(params: DriverListParams): Promise<DriverListPage> {
   const q = search.trim().toLowerCase();
 
   const matched = fixtureUcDriversAll.filter(d => {
+    // Phones match only the complete number (phoneMatchesQuery), so
+    // partial digits can't reveal the masked part. The backend search
+    // for this tab must apply the same rule.
     if (q) {
       const hit =
         d.name.toLowerCase().includes(q) ||
-        d.phone.includes(q) ||
-        (d.phoneAlt?.includes(q) ?? false) ||
+        phoneMatchesQuery(d.phone, q) ||
+        phoneMatchesQuery(d.phoneAlt, q) ||
         (d.email?.toLowerCase().includes(q) ?? false) ||
         d.city.toLowerCase().includes(q) ||
         d.vendorName.toLowerCase().includes(q) ||

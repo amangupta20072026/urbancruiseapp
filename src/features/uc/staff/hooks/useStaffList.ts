@@ -17,6 +17,7 @@ import { endpoints } from '@api/endpoints';
 import { queryKeys } from '@constants/queryKeys';
 import { fixtureUcStaffAll } from '@mocks/fixtures/ucStaff';
 import { delayLikeApi } from '@mocks/helpers/delay';
+import { phoneMatchesQuery } from '@shared/utils';
 
 import { DEFAULT_STAFF_FILTERS, type Staff, type StaffFilters } from '../types';
 
@@ -74,11 +75,14 @@ async function fetchStaff(params: StaffListParams): Promise<StaffListPage> {
   const q = search.trim().toLowerCase();
 
   const matched = fixtureUcStaffAll.filter(s => {
+    // Phones match only the complete number (phoneMatchesQuery), so
+    // partial digits can't reveal the masked part. The backend search
+    // for this tab must apply the same rule.
     if (q) {
       const hit =
         s.name.toLowerCase().includes(q) ||
-        s.phone.includes(q) ||
-        (s.phoneAlt?.includes(q) ?? false) ||
+        phoneMatchesQuery(s.phone, q) ||
+        phoneMatchesQuery(s.phoneAlt, q) ||
         s.email.toLowerCase().includes(q) ||
         s.city.toLowerCase().includes(q);
       if (!hit) return false;

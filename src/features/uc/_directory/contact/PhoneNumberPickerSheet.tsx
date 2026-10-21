@@ -15,6 +15,8 @@
  *   - One row per number; tap → onSelect(number).
  *   - Backdrop tap, Cancel, or hardware back → onCancel.
  *   - The parent shows this only for 2+ distinct numbers.
+ *   - Numbers are shown masked (maskPhone); onSelect still receives
+ *     the raw number, so the call / WhatsApp goes to the real one.
  * ------------------------------------------------------------------
  */
 
@@ -30,6 +32,7 @@ import {
 import { Phone } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
+import { maskPhone } from '@shared/utils';
 
 import type { ContactPhone } from './types';
 
@@ -103,24 +106,27 @@ export const PhoneNumberPickerSheet: React.FC<Props> = ({
 const PhoneOption: React.FC<{
   option: ContactPhone;
   onSelect: (phone: string) => void;
-}> = ({ option, onSelect }) => (
-  <Pressable
-    onPress={() => onSelect(option.value)}
-    accessibilityRole="button"
-    accessibilityLabel={`${option.label} number ${option.value}`}
-    style={({ pressed }) => [styles.option, pressed && styles.pressed]}
-  >
-    <View style={styles.iconWrap}>
-      <Phone size={18} color={Colors.primary} strokeWidth={2.2} />
-    </View>
-    <View style={styles.optionText}>
-      <Text style={styles.region}>{option.label}</Text>
-      <Text style={styles.phone} numberOfLines={1}>
-        {option.value}
-      </Text>
-    </View>
-  </Pressable>
-);
+}> = ({ option, onSelect }) => {
+  const masked = maskPhone(option.value);
+  return (
+    <Pressable
+      onPress={() => onSelect(option.value)}
+      accessibilityRole="button"
+      accessibilityLabel={`${option.label} number ${masked}`}
+      style={({ pressed }) => [styles.option, pressed && styles.pressed]}
+    >
+      <View style={styles.iconWrap}>
+        <Phone size={18} color={Colors.primary} strokeWidth={2.2} />
+      </View>
+      <View style={styles.optionText}>
+        <Text style={styles.region}>{option.label}</Text>
+        <Text style={styles.phone} numberOfLines={1}>
+          {masked}
+        </Text>
+      </View>
+    </Pressable>
+  );
+};
 
 /* ---------------- Styles ---------------- */
 

@@ -10,11 +10,13 @@
  *
  *   ┌───────────────────────────────────────────────────────────┐
  *   │  [KM]  Karan Mehta                     ⚙ ⚙ ⚙              │
- *   │        +91 1499895284                Call WA  Email       │
+ *   │        +91 ***** 95284               Call WA  Email       │
  *   │        Corporate · Company                                │
  *   └───────────────────────────────────────────────────────────┘
  *
  * Behaviour:
+ *   - The phone is shown masked (maskPhone); Call / WhatsApp still
+ *     use the raw number.
  *   - Tap Call / WhatsApp → opens PhoneNumberPickerSheet if the two
  *     phones differ, otherwise dials the shared number directly.
  *     (Same picker as the shared DirectoryContactSheet.)
@@ -33,6 +35,7 @@ import { Phone, Mail } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { makePhoneCall, openWhatsApp, sendEmail } from '@services/contact';
+import { maskPhone } from '@shared/utils';
 
 import {
   CUSTOMER_CATEGORY_LABEL,
@@ -155,7 +158,7 @@ export const CustomerSummaryCard: React.FC<Props> = ({ customer }) => {
             {customer.name}
           </Text>
           <Text style={styles.phone} numberOfLines={1}>
-            {customer.phoneIndia}
+            {maskPhone(customer.phoneIndia)}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
             {CUSTOMER_CATEGORY_LABEL[customer.category]} ·{' '}

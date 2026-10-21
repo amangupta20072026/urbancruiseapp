@@ -48,6 +48,7 @@ import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '@constants/queryKeys';
 import { fixtureUcCustomersAll } from '@mocks/fixtures/ucCustomers';
 import { delayLikeApi } from '@mocks/helpers/delay';
+import { phoneMatchesQuery } from '@shared/utils';
 
 import {
   DEFAULT_CUSTOMER_FILTERS,
@@ -169,11 +170,14 @@ async function fetchUcCustomers(
 
   const matched = fixtureUcCustomersAll.filter(c => {
     // Text search
+    // Phones match only the complete number (phoneMatchesQuery), so
+    // partial digits can't reveal the masked part. The backend search
+    // for this tab must apply the same rule.
     if (q) {
       const hit =
         c.name.toLowerCase().includes(q) ||
-        c.phoneIndia.includes(q) ||
-        c.phoneGlobal.includes(q) ||
+        phoneMatchesQuery(c.phoneIndia, q) ||
+        phoneMatchesQuery(c.phoneGlobal, q) ||
         c.email.toLowerCase().includes(q) ||
         c.city.toLowerCase().includes(q) ||
         (c.companyName?.toLowerCase().includes(q) ?? false);

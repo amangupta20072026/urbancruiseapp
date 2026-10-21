@@ -18,6 +18,8 @@
  *   - Active indicator is a FULL-WIDTH bar under the tab slot, sitting
  *     on the hairline bottom border → reads as a highlighted segment
  *     of a shared axis (the CRM/HubSpot pattern in the mock).
+ *   - The selected tab's icon, label and indicator use that role's
+ *     color (ROUTE_TINTS); unselected tabs are grey.
  * ------------------------------------------------------------------
  */
 
@@ -28,6 +30,8 @@ import type { MaterialTopTabBarProps } from '@react-navigation/material-top-tabs
 import { UsersRound, Store, Contact } from 'lucide-react-native';
 
 import { Colors, Spacing, Typography } from '@theme';
+
+import type { DirectoryTabParamList } from '../screens/DirectoryScreen';
 
 type TabIconProps = { size: number; color: string; strokeWidth?: number };
 type TabIcon = React.ComponentType<TabIconProps>;
@@ -60,6 +64,18 @@ const ROUTE_ICONS: Record<string, TabIcon> = {
   DirectoryDrivers: SteeringWheelIcon,
 };
 
+/**
+ * Active tint per tab. Only the selected tab is tinted; the rest
+ * stay Colors.textSecondary. Typed against the param list so adding
+ * a tab without a color is a compile error.
+ */
+const ROUTE_TINTS: Record<keyof DirectoryTabParamList, string> = {
+  DirectoryCustomers: Colors.roleCustomer,
+  DirectoryVendors: Colors.roleVendor,
+  DirectoryStaff: Colors.roleStaff,
+  DirectoryDrivers: Colors.roleDriver,
+};
+
 const ICON_SIZE = 20;
 const ICON_STROKE = 2;
 const INDICATOR_HEIGHT = 3;
@@ -80,7 +96,10 @@ export const DirectoryTabBar: React.FC<MaterialTopTabBarProps> = ({
               ? options.tabBarLabel
               : route.name;
           const Icon: TabIcon = ROUTE_ICONS[route.name] ?? UsersRound;
-          const tint = focused ? Colors.primary : Colors.textSecondary;
+          const activeTint =
+            ROUTE_TINTS[route.name as keyof DirectoryTabParamList] ??
+            Colors.primary;
+          const tint = focused ? activeTint : Colors.textSecondary;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -114,7 +133,7 @@ export const DirectoryTabBar: React.FC<MaterialTopTabBarProps> = ({
               <View
                 style={[
                   styles.indicator,
-                  { backgroundColor: focused ? Colors.primary : 'transparent' },
+                  { backgroundColor: focused ? activeTint : 'transparent' },
                 ]}
               />
             </Pressable>
