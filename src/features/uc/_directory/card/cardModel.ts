@@ -24,7 +24,7 @@ import {
   type Customer,
 } from '../../customers/types';
 import { VENDOR_STATUS_LABEL, type Vendor } from '../../vendors/types';
-import type { Staff } from '../../staff/types';
+import { departmentColor, type Staff } from '../../staff/types';
 import { DRIVER_VERIFICATION_LABEL, type Driver } from '../../drivers/types';
 import { EMPTY_VALUE, formatDate } from '../contact/profiles';
 import type { DirectoryContact } from '../contact/types';
@@ -53,6 +53,9 @@ export type CardLine = {
   wrap?: boolean;
   /** Draw as a tinted chip (company names). Default: plain line. */
   chip?: boolean;
+  /** Chip only: shown after the text with a map-pin icon (the city).
+   *  Never shortened: when space runs out, `text` takes the "…". */
+  suffix?: string;
 };
 
 export type CardFooterItem = {
@@ -103,10 +106,6 @@ const DRIVER_VERIFICATION_COLOUR: Record<
   rejected: { bg: '#FEE2E2', fg: '#B91C1C' },
 };
 
-/** Staff department badge — one neutral colour for every department,
- *  because department names are free text from the server. */
-const DEPARTMENT_COLOUR = { bg: '#EEF2FF', fg: '#4F46E5' };
-
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -129,12 +128,20 @@ const optionalLine = (
   return t ? [{ key, icon, text: t }] : [];
 };
 
-/** Company name as a tinted chip; dropped when blank. */
+/** Company name as a tinted chip, with an optional suffix (city).
+ *  Dropped when the company name is blank; a blank suffix is left out. */
 const companyLine = (
   key: string,
   value: string | null | undefined,
-): CardLine[] =>
-  optionalLine(key, 'company', value).map(line => ({ ...line, chip: true }));
+  suffix?: string | null,
+): CardLine[] => {
+  const s = text(suffix);
+  return optionalLine(key, 'company', value).map(line => ({
+    ...line,
+    chip: true,
+    ...(s ? { suffix: s } : {}),
+  }));
+};
 
 /** Phone line, masked for display (see shared/utils/phone.ts). */
 const phoneLine = (value: string | null | undefined): CardLine[] =>
@@ -195,13 +202,15 @@ function vendorCard(v: Vendor): DirectoryCardModel {
   const status = VENDOR_STATUS_LABEL[v.status];
   // Full address; falls back to the city when no address is saved.
   const location = text(v.address) || text(v.city);
+  const city = text(v.city);
   return {
     id: v.id,
     // Owner name is the title; the company name is the first line below it.
     title: orEmpty(v.ownerName),
     badge: { label: status, ...VENDOR_STATUS_COLOUR[v.status] },
     lines: [
-      ...companyLine('company', v.companyName),
+      // '[building] Highway Kings Transports [pin] Mumbai' in one chip.
+      ...companyLine('company', v.companyName, city),
       ...phoneLine(v.phone),
       ...optionalLine('email', 'mail', v.email),
       ...(location
@@ -217,9 +226,14 @@ function vendorCard(v: Vendor): DirectoryCardModel {
     ],
     // No footer: vehicle count removed; city is part of the address.
     footer: null,
-    accessibilityLabel: `Vendor ${orEmpty(v.ownerName)}, ${orEmpty(
-      v.companyName,
-    )}, ${status}`,
+    accessibilityLabel: [
+      `Vendor ${orEmpty(v.ownerName)}`,
+      orEmpty(v.companyName),
+      city,
+      status,
+    ]
+      .filter(Boolean)
+      .join(', '),
     accessibilityHint: 'Opens contact actions',
   };
 }
@@ -230,7 +244,10 @@ function staffCard(s: Staff): DirectoryCardModel {
     id: s.id,
     title: orEmpty(s.name),
     // Department badge; no badge when the server sends no department.
-    badge: department ? { label: department, ...DEPARTMENT_COLOUR } : null,
+    // Colour per department; unknown departments get the neutral badge.
+    badge: department
+      ? { label: department, ...departmentColor(department) }
+      : null,
     // No active / inactive status on the card (product decision).
     lines: [
       ...phoneLine(s.phone),

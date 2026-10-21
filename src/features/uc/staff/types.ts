@@ -9,7 +9,8 @@
  *
  * Department is FREE TEXT, shown exactly as the server sends it
  * (backend column uc_staff.department). The app keeps no fixed list,
- * so a new department (e.g. 'Marketing') needs no app update.
+ * so a new department (e.g. 'Marketing') needs no app update: it gets
+ * the neutral badge colour until it is added to DEPARTMENT_COLOR.
  *
  * RBAC:
  *   Any UC user can see any other UC user's phone/email — confirmed
@@ -39,6 +40,48 @@ export type Staff = {
   active: boolean;
   joinedAt: ISODateTime;
 };
+
+/* ------------------------------------------------------------------ */
+/* Department badge colours                                           */
+/* ------------------------------------------------------------------ */
+
+export type DepartmentColor = { bg: string; fg: string };
+
+/**
+ * One colour per known department, keyed in lowercase. Every fg is
+ * >= 4.5:1 on its bg (WCAG AA, small text):
+ *   admin 7.07 · it 5.17 · hr 5.14 · sales 4.84
+ *   accounts 6.37 · graphics 5.98 · seo 4.86 · neutral 6.92
+ * To colour a new department, add one line here.
+ */
+const DEPARTMENT_COLOR: Readonly<Record<string, DepartmentColor>> = {
+  admin: { bg: '#EEF2FF', fg: '#4338CA' }, // indigo
+  it: { bg: '#E0F2FE', fg: '#0369A1' }, // sky blue
+  hr: { bg: '#FCE7F3', fg: '#BE185D' }, // pink
+  sales: { bg: '#D1FAE5', fg: '#047857' }, // emerald
+  accounts: { bg: '#FEF3C7', fg: '#92400E' }, // amber (darker text)
+  graphics: { bg: '#EDE9FE', fg: '#6D28D9' }, // violet
+  seo: { bg: '#CCFBF1', fg: '#0F766E' }, // teal
+};
+
+/** Departments not in DEPARTMENT_COLOR (slate). */
+export const DEPARTMENT_COLOR_NEUTRAL: DepartmentColor = {
+  bg: '#F1F5F9',
+  fg: '#475569',
+};
+
+/**
+ * Badge colour for a department. Case and surrounding spaces are
+ * ignored ('SEO', 'seo', ' Seo '); unknown or empty → neutral.
+ */
+export function departmentColor(
+  department: string | null | undefined,
+): DepartmentColor {
+  const key = (department ?? '').trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(DEPARTMENT_COLOR, key)
+    ? DEPARTMENT_COLOR[key]
+    : DEPARTMENT_COLOR_NEUTRAL;
+}
 
 /* ------------------------------------------------------------------ */
 /* Filters                                                            */

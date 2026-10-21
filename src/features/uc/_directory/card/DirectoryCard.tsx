@@ -10,7 +10,9 @@
  *   - The badge (customer-style rounded pill) sits in a slot exactly
  *     one title-line tall, so it stays centred on the FIRST line.
  *   - Lines marked `chip` (company names) get a neutral slate tint
- *     that hugs the text; long names still shorten with "…".
+ *     that hugs the text; long names still shorten with "…". A chip
+ *     suffix (vendor city) follows a map-pin icon and is never
+ *     shortened: only the name gives way.
  *
  * Performance: memoised on (kind, data identity, onPress). Screens
  * create `{ kind, data }` inline in renderItem, so a plain shallow
@@ -99,6 +101,14 @@ const DirectoryCardComponent: React.FC<Props> = ({ contact, onPress }) => {
                 <Text style={styles.chipText} numberOfLines={1}>
                   {line.text}
                 </Text>
+                {line.suffix ? (
+                  <View style={styles.chipSuffix}>
+                    <MapPin size={13} color={Colors.companyChipText} />
+                    <Text style={styles.chipText} numberOfLines={1}>
+                      {line.suffix}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             );
           }
@@ -246,6 +256,13 @@ const styles = StyleSheet.create({
     color: Colors.companyChipText,
     fontWeight: '500',
     flexShrink: 1,
+  },
+  /* Pin + city keep their full width; the company name shortens instead. */
+  chipSuffix: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xxs,
+    flexShrink: 0,
   },
   footerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   footerItem: { flexDirection: 'row', alignItems: 'center' },
