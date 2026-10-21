@@ -67,9 +67,10 @@ import {
   CreditCard,
   Mail,
   MapPin,
+  Network,
   Phone,
-  ShieldCheck,
   User,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -125,11 +126,13 @@ const FIELD_STYLE: Record<
   trips: { Icon: Briefcase, bg: '#E7F7EC', fg: Colors.success },
   license: { Icon: CreditCard, bg: '#EEF2FF', fg: '#4F46E5' },
   date: { Icon: Calendar, bg: '#F1F3F5', fg: Colors.textSecondary },
+  // Neutral defaults; staff rows pass their department colour instead.
+  department: { Icon: UsersRound, bg: '#F1F3F5', fg: Colors.textSecondary },
+  subDepartment: { Icon: Network, bg: '#F1F3F5', fg: Colors.textSecondary },
 };
 
 const META_ICON: Record<ContactMetaIcon, LucideIcon> = {
   status: BadgeCheck,
-  role: ShieldCheck,
   company: Building2,
 };
 
@@ -475,7 +478,8 @@ const InfoRow: React.FC<{ field: ContactField; last: boolean }> = ({
   field,
   last,
 }) => {
-  const { Icon, bg, fg } = FIELD_STYLE[field.kind];
+  const { Icon } = FIELD_STYLE[field.kind];
+  const { bg, fg } = field.colors ?? FIELD_STYLE[field.kind];
   return (
     <View
       style={[styles.infoRow, last && styles.infoRowLast]}
@@ -487,16 +491,24 @@ const InfoRow: React.FC<{ field: ContactField; last: boolean }> = ({
       </View>
       <View style={styles.infoTextWrap}>
         <Text style={styles.infoLabel}>{field.label}</Text>
-        <Text
-          style={[
-            styles.infoValue,
-            field.emphasis && styles.infoValueEmphasis,
-            field.emphasis && { color: fg },
-          ]}
-          numberOfLines={1}
-        >
-          {field.value}
-        </Text>
+        {field.badge ? (
+          <View style={[styles.valueBadge, { backgroundColor: bg }]}>
+            <Text style={[styles.valueBadgeText, { color: fg }]}>
+              {field.value}
+            </Text>
+          </View>
+        ) : (
+          <Text
+            style={[
+              styles.infoValue,
+              field.emphasis && styles.infoValueEmphasis,
+              field.emphasis && { color: fg },
+            ]}
+            numberOfLines={1}
+          >
+            {field.value}
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -599,6 +611,16 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   infoValueEmphasis: { fontWeight: '700' },
+  /* Value shown as a pill (Department). Hugs the text; wraps if long. */
+  valueBadge: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    marginTop: Spacing.xxs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xxs,
+    borderRadius: Radius.pill,
+  },
+  valueBadgeText: { ...Typography.caption, fontWeight: '600' },
 
   /* Footer. Dark text on the gold secondary: 9:1 contrast (white on
    * it would be 2:1, below WCAG AA). */

@@ -10,9 +10,9 @@
  *   - The badge (customer-style rounded pill) sits in a slot exactly
  *     one title-line tall, so it stays centred on the FIRST line.
  *   - Lines marked `chip` (company names) get a neutral slate tint
- *     that hugs the text; long names still shorten with "…". A chip
- *     suffix (vendor city) follows a map-pin icon and is never
- *     shortened: only the name gives way.
+ *     that hugs the text. The name is never shortened: a long one
+ *     wraps onto more lines. A chip suffix (city) follows a map-pin
+ *     icon, on the same line when it fits, otherwise on the next.
  *
  * Performance: memoised on (kind, data identity, onPress). Screens
  * create `{ kind, data }` inline in renderItem, so a plain shallow
@@ -97,18 +97,22 @@ const DirectoryCardComponent: React.FC<Props> = ({ contact, onPress }) => {
           if (line.chip) {
             return (
               <View key={line.key} style={styles.chip}>
-                <LineIcon size={13} color={Colors.companyChipText} />
-                <Text style={styles.chipText} numberOfLines={1}>
-                  {line.text}
-                </Text>
-                {line.suffix ? (
-                  <View style={styles.chipSuffix}>
-                    <MapPin size={13} color={Colors.companyChipText} />
-                    <Text style={styles.chipText} numberOfLines={1}>
-                      {line.suffix}
-                    </Text>
-                  </View>
-                ) : null}
+                {/* One text-line tall: the icon stays on the FIRST line
+                    when the name wraps. */}
+                <View style={styles.chipIconSlot}>
+                  <LineIcon size={13} color={Colors.companyChipText} />
+                </View>
+                {/* Name and city wrap as two pieces: the city moves to
+                    the next line when it doesn't fit after the name. */}
+                <View style={styles.chipBody}>
+                  <Text style={styles.chipText}>{line.text}</Text>
+                  {line.suffix ? (
+                    <View style={styles.chipSuffix}>
+                      <MapPin size={13} color={Colors.companyChipText} />
+                      <Text style={styles.chipText}>{line.suffix}</Text>
+                    </View>
+                  ) : null}
+                </View>
               </View>
             );
           }
@@ -242,7 +246,7 @@ const styles = StyleSheet.create({
   /* Hugs its text (alignSelf) but never wider than the column. */
   chip: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 6,
     alignSelf: 'flex-start',
     maxWidth: '100%',
@@ -251,18 +255,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xs + 2,
     paddingVertical: Spacing.xxs,
   },
+  chipIconSlot: {
+    height: Typography.bodySmall.lineHeight,
+    justifyContent: 'center',
+  },
+  chipBody: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: 6,
+    rowGap: Spacing.xxs,
+  },
   chipText: {
     ...Typography.bodySmall,
     color: Colors.companyChipText,
     fontWeight: '500',
     flexShrink: 1,
   },
-  /* Pin + city keep their full width; the company name shortens instead. */
+  /* Pin + city. Wraps as one piece; shrinks only if the city alone is
+   * wider than the chip, and then its text wraps too. */
   chipSuffix: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xxs,
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: '100%',
   },
   footerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   footerItem: { flexDirection: 'row', alignItems: 'center' },

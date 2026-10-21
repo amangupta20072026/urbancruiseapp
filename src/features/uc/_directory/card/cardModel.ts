@@ -51,10 +51,11 @@ export type CardLine = {
   /** Show the full text on as many lines as needed (e.g. an address).
    *  Default: one line, shortened with "…". */
   wrap?: boolean;
-  /** Draw as a tinted chip (company names). Default: plain line. */
+  /** Draw as a tinted chip (company names), shown in full on as many
+   *  lines as needed. Default: plain line. */
   chip?: boolean;
   /** Chip only: shown after the text with a map-pin icon (the city).
-   *  Never shortened: when space runs out, `text` takes the "…". */
+   *  Never shortened: moves to the next line when it doesn't fit. */
   suffix?: string;
 };
 
@@ -170,16 +171,18 @@ const count = (icon: CardIcon, value: string): CardFooterItem => ({
 function customerCard(c: Customer): DirectoryCardModel {
   const categoryLabel = CUSTOMER_CATEGORY_LABEL[c.category];
   const joined = formatDate(c.createdAt);
+  const hasCompany = c.category !== 'personal';
+  // City rides in the company chip, so personal customers show none.
+  const city = hasCompany ? text(c.city) : '';
   return {
     id: c.id,
     title: orEmpty(c.name),
     badge: { label: categoryLabel, ...CUSTOMER_CATEGORY_COLOR[c.category] },
     lines: [
-      // Company name under the title, corporate + agent only (same
-      // line style as the vendor card). Dropped when blank.
-      ...(c.category !== 'personal'
-        ? companyLine('company', c.companyName)
-        : []),
+      // Company chip under the title, corporate + agent only, with the
+      // city after a map pin (same as the vendor card). Dropped when the
+      // company name is blank.
+      ...(hasCompany ? companyLine('company', c.companyName, city) : []),
       ...phoneLine(c.phoneIndia),
       ...optionalLine('email', 'mail', c.email),
     ],
@@ -187,13 +190,15 @@ function customerCard(c: Customer): DirectoryCardModel {
       left: shrinkable('calendar', joined),
       right: count('trips', countLabel(c.totalBookings, 'Trip', 'Trips')),
     },
-    accessibilityLabel: `${orEmpty(
-      c.name,
-    )}, ${categoryLabel} customer, ${countLabel(
-      c.totalBookings,
-      'trip',
-      'trips',
-    )}, joined ${joined}`,
+    accessibilityLabel: [
+      `${orEmpty(c.name)}, ${categoryLabel} customer`,
+      hasCompany ? text(c.companyName) : '',
+      city,
+      countLabel(c.totalBookings, 'trip', 'trips'),
+      `joined ${joined}`,
+    ]
+      .filter(Boolean)
+      .join(', '),
     accessibilityHint: 'Opens customer details',
   };
 }
@@ -271,12 +276,14 @@ function driverCard(d: Driver): DirectoryCardModel {
       label: verification,
       ...DRIVER_VERIFICATION_COLOUR[d.verification],
     },
-    // Phone, then email, then vendor. Same as the customer card: a missing
-    // or blank email gets no line at all.
+    // Vendor company chip first (right under the name, like the customer
+    // and vendor cards), then phone, then email. A missing or blank
+    // email gets no line at all. No city in the chip: the driver's city
+    // stays in the footer.
     lines: [
+      ...companyLine('vendor', d.vendorName),
       ...phoneLine(d.phone),
       ...optionalLine('email', 'mail', d.email),
-      ...companyLine('vendor', d.vendorName),
     ],
     footer: {
       left: shrinkable('location', orEmpty(d.city)),

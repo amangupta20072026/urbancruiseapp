@@ -28,7 +28,7 @@ import {
   type VendorVerification,
 } from '../../vendors/types';
 import { maskPhone } from '@shared/utils';
-import type { Staff } from '../../staff/types';
+import { departmentColor, type Staff } from '../../staff/types';
 import { DRIVER_VERIFICATION_LABEL, type Driver } from '../../drivers/types';
 
 import type {
@@ -350,16 +350,16 @@ function vendorProfile(v: Vendor): SectionedContactProfile {
 }
 
 function staffProfile(s: Staff): ListContactProfile {
-  // Department is free text from the server; may be empty.
-  const metaText = [present(s.department), s.active ? null : 'Inactive']
-    .filter(Boolean)
-    .join(' • ');
+  // Both department rows use the department's colour (same as the
+  // list badge). No line under the name, and no active / inactive
+  // status anywhere in the sheet (product decision).
+  const deptColors = departmentColor(s.department);
   return {
     layout: 'list',
     id: s.id,
     title: trimmed(s.name) || EMPTY_VALUE,
     subtitle: null,
-    meta: metaText ? [{ key: 'role', icon: 'role', text: metaText }] : [],
+    meta: [],
     phones: distinctPhones([
       { label: 'Work', value: s.phone },
       { label: 'Alternate', value: s.phoneAlt },
@@ -369,6 +369,23 @@ function staffProfile(s: Staff): ListContactProfile {
     emailSubject: 'Urban Cruise — team',
     emailBody: `${salutation(s.name)},\n\n`,
     fields: [
+      // Department and sub-department are free text; each row is
+      // hidden when its value is empty.
+      ...optionalField({
+        key: 'department',
+        kind: 'department',
+        label: 'Department',
+        value: s.department,
+        colors: deptColors,
+        badge: true,
+      }),
+      ...optionalField({
+        key: 'subDepartment',
+        kind: 'subDepartment',
+        label: 'Sub Department',
+        value: s.subDepartment,
+        colors: deptColors,
+      }),
       requiredField({
         key: 'phone',
         kind: 'phone',

@@ -44,7 +44,9 @@ export type ContactFieldKind =
   | 'taxId'
   | 'trips'
   | 'license'
-  | 'date';
+  | 'date'
+  | 'department'
+  | 'subDepartment';
 
 export type ContactField = {
   /** Stable React key, unique within one profile. */
@@ -54,10 +56,14 @@ export type ContactField = {
   value: string;
   /** Bold + tinted value (e.g. Total Trips). */
   emphasis?: boolean;
+  /** Overrides the kind's icon tint, e.g. the staff department colour. */
+  colors?: { bg: string; fg: string };
+  /** Draw the value as a rounded pill in `colors` (e.g. Department). */
+  badge?: boolean;
 };
 
 /** Icon shown before a header meta line. */
-export type ContactMetaIcon = 'status' | 'role' | 'company';
+export type ContactMetaIcon = 'status' | 'company';
 
 export type ContactMeta = {
   key: string;

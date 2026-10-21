@@ -73,10 +73,27 @@ const DEPARTMENTS = [
   'SEO',
 ];
 
+/** Sample sub-departments per department (free text on the server;
+ *  this is mock data only). */
+const SUB_DEPARTMENTS: Record<string, string> = {
+  Admin: 'Office Administration',
+  IT: 'App Development',
+  HR: 'Recruitment',
+  Sales: 'Corporate Sales',
+  Accounts: 'Billing',
+  Graphics: 'Brand Design',
+  SEO: 'Content',
+};
+
 export const fixtureUcStaffAll: Staff[] = NAMES.map((name, i) => ({
   id: `s_${i + 1}`,
   name,
   department: DEPARTMENTS[i % DEPARTMENTS.length],
+  // Every 3rd staff member has no sub-department: exercises the hidden row.
+  subDepartment:
+    i % 3 === 2
+      ? undefined
+      : SUB_DEPARTMENTS[DEPARTMENTS[i % DEPARTMENTS.length]],
   phone: phoneFor(i),
   phoneAlt: i % 4 === 0 ? phoneFor(i, 1) : undefined,
   email: emailFor(name),

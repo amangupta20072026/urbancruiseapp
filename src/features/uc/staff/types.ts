@@ -28,6 +28,10 @@ export type Staff = {
   /** Department, e.g. 'Admin', 'IT', 'HR', 'Sales'. Free text from the
    * server; empty string when not set. */
   department: string;
+  /** Sub-department within `department` (e.g. 'Recruitment' in HR).
+   * Free text from the server; optional — the contact sheet hides the
+   * row when it is not set. */
+  subDepartment?: string;
   /** Work phone. */
   phone: string;
   /** Personal / alternate phone. Optional. */
