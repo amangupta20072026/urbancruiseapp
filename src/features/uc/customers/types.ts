@@ -1,6 +1,12 @@
 import type { ISODateTime } from '@app-types/datetime';
 import type { Money } from '@app-types/currency';
 import { Colors } from '@theme';
+/* Type-only imports — erased at build time, so they do NOT pull the
+ * customer feature's modules into the lazily-loaded UC bundle. Shared
+ * so a trip type / lifecycle step means the same thing on every
+ * surface (customer quotations, customer bookings, UC history). */
+import type { TripType } from '@features/customer/quotations/types';
+import type { BookingProgressStep } from '@features/customer/bookings/types';
 
 /* ------------------------------------------------------------------
  * Customer schema — matches the 3-category business model.
@@ -159,6 +165,24 @@ export type TripStatus =
 
 export type TripPaymentStatus = 'paid' | 'pending' | 'refunded' | 'na';
 
+/**
+ * Lifecycle step a trip has reached — same vocabulary as the
+ * customer booking tracker. Valid combinations with `status`
+ * (the backend is expected to honour these; the card relies on them):
+ *
+ *   status        progressStep
+ *   upcoming      booked | confirmed
+ *   in_progress   started
+ *   completed     completed
+ *   cancelled     booked | confirmed   (the last step reached BEFORE
+ *                                       it was cancelled)
+ *   no_show       confirmed            (vehicle reached pickup, the
+ *                                       trip never started)
+ */
+export type TripProgressStep = BookingProgressStep;
+
+export type { TripType };
+
 export type Trip = {
   id: string;
   customerId: string;
@@ -173,6 +197,13 @@ export type Trip = {
   completedAt: ISODateTime | null;
 
   status: TripStatus;
+  /** Last lifecycle step reached — see TripProgressStep. */
+  progressStep: TripProgressStep;
+
+  /** One Way / Round Trip / Pickup & Drop. */
+  tripType: TripType;
+  /** Total passenger count for the booking (>= 1). */
+  passengers: number;
 
   vehicleType: string;
   vehicleNumber?: string;
@@ -219,15 +250,51 @@ export const TRIP_PAYMENT_LABEL: Record<TripPaymentStatus, string> = {
   na: '—',
 };
 
-/* Status colour tokens — derived from centralised Colors so no hex
- * literals live in components. The `bg` is a soft tint of `fg`;
- * we use theme's own tokens for the tints. */
+/** Text colour on a soft tint (badges / pills). */
 type StatusColorPair = { fg: string; bg: string };
 
-export const TRIP_STATUS_COLOR: Record<TripStatus, StatusColorPair> = {
-  completed: { fg: Colors.completed, bg: '#DBEAFE' },
-  cancelled: { fg: Colors.cancelled, bg: '#FEE2E2' },
-  no_show: { fg: Colors.warning, bg: '#FEF3C7' },
-  in_progress: { fg: Colors.success, bg: '#E7F7EC' },
-  upcoming: { fg: Colors.info, bg: '#E0F2FE' },
-};
+/* ------------------------------------------------------------------
+ * Trip card tone — one colour family per status
+ * ------------------------------------------------------------------
+ * Drives the history card: status pill, card wash + border, the
+ * progress tracker's active colour and the View Details button.
+ *
+ *   solid  — pill background, tracker dots/lines, button text/border.
+ *            Every value carries white pill text at >= 4.5:1 (AA).
+ *   wash   — whole-card background.
+ *   border — whole-card border.
+ *
+ * Upcoming / Completed / Cancelled follow the approved design.
+ * In progress / No show are not in the design; they reuse existing
+ * semantic tokens (ongoing orange, pending amber).
+ * ------------------------------------------------------------------ */
+export type TripCardTone = { solid: string; wash: string; border: string };
+
+export const TRIP_STATUS_TONE: Readonly<Record<TripStatus, TripCardTone>> =
+  Object.freeze({
+    upcoming: {
+      solid: Colors.completed,
+      wash: Colors.blueWash,
+      border: Colors.blueWashBorder,
+    },
+    in_progress: {
+      solid: Colors.ongoing,
+      wash: Colors.orangeWash,
+      border: Colors.orangeWashBorder,
+    },
+    completed: {
+      solid: Colors.primaryDark,
+      wash: Colors.greenWash,
+      border: Colors.greenWashBorder,
+    },
+    cancelled: {
+      solid: Colors.cancelled,
+      wash: Colors.redWash,
+      border: Colors.redWashBorder,
+    },
+    no_show: {
+      solid: Colors.pendingDark,
+      wash: Colors.amberWash,
+      border: Colors.amberWashBorder,
+    },
+  });

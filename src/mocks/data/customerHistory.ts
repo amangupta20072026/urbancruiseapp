@@ -34,7 +34,19 @@
  *       no_show          → paid | na       (charge policy varies)
  *       in_progress      → pending
  *       upcoming         → na
+ *   - `progressStep` follows status (see TripProgressStep):
+ *       upcoming         → booked | confirmed
+ *       in_progress      → started
+ *       completed        → completed
+ *       cancelled        → booked | confirmed
+ *       no_show          → confirmed
+ *   - `passengers` stays within the vehicle's seating range.
  *   - Trips are sorted newest-first (descending `scheduledAt`).
+ *
+ * `progressStep`, `tripType` and `passengers` are rolled from a
+ * SEPARATE per-trip stream (seeded by the trip id). Drawing them from
+ * the main stream would shift every later roll and silently change
+ * every existing trip's route, amount and booking ref.
  *
  * DELETE this file entirely when the backend goes live.
  * ------------------------------------------------------------------
@@ -45,7 +57,9 @@ import { rupeesToMoney } from '@app-types/currency';
 import type {
   Trip,
   TripPaymentStatus,
+  TripProgressStep,
   TripStatus,
+  TripType,
 } from '@features/uc/customers/types';
 
 import { fixtureUcCustomersAll } from '@mocks/fixtures/ucCustomers';
@@ -231,6 +245,47 @@ function rollPayment(rng: Rng, status: TripStatus): TripPaymentStatus {
   }
 }
 
+function rollProgressStep(rng: Rng, status: TripStatus): TripProgressStep {
+  switch (status) {
+    case 'upcoming':
+      return chance(rng, 0.6) ? 'confirmed' : 'booked';
+    case 'in_progress':
+      return 'started';
+    case 'completed':
+      return 'completed';
+    case 'cancelled':
+      return chance(rng, 0.5) ? 'confirmed' : 'booked';
+    case 'no_show':
+      return 'confirmed';
+  }
+}
+
+const TRIP_TYPES: readonly TripType[] = [
+  'one_way',
+  'round_trip',
+  'pickup_drop',
+];
+
+/** Seating range [min, max] passengers per vehicle type. */
+function passengerRange(vehicleType: string): readonly [number, number] {
+  switch (vehicleType) {
+    case 'Hatchback':
+    case 'Sedan':
+    case 'Luxury Sedan':
+      return [1, 4];
+    case 'SUV':
+      return [1, 6];
+    case 'Innova Crysta':
+      return [1, 7];
+    case 'Tempo Traveller':
+      return [6, 17];
+    case 'Mini Bus':
+      return [12, 26];
+    default:
+      return [1, 4];
+  }
+}
+
 /** Weighted vehicle pick using VEHICLE_TYPE_WEIGHTS. */
 function pickVehicleType(rng: Rng): string {
   const total = VEHICLE_TYPE_WEIGHTS.reduce((s, w) => s + w, 0);
@@ -386,6 +441,13 @@ function generateTripsForCustomer(customer: CustomerInputForGen): Trip[] {
       '0',
     )}`;
 
+    // Separate stream — see header ("SEPARATE per-trip stream").
+    const extraRng = mulberry32(hashString(tripId));
+    const progressStep = rollProgressStep(extraRng, status);
+    const tripType = pick(extraRng, TRIP_TYPES);
+    const [minPax, maxPax] = passengerRange(vehicleType);
+    const passengers = int(extraRng, minPax, maxPax);
+
     trips.push({
       id: tripId,
       customerId: customer.id,
@@ -397,6 +459,9 @@ function generateTripsForCustomer(customer: CustomerInputForGen): Trip[] {
       scheduledAt: asISODateTime(scheduledAt.toISOString()),
       completedAt: completedAt ? asISODateTime(completedAt) : null,
       status,
+      progressStep,
+      tripType,
+      passengers,
       vehicleType,
       vehicleNumber,
       driverName,

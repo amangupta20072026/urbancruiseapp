@@ -82,6 +82,8 @@ export const Colors = {
   confirmed: '#16A34A',
   cancelled: '#DC2626',
   completed: '#2563EB',
+  /** Trip in progress (orange). White text on it: 5.18:1 (AA). */
+  ongoing: '#C2410C',
 
   /**
    * ------------------------------------------------------------
@@ -192,6 +194,19 @@ export const Colors = {
    *  text on them keeps full contrast. */
   primaryWash: '#F4FBF5',
   royalWash: '#FAF5FF',
+
+  /** Status-tinted card washes + matching borders (trip history
+   *  cards). Green / red / amber match the quotation card washes. */
+  blueWash: '#F5F9FF',
+  blueWashBorder: '#D6E4FD',
+  greenWash: '#F0FAF3',
+  greenWashBorder: '#CFEEDB',
+  redWash: '#FEF6F6',
+  redWashBorder: '#FAD5D5',
+  orangeWash: '#FFF7F0',
+  orangeWashBorder: '#FDDCC0',
+  amberWash: '#FFFBEB',
+  amberWashBorder: '#FDE9B0',
 
   /**
    * ------------------------------------------------------------

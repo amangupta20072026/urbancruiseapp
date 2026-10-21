@@ -39,8 +39,10 @@ const queryStore = createMMKV({ id: 'urbancruise-query-cache' });
  * to the shape of persisted query data (see header). History:
  *   '2' — UC dashboard redesign: stat keys (revenue → quotations),
  *         booking statuses (lower-case), recent bookings `pickupAt`.
+ *   '3' — UC customer trip history: Trip gains `progressStep`,
+ *         `tripType`, `passengers`.
  */
-export const QUERY_CACHE_BUSTER = '2';
+export const QUERY_CACHE_BUSTER = '3';
 
 /**
  * AsyncStorage-shaped adapter over the sync MMKV instance.
