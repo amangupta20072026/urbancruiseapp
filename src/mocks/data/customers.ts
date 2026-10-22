@@ -1675,7 +1675,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-MUM-0151',
     type: 'corporate',
-    name: 'Tata Consultancy Services — Chennai',
+    name: 'Tata Consultancy Services',
     phone: '+91 1399307271',
     email: 'travel.desk1@tcs.com',
     city: 'Mumbai',
@@ -1687,7 +1687,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CHD-0152',
     type: 'corporate',
-    name: 'HCLTech — Pune',
+    name: 'HCLTech',
     phone: '+91 7985841988',
     email: 'travel.desk2@hcltech.com',
     city: 'Chandigarh',
@@ -1699,7 +1699,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-NAG-0153',
     type: 'corporate',
-    name: 'Tech Mahindra — Delhi NCR',
+    name: 'Tech Mahindra',
     phone: '+91 6133458695',
     email: 'travel.desk3@techmahindra.com',
     city: 'Nagpur',
@@ -1711,7 +1711,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-GGM-0154',
     type: 'corporate',
-    name: 'Accenture India — Gurugram',
+    name: 'Accenture India',
     phone: '+91 7231563525',
     email: 'travel.desk4@accenture.com',
     city: 'Gurugram',
@@ -1723,7 +1723,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CHE-0155',
     type: 'corporate',
-    name: 'Cognizant India — Noida',
+    name: 'Cognizant India',
     phone: '+91 2333092631',
     email: 'travel.desk5@cognizant.com',
     city: 'Chennai',
@@ -1735,7 +1735,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-KOC-0156',
     type: 'corporate',
-    name: 'Capgemini India — BKC',
+    name: 'Capgemini India',
     phone: '+91 5567007511',
     email: 'travel.desk6@capgemini.com',
     city: 'Kochi',
@@ -1747,7 +1747,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-BBS-0157',
     type: 'corporate',
-    name: 'IBM India — Whitefield',
+    name: 'IBM India',
     phone: '+91 8876654546',
     email: 'travel.desk7@ibm.com',
     city: 'Bhubaneswar',
@@ -1759,7 +1759,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-PUN-0158',
     type: 'corporate',
-    name: 'Amazon Development Centre India — HITEC City',
+    name: 'Amazon Development Centre India',
     phone: '+91 6021267913',
     email: 'travel.desk8@amazon.com',
     city: 'Pune',
@@ -1771,7 +1771,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-AMD-0159',
     type: 'corporate',
-    name: 'Google India — Electronic City',
+    name: 'Google India',
     phone: '+91 1811558373',
     email: 'travel.desk9@google.com',
     city: 'Ahmedabad',
@@ -1783,7 +1783,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-BHO-0160',
     type: 'corporate',
-    name: 'Oracle India — Chennai',
+    name: 'Oracle India',
     phone: '+91 8712562575',
     email: 'travel.desk10@oracle.com',
     city: 'Bhopal',
@@ -1795,7 +1795,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-NOI-0161',
     type: 'corporate',
-    name: 'SAP Labs India — Pune',
+    name: 'SAP Labs India',
     phone: '+91 2175857127',
     email: 'travel.desk11@sap.com',
     city: 'Noida',
@@ -1807,7 +1807,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-KOL-0162',
     type: 'corporate',
-    name: 'Deloitte India — Delhi NCR',
+    name: 'Deloitte India',
     phone: '+91 9593519329',
     email: 'travel.desk12@deloitte.co.in',
     city: 'Kolkata',
@@ -1819,7 +1819,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-GOA-0163',
     type: 'corporate',
-    name: 'EY India — Gurugram',
+    name: 'EY India',
     phone: '+91 4334473509',
     email: 'travel.desk13@ey.com',
     city: 'Goa',
@@ -1831,7 +1831,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-PAT-0164',
     type: 'corporate',
-    name: 'KPMG India — Noida',
+    name: 'KPMG India',
     phone: '+91 9120319493',
     email: 'travel.desk14@kpmg.com',
     city: 'Patna',
@@ -1843,7 +1843,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-BLR-0165',
     type: 'corporate',
-    name: 'PwC India — BKC',
+    name: 'PwC India',
     phone: '+91 6856200685',
     email: 'travel.desk15@pwc.com',
     city: 'Bengaluru',
@@ -1855,7 +1855,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-LKO-0166',
     type: 'corporate',
-    name: 'Wipro Technologies — Whitefield',
+    name: 'Wipro Technologies',
     phone: '+91 2095598149',
     email: 'travel.desk16@wipro.com',
     city: 'Lucknow',
@@ -1867,7 +1867,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CBE-0167',
     type: 'corporate',
-    name: 'Infosys BPM — HITEC City',
+    name: 'Infosys BPM',
     phone: '+91 4982702131',
     email: 'travel.desk17@infosysbpm.com',
     city: 'Coimbatore',
@@ -1879,7 +1879,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-GZB-0168',
     type: 'corporate',
-    name: 'LTIMindtree — Electronic City',
+    name: 'LTIMindtree',
     phone: '+91 1431447769',
     email: 'travel.desk1@ltimindtree.com',
     city: 'Ghaziabad',
@@ -1891,7 +1891,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-JAI-0169',
     type: 'corporate',
-    name: 'Mphasis — Chennai',
+    name: 'Mphasis',
     phone: '+91 1191904563',
     email: 'travel.desk2@mphasis.com',
     city: 'Jaipur',
@@ -1903,7 +1903,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-SUR-0170',
     type: 'corporate',
-    name: 'Persistent Systems — Pune',
+    name: 'Persistent Systems',
     phone: '+91 6816568327',
     email: 'travel.desk3@persistent.com',
     city: 'Surat',
@@ -1915,7 +1915,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-DEL-0171',
     type: 'corporate',
-    name: 'Coforge — Delhi NCR',
+    name: 'Coforge',
     phone: '+91 9563750927',
     email: 'travel.desk4@coforge.com',
     city: 'Delhi',
@@ -1927,7 +1927,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-HYD-0172',
     type: 'corporate',
-    name: 'Genpact India — Gurugram',
+    name: 'Genpact India',
     phone: '+91 5119608368',
     email: 'travel.desk5@genpact.com',
     city: 'Hyderabad',
@@ -1939,7 +1939,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-IDR-0173',
     type: 'corporate',
-    name: 'Reliance Industries — Noida',
+    name: 'Reliance Industries',
     phone: '+91 6523565751',
     email: 'travel.desk6@ril.com',
     city: 'Indore',
@@ -1951,7 +1951,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-VAD-0174',
     type: 'corporate',
-    name: 'Adani Enterprises — BKC',
+    name: 'Adani Enterprises',
     phone: '+91 1940542158',
     email: 'travel.desk7@adani.com',
     city: 'Vadodara',
@@ -1963,7 +1963,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-MUM-0175',
     type: 'corporate',
-    name: 'Mahindra Group — Whitefield',
+    name: 'Mahindra Group',
     phone: '+91 5133020915',
     email: 'travel.desk8@mahindra.com',
     city: 'Mumbai',
@@ -1975,7 +1975,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CHD-0176',
     type: 'corporate',
-    name: 'Maruti Suzuki India — HITEC City',
+    name: 'Maruti Suzuki India',
     phone: '+91 4864717083',
     email: 'travel.desk9@marutisuzuki.com',
     city: 'Chandigarh',
@@ -1987,7 +1987,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-NAG-0177',
     type: 'corporate',
-    name: 'Axis Bank — Electronic City',
+    name: 'Axis Bank',
     phone: '+91 8724786354',
     email: 'travel.desk10@axisbank.com',
     city: 'Nagpur',
@@ -1999,7 +1999,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-GGM-0178',
     type: 'corporate',
-    name: 'ICICI Bank — Chennai',
+    name: 'ICICI Bank',
     phone: '+91 8478135318',
     email: 'travel.desk11@icicibank.com',
     city: 'Gurugram',
@@ -2011,7 +2011,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CHE-0179',
     type: 'corporate',
-    name: 'HDFC Bank — Pune',
+    name: 'HDFC Bank',
     phone: '+91 7027401174',
     email: 'travel.desk12@hdfcbank.com',
     city: 'Chennai',
@@ -2023,7 +2023,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-KOC-0180',
     type: 'corporate',
-    name: 'Kotak Mahindra Bank — Delhi NCR',
+    name: 'Kotak Mahindra Bank',
     phone: '+91 7852699372',
     email: 'travel.desk13@kotak.com',
     city: 'Kochi',
@@ -2035,7 +2035,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-BBS-0181',
     type: 'corporate',
-    name: 'Larsen & Toubro — Gurugram',
+    name: 'Larsen & Toubro',
     phone: '+91 6029893626',
     email: 'travel.desk14@larsentoubro.com',
     city: 'Bhubaneswar',
@@ -2047,7 +2047,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-PUN-0182',
     type: 'corporate',
-    name: 'Bosch India — Noida',
+    name: 'Bosch India',
     phone: '+91 3286483504',
     email: 'travel.desk15@bosch.com',
     city: 'Pune',
@@ -2059,7 +2059,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-AMD-0183',
     type: 'corporate',
-    name: 'Siemens India — BKC',
+    name: 'Siemens India',
     phone: '+91 4992952563',
     email: 'travel.desk16@siemens.com',
     city: 'Ahmedabad',
@@ -2071,7 +2071,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-BHO-0184',
     type: 'corporate',
-    name: 'Microsoft India — Whitefield',
+    name: 'Microsoft India',
     phone: '+91 7247316443',
     email: 'travel.desk17@microsoft.com',
     city: 'Bhopal',
@@ -2083,7 +2083,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-NOI-0185',
     type: 'corporate',
-    name: 'Cisco India — HITEC City',
+    name: 'Cisco India',
     phone: '+91 1499895284',
     email: 'travel.desk1@cisco.com',
     city: 'Noida',
@@ -2095,7 +2095,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-KOL-0186',
     type: 'corporate',
-    name: 'Dell Technologies India — Electronic City',
+    name: 'Dell Technologies India',
     phone: '+91 6215309534',
     email: 'travel.desk2@dell.com',
     city: 'Kolkata',
@@ -2107,7 +2107,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-GOA-0187',
     type: 'corporate',
-    name: 'Flipkart — Chennai',
+    name: 'Flipkart',
     phone: '+91 9137705153',
     email: 'travel.desk3@flipkart.com',
     city: 'Goa',
@@ -2119,7 +2119,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-PAT-0188',
     type: 'corporate',
-    name: 'Swiggy — Pune',
+    name: 'Swiggy',
     phone: '+91 6852782595',
     email: 'travel.desk4@swiggy.in',
     city: 'Patna',
@@ -2131,7 +2131,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-BLR-0189',
     type: 'corporate',
-    name: 'Zomato — Delhi NCR',
+    name: 'Zomato',
     phone: '+91 4819788948',
     email: 'travel.desk5@zomato.com',
     city: 'Bengaluru',
@@ -2143,7 +2143,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-LKO-0190',
     type: 'corporate',
-    name: 'MakeMyTrip — Gurugram',
+    name: 'MakeMyTrip',
     phone: '+91 1228489932',
     email: 'travel.desk6@makemytrip.com',
     city: 'Lucknow',
@@ -2155,7 +2155,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CBE-0191',
     type: 'corporate',
-    name: 'ICICI Lombard — Noida',
+    name: 'ICICI Lombard',
     phone: '+91 9791923533',
     email: 'travel.desk7@icicilombard.com',
     city: 'Coimbatore',
@@ -2167,7 +2167,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-GZB-0192',
     type: 'corporate',
-    name: 'Hindustan Unilever — BKC',
+    name: 'Hindustan Unilever',
     phone: '+91 8819114911',
     email: 'travel.desk8@hul.co.in',
     city: 'Ghaziabad',
@@ -2179,7 +2179,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-JAI-0193',
     type: 'corporate',
-    name: 'Asian Paints — Whitefield',
+    name: 'Asian Paints',
     phone: '+91 4955223121',
     email: 'travel.desk9@asianpaints.com',
     city: 'Jaipur',
@@ -2191,7 +2191,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-SUR-0194',
     type: 'corporate',
-    name: 'Britannia Industries — HITEC City',
+    name: 'Britannia Industries',
     phone: '+91 8663193252',
     email: 'travel.desk10@britannia.co.in',
     city: 'Surat',
@@ -2203,7 +2203,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-DEL-0195',
     type: 'corporate',
-    name: 'ITC Limited — Electronic City',
+    name: 'ITC Limited',
     phone: '+91 6268619510',
     email: 'travel.desk11@itcportal.com',
     city: 'Delhi',
@@ -2215,7 +2215,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-HYD-0196',
     type: 'corporate',
-    name: 'Tata Consultancy Services — Chennai',
+    name: 'Tata Consultancy Services',
     phone: '+91 2694893192',
     email: 'travel.desk12@tcs.com',
     city: 'Hyderabad',
@@ -2227,7 +2227,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-IDR-0197',
     type: 'corporate',
-    name: 'HCLTech — Pune',
+    name: 'HCLTech',
     phone: '+91 4935900172',
     email: 'travel.desk13@hcltech.com',
     city: 'Indore',
@@ -2239,7 +2239,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-VAD-0198',
     type: 'corporate',
-    name: 'Tech Mahindra — Delhi NCR',
+    name: 'Tech Mahindra',
     phone: '+91 9964046209',
     email: 'travel.desk14@techmahindra.com',
     city: 'Vadodara',
@@ -2251,7 +2251,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-MUM-0199',
     type: 'corporate',
-    name: 'Accenture India — Gurugram',
+    name: 'Accenture India',
     phone: '+91 7490247658',
     email: 'travel.desk15@accenture.com',
     city: 'Mumbai',
@@ -2263,7 +2263,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CHD-0200',
     type: 'corporate',
-    name: 'Cognizant India — Noida',
+    name: 'Cognizant India',
     phone: '+91 2170223370',
     email: 'travel.desk16@cognizant.com',
     city: 'Chandigarh',
@@ -2275,7 +2275,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-NAG-0201',
     type: 'corporate',
-    name: 'Capgemini India — BKC',
+    name: 'Capgemini India',
     phone: '+91 6070958199',
     email: 'travel.desk17@capgemini.com',
     city: 'Nagpur',
@@ -2287,7 +2287,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-GGM-0202',
     type: 'corporate',
-    name: 'IBM India — Whitefield',
+    name: 'IBM India',
     phone: '+91 5056159479',
     email: 'travel.desk1@ibm.com',
     city: 'Gurugram',
@@ -2299,7 +2299,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CHE-0203',
     type: 'corporate',
-    name: 'Amazon Development Centre India — HITEC City',
+    name: 'Amazon Development Centre India',
     phone: '+91 9275689974',
     email: 'travel.desk2@amazon.com',
     city: 'Chennai',
@@ -2311,7 +2311,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-KOC-0204',
     type: 'corporate',
-    name: 'Google India — Electronic City',
+    name: 'Google India',
     phone: '+91 2511437201',
     email: 'travel.desk3@google.com',
     city: 'Kochi',
@@ -2323,7 +2323,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-BBS-0205',
     type: 'corporate',
-    name: 'Oracle India — Chennai',
+    name: 'Oracle India',
     phone: '+91 6348555310',
     email: 'travel.desk4@oracle.com',
     city: 'Bhubaneswar',
@@ -2335,7 +2335,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-PUN-0206',
     type: 'corporate',
-    name: 'SAP Labs India — Pune',
+    name: 'SAP Labs India',
     phone: '+91 6250656397',
     email: 'travel.desk5@sap.com',
     city: 'Pune',
@@ -2347,7 +2347,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-AMD-0207',
     type: 'corporate',
-    name: 'Deloitte India — Delhi NCR',
+    name: 'Deloitte India',
     phone: '+91 9023564132',
     email: 'travel.desk6@deloitte.co.in',
     city: 'Ahmedabad',
@@ -2359,7 +2359,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-BHO-0208',
     type: 'corporate',
-    name: 'EY India — Gurugram',
+    name: 'EY India',
     phone: '+91 7055271835',
     email: 'travel.desk7@ey.com',
     city: 'Bhopal',
@@ -2371,7 +2371,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-NOI-0209',
     type: 'corporate',
-    name: 'KPMG India — Noida',
+    name: 'KPMG India',
     phone: '+91 8397804422',
     email: 'travel.desk8@kpmg.com',
     city: 'Noida',
@@ -2383,7 +2383,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-KOL-0210',
     type: 'corporate',
-    name: 'PwC India — BKC',
+    name: 'PwC India',
     phone: '+91 4095303495',
     email: 'travel.desk9@pwc.com',
     city: 'Kolkata',
@@ -2395,7 +2395,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-GOA-0211',
     type: 'corporate',
-    name: 'Wipro Technologies — Whitefield',
+    name: 'Wipro Technologies',
     phone: '+91 8593965615',
     email: 'travel.desk10@wipro.com',
     city: 'Goa',
@@ -2407,7 +2407,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-PAT-0212',
     type: 'corporate',
-    name: 'Infosys BPM — HITEC City',
+    name: 'Infosys BPM',
     phone: '+91 9744960946',
     email: 'travel.desk11@infosysbpm.com',
     city: 'Patna',
@@ -2419,7 +2419,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-BLR-0213',
     type: 'corporate',
-    name: 'LTIMindtree — Electronic City',
+    name: 'LTIMindtree',
     phone: '+91 3778805574',
     email: 'travel.desk12@ltimindtree.com',
     city: 'Bengaluru',
@@ -2431,7 +2431,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-LKO-0214',
     type: 'corporate',
-    name: 'Mphasis — Chennai',
+    name: 'Mphasis',
     phone: '+91 9242902613',
     email: 'travel.desk13@mphasis.com',
     city: 'Lucknow',
@@ -2443,7 +2443,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CBE-0215',
     type: 'corporate',
-    name: 'Persistent Systems — Pune',
+    name: 'Persistent Systems',
     phone: '+91 2690469044',
     email: 'travel.desk14@persistent.com',
     city: 'Coimbatore',
@@ -2455,7 +2455,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-GZB-0216',
     type: 'corporate',
-    name: 'Coforge — Delhi NCR',
+    name: 'Coforge',
     phone: '+91 8827532221',
     email: 'travel.desk15@coforge.com',
     city: 'Ghaziabad',
@@ -2467,7 +2467,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-JAI-0217',
     type: 'corporate',
-    name: 'Genpact India — Gurugram',
+    name: 'Genpact India',
     phone: '+91 9039606771',
     email: 'travel.desk16@genpact.com',
     city: 'Jaipur',
@@ -2479,7 +2479,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-SUR-0218',
     type: 'corporate',
-    name: 'Reliance Industries — Noida',
+    name: 'Reliance Industries',
     phone: '+91 2064525580',
     email: 'travel.desk17@ril.com',
     city: 'Surat',
@@ -2491,7 +2491,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-DEL-0219',
     type: 'corporate',
-    name: 'Adani Enterprises — BKC',
+    name: 'Adani Enterprises',
     phone: '+91 3684645703',
     email: 'travel.desk1@adani.com',
     city: 'Delhi',
@@ -2503,7 +2503,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-HYD-0220',
     type: 'corporate',
-    name: 'Mahindra Group — Whitefield',
+    name: 'Mahindra Group',
     phone: '+91 8941783292',
     email: 'travel.desk2@mahindra.com',
     city: 'Hyderabad',
@@ -2515,7 +2515,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-IDR-0221',
     type: 'corporate',
-    name: 'Maruti Suzuki India — HITEC City',
+    name: 'Maruti Suzuki India',
     phone: '+91 5383554680',
     email: 'travel.desk3@marutisuzuki.com',
     city: 'Indore',
@@ -2527,7 +2527,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-VAD-0222',
     type: 'corporate',
-    name: 'Axis Bank — Electronic City',
+    name: 'Axis Bank',
     phone: '+91 5725416681',
     email: 'travel.desk4@axisbank.com',
     city: 'Vadodara',
@@ -2539,7 +2539,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-MUM-0223',
     type: 'corporate',
-    name: 'ICICI Bank — Chennai',
+    name: 'ICICI Bank',
     phone: '+91 5862923654',
     email: 'travel.desk5@icicibank.com',
     city: 'Mumbai',
@@ -2551,7 +2551,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CHD-0224',
     type: 'corporate',
-    name: 'HDFC Bank — Pune',
+    name: 'HDFC Bank',
     phone: '+91 3865710731',
     email: 'travel.desk6@hdfcbank.com',
     city: 'Chandigarh',
@@ -2563,7 +2563,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-NAG-0225',
     type: 'corporate',
-    name: 'Kotak Mahindra Bank — Delhi NCR',
+    name: 'Kotak Mahindra Bank',
     phone: '+91 3116894419',
     email: 'travel.desk7@kotak.com',
     city: 'Nagpur',
@@ -2575,7 +2575,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-GGM-0226',
     type: 'corporate',
-    name: 'Larsen & Toubro — Gurugram',
+    name: 'Larsen & Toubro',
     phone: '+91 1459629318',
     email: 'travel.desk8@larsentoubro.com',
     city: 'Gurugram',
@@ -2587,7 +2587,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-CHE-0227',
     type: 'corporate',
-    name: 'Bosch India — Noida',
+    name: 'Bosch India',
     phone: '+91 3027333871',
     email: 'travel.desk9@bosch.com',
     city: 'Chennai',
@@ -2599,7 +2599,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-KOC-0228',
     type: 'corporate',
-    name: 'Siemens India — BKC',
+    name: 'Siemens India',
     phone: '+91 5319872110',
     email: 'travel.desk10@siemens.com',
     city: 'Kochi',
@@ -2611,7 +2611,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-BBS-0229',
     type: 'corporate',
-    name: 'Microsoft India — Whitefield',
+    name: 'Microsoft India',
     phone: '+91 3591838825',
     email: 'travel.desk11@microsoft.com',
     city: 'Bhubaneswar',
@@ -2623,7 +2623,7 @@ export const mockCustomers: LegacyCustomerRow[] = [
   {
     id: 'CUST-PUN-0230',
     type: 'corporate',
-    name: 'Cisco India — HITEC City',
+    name: 'Cisco India',
     phone: '+91 5169584066',
     email: 'travel.desk12@cisco.com',
     city: 'Pune',
