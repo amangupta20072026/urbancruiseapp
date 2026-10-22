@@ -41,10 +41,23 @@ export function normalizeIndianMobile(raw: string): string | null {
 
 /** Shows the picker; resolves the chosen 10-digit number or `null`. */
 export async function requestPhoneNumberHint(): Promise<string | null> {
-  if (Platform.OS !== 'android' || !PhoneNumberHint) return null;
+  if (Platform.OS !== 'android') return null;
+  if (!PhoneNumberHint) {
+    if (__DEV__) {
+      console.warn(
+        '[PhoneNumberHint] native module not found — rebuild the Android app',
+      );
+    }
+    return null;
+  }
   try {
     const raw = await PhoneNumberHint.request();
-    return raw ? normalizeIndianMobile(raw) : null;
+    if (!raw) return null;
+    const local = normalizeIndianMobile(raw);
+    if (!local && __DEV__) {
+      console.warn('[PhoneNumberHint] picked number is not an Indian mobile');
+    }
+    return local;
   } catch {
     return null;
   }

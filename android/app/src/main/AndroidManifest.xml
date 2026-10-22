@@ -11,6 +11,11 @@
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
 
+        <!-- Google Play services: lets SmsUserConsentModule confirm the
+             SMS consent screen really belongs to Play services before
+             opening it (auth/SmsUserConsentModule.kt). -->
+        <package android:name="com.google.android.gms" />
+
         <!-- tel: scheme -->
         <intent>
             <action android:name="android.intent.action.DIAL" />

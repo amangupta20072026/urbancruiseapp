@@ -5,6 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.os.BundleCompat
 import com.facebook.react.bridge.BaseActivityEventListener
@@ -31,6 +33,7 @@ import com.google.android.gms.common.api.Status
  *   stop(): void
  *
  * Best-effort: any failure resolves `null` and the user types the code.
+ * Steps and failures are logged under the tag "UCSmsConsent".
  */
 class SmsUserConsentModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
@@ -54,9 +57,11 @@ class SmsUserConsentModule(reactContext: ReactApplicationContext) :
           if (requestCode != REQUEST_CODE) return
           val message =
               if (resultCode == Activity.RESULT_OK) {
+                Log.i(TAG, "User allowed reading the SMS")
                 data?.getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE)
               } else {
-                null // user tapped Deny
+                Log.i(TAG, "User denied reading the SMS (resultCode=$resultCode)")
+                null
               }
           finish(currentGeneration(), message)
         }
@@ -86,8 +91,13 @@ class SmsUserConsentModule(reactContext: ReactApplicationContext) :
       // alphanumeric header (e.g. CP-URCRUZ-T), not a phone number.
       SmsRetriever.getClient(reactApplicationContext)
           .startSmsUserConsent(null)
-          .addOnFailureListener { finish(gen, null) }
-    } catch (_: Exception) {
+          .addOnSuccessListener { Log.i(TAG, "Listening for the OTP SMS") }
+          .addOnFailureListener { e ->
+            Log.w(TAG, "Could not start listening", e)
+            finish(gen, null)
+          }
+    } catch (e: Exception) {
+      Log.w(TAG, "Could not start listening", e)
       finish(gen, null)
     }
   }
@@ -122,6 +132,7 @@ class SmsUserConsentModule(reactContext: ReactApplicationContext) :
                 BundleCompat.getParcelable(extras, SmsRetriever.EXTRA_STATUS, Status::class.java)
             when (status?.statusCode) {
               CommonStatusCodes.SUCCESS -> {
+                Log.i(TAG, "OTP SMS received; asking the user")
                 val consentIntent =
                     BundleCompat.getParcelable(
                         extras,
@@ -130,7 +141,10 @@ class SmsUserConsentModule(reactContext: ReactApplicationContext) :
                     )
                 showConsent(currentGeneration(), consentIntent)
               }
-              CommonStatusCodes.TIMEOUT -> finish(currentGeneration(), null)
+              CommonStatusCodes.TIMEOUT -> {
+                Log.i(TAG, "Stopped: no OTP SMS within 5 minutes")
+                finish(currentGeneration(), null)
+              }
               else -> Unit
             }
           }
@@ -161,26 +175,46 @@ class SmsUserConsentModule(reactContext: ReactApplicationContext) :
 
   private fun showConsent(gen: Int, consentIntent: Intent?) {
     val activity = reactApplicationContext.currentActivity
-    if (activity == null || consentIntent == null || !isTrustedConsentIntent(consentIntent)) {
+    if (activity == null || consentIntent == null) {
+      Log.w(
+          TAG,
+          "Consent not shown (activity=${activity != null}, intent=${consentIntent != null})",
+      )
+      finish(gen, null)
+      return
+    }
+    val targetPackage = resolveTargetPackage(consentIntent, activity.packageManager)
+    if (!isTrustedConsentIntent(consentIntent, targetPackage)) {
+      Log.w(TAG, "Consent not shown: untrusted target (package=$targetPackage)")
       finish(gen, null)
       return
     }
     try {
       activity.startActivityForResult(consentIntent, REQUEST_CODE)
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+      Log.w(TAG, "Consent not shown: launch failed", e)
       finish(gen, null)
     }
   }
 
   /**
-   * Defense in depth against intent redirection: only launch the consent
-   * screen if it belongs to Google Play services and grants no URI access.
+   * The app that will open [intent]. Play services sends the consent
+   * intent without an explicit component, so ask Android to resolve it.
+   * Needs <package android:name="com.google.android.gms"/> in the
+   * manifest's <queries> on Android 11+.
    */
-  private fun isTrustedConsentIntent(intent: Intent): Boolean {
+  private fun resolveTargetPackage(intent: Intent, pm: PackageManager): String? =
+      intent.component?.packageName ?: intent.resolveActivity(pm)?.packageName
+
+  /**
+   * Defense in depth against intent redirection: only launch the consent
+   * screen if it opens in Google Play services and grants no URI access.
+   */
+  private fun isTrustedConsentIntent(intent: Intent, targetPackage: String?): Boolean {
     val grantFlags =
         Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
     if (intent.flags and grantFlags != 0) return false
-    return intent.component?.packageName == GMS_PACKAGE
+    return targetPackage == GMS_PACKAGE
   }
 
   override fun invalidate() {
@@ -191,6 +225,7 @@ class SmsUserConsentModule(reactContext: ReactApplicationContext) :
 
   companion object {
     const val NAME = "SmsUserConsent"
+    private const val TAG = "UCSmsConsent"
 
     // Below 0xFFFF: FragmentActivity only accepts 16-bit request codes.
     private const val REQUEST_CODE = 4212
