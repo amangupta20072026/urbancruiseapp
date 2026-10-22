@@ -5,7 +5,7 @@
  * Horizontal chip row for filtering the trip history by status.
  *
  *   ┌─────────────────────────────────────────────────────────┐
- *   │ [All 42]  [Completed 35]  [Cancelled 5]  [Upcoming 2]   │
+ *   │ [All 42] [Upcoming 2] [Ongoing 1] [Completed 34] [Cancel… │
  *   └─────────────────────────────────────────────────────────┘
  *
  * Design decisions:
@@ -37,11 +37,13 @@ type Props = {
   counts?: Partial<Record<HistoryStatusFilter, number>>;
 };
 
-const ORDER: HistoryStatusFilter[] = [
+/** Display order of the chips (left → right). */
+const ORDER: readonly HistoryStatusFilter[] = [
   'all',
+  'upcoming',
+  'ongoing',
   'completed',
   'cancelled',
-  'upcoming',
 ];
 
 export const HistoryFilterChips: React.FC<Props> = ({

@@ -24,8 +24,10 @@
  *   - 'cancelled' returns status='cancelled' OR 'no_show' — both
  *     are "trip didn't happen" from the customer's POV, and
  *     splitting no_show into its own chip would clutter the UI.
- *   - 'upcoming' returns status='upcoming' OR 'in_progress' —
- *     both are "future/not-yet-done" from the customer's POV.
+ *   - 'upcoming' returns only status='upcoming' (booked/confirmed,
+ *     not yet started).
+ *   - 'ongoing' returns only status='in_progress' (trip has started,
+ *     not yet completed).
  *
  * Backend integration:
  *   The real endpoint (once ready) is expected to accept
@@ -79,7 +81,14 @@ type HistoryQueryParams = {
 /* Filter helper                                                      */
 /* ------------------------------------------------------------------ */
 
-function matchesStatus(trip: Trip, status: HistoryStatusFilter): boolean {
+/**
+ * Whether a trip belongs under a filter chip. Every TripStatus falls
+ * in exactly one non-'all' chip. Exported for unit tests.
+ */
+export function matchesStatus(
+  trip: Pick<Trip, 'status'>,
+  status: HistoryStatusFilter,
+): boolean {
   switch (status) {
     case 'all':
       return true;
@@ -88,9 +97,19 @@ function matchesStatus(trip: Trip, status: HistoryStatusFilter): boolean {
     case 'cancelled':
       return trip.status === 'cancelled' || trip.status === 'no_show';
     case 'upcoming':
-      return trip.status === 'upcoming' || trip.status === 'in_progress';
+      return trip.status === 'upcoming';
+    case 'ongoing':
+      return trip.status === 'in_progress';
   }
 }
+
+/** Every filter except 'all', for counting. */
+const BUCKET_FILTERS: readonly Exclude<HistoryStatusFilter, 'all'>[] = [
+  'upcoming',
+  'ongoing',
+  'completed',
+  'cancelled',
+];
 
 /* ------------------------------------------------------------------ */
 /* Fetch                                                              */
@@ -198,7 +217,7 @@ export function useCustomerHistory({
  * Reads directly from the mock corpus — no query, no cache, no
  * loading state. When the backend goes live this becomes a real
  * lightweight endpoint (e.g. GET /uc/customers/:id/history/counts
- * returning { all, completed, cancelled, upcoming }) — same
+ * returning { all, upcoming, ongoing, completed, cancelled }) — same
  * return shape, so the chip row doesn't change.
  */
 export function useCustomerHistoryCounts(
@@ -206,19 +225,23 @@ export function useCustomerHistoryCounts(
 ): Record<HistoryStatusFilter, number> {
   return useMemo(() => {
     if (!customerId) {
-      return { all: 0, completed: 0, cancelled: 0, upcoming: 0 };
+      return { all: 0, upcoming: 0, ongoing: 0, completed: 0, cancelled: 0 };
     }
     const trips = getFixtureTripsForCustomer(customerId);
-    let completed = 0;
-    let cancelled = 0;
-    let upcoming = 0;
+    // Same buckets as matchesStatus, so chip counts always equal the
+    // number of rows the chip shows.
+    const counts: Record<HistoryStatusFilter, number> = {
+      all: trips.length,
+      upcoming: 0,
+      ongoing: 0,
+      completed: 0,
+      cancelled: 0,
+    };
     for (const t of trips) {
-      if (t.status === 'completed') completed += 1;
-      else if (t.status === 'cancelled' || t.status === 'no_show')
-        cancelled += 1;
-      else if (t.status === 'upcoming' || t.status === 'in_progress')
-        upcoming += 1;
+      for (const f of BUCKET_FILTERS) {
+        if (matchesStatus(t, f)) counts[f] += 1;
+      }
     }
-    return { all: trips.length, completed, cancelled, upcoming };
+    return counts;
   }, [customerId]);
 }

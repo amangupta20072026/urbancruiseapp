@@ -222,24 +222,35 @@ export type Trip = {
  * History filter
  * ------------------------------------------------------------------ */
 
+/**
+ * Trip-history filter chips. Each maps to one or more TripStatus values
+ * (see matchesStatus in hooks/useCustomerHistory.ts):
+ *   upcoming  → upcoming
+ *   ongoing   → in_progress
+ *   completed → completed
+ *   cancelled → cancelled | no_show
+ */
 export type HistoryStatusFilter =
   | 'all'
+  | 'upcoming'
+  | 'ongoing'
   | 'completed'
-  | 'cancelled'
-  | 'upcoming';
+  | 'cancelled';
 
 export const HISTORY_STATUS_LABEL: Record<HistoryStatusFilter, string> = {
   all: 'All',
+  upcoming: 'Upcoming',
+  ongoing: 'Ongoing',
   completed: 'Completed',
   cancelled: 'Cancelled',
-  upcoming: 'Upcoming',
 };
 
 export const TRIP_STATUS_LABEL: Record<TripStatus, string> = {
   completed: 'Completed',
   cancelled: 'Cancelled',
   no_show: 'No show',
-  in_progress: 'In progress',
+  // Matches the 'Ongoing' filter chip.
+  in_progress: 'Ongoing',
   upcoming: 'Upcoming',
 };
 
@@ -265,7 +276,7 @@ type StatusColorPair = { fg: string; bg: string };
  *   border — whole-card border.
  *
  * Upcoming / Completed / Cancelled follow the approved design.
- * In progress / No show are not in the design; they reuse existing
+ * Ongoing (in_progress) / No show are not in the design; they reuse existing
  * semantic tokens (ongoing orange, pending amber).
  * ------------------------------------------------------------------ */
 export type TripCardTone = { solid: string; wash: string; border: string };
