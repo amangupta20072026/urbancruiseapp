@@ -65,12 +65,17 @@ import { SafeScreen, ScreenHeader } from '@shared/components';
 import { ApiError } from '@api/errors';
 import { newIdempotencyKey } from '@api/idempotency';
 import { useRequestOtp, useVerifyOtp } from './hooks';
+import { OTP_LENGTH } from './otpConfig';
+import {
+  beginSmsOtpListening,
+  stopSmsOtpListening,
+  subscribeSmsOtp,
+} from '@services/otpAutofill';
 
 /* -----------------------------------------------------------------
  * Constants
  * ----------------------------------------------------------------- */
 
-const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
 const COUNTRY_CODE = '+91';
 
@@ -326,6 +331,20 @@ const OtpVerifyScreen: React.FC = () => {
     setError(null);
   }, []);
 
+  /* ---------------------------------------------------------------
+   * Android: fill the code from the SMS once the user taps Allow.
+   * Listening was started on LoginScreen before the OTP was sent; a
+   * code that arrived before this screen mounted is delivered here.
+   * Leaving the screen (login done, or back) stops listening.
+   * --------------------------------------------------------------- */
+  useEffect(() => {
+    const unsubscribe = subscribeSmsOtp(handleChangeOtp);
+    return () => {
+      unsubscribe();
+      stopSmsOtpListening();
+    };
+  }, [handleChangeOtp]);
+
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -403,6 +422,21 @@ const OtpVerifyScreen: React.FC = () => {
     }
   }, [canVerify, otp, phone, role, verifyOtp]);
 
+  /* ---------------------------------------------------------------
+   * Auto-verify: submit as soon as all digits are present — from the
+   * SMS, typed, or pasted. A code is auto-submitted only once, so a
+   * wrong code is not re-sent in a loop; the user changes a digit (or
+   * taps Verify) to try again.
+   * --------------------------------------------------------------- */
+  const lastAutoSubmittedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (otp.length !== OTP_LENGTH || verifying) return;
+    if (otp === lastAutoSubmittedRef.current) return;
+    lastAutoSubmittedRef.current = otp;
+    void handleVerify();
+  }, [otp, verifying, handleVerify]);
+
   const handleResend = useCallback(async () => {
     if (resending || secondsLeft > 0) return;
     setError(null);
@@ -411,6 +445,8 @@ const OtpVerifyScreen: React.FC = () => {
       // mint a fresh idempotency key so the server actually issues
       // a new OTP instead of replaying the previous response.
       const idempotencyKey = newIdempotencyKey();
+      // Android: listen for the NEW SMS before it is sent.
+      beginSmsOtpListening(OTP_LENGTH);
       const res = await requestOtp({
         phone,
         countryCode: COUNTRY_CODE,
@@ -421,9 +457,12 @@ const OtpVerifyScreen: React.FC = () => {
       // freshly issued handle rather than the stale one from the
       // original send.
       requestIdRef.current = res.requestId;
+      lastAutoSubmittedRef.current = null;
       setOtp('');
       setSecondsLeft(res.resendAfterSeconds ?? RESEND_SECONDS);
     } catch (err) {
+      // No new SMS is coming — stop listening for it.
+      stopSmsOtpListening();
       if (err instanceof ApiError) {
         switch (err.code) {
           case 'account_locked': {

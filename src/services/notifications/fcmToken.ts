@@ -79,8 +79,24 @@ export type RegisterFcmTokenBody = {
  * ------------------------------------------------------------------ */
 
 /** In-memory de-dupe so we don't POST the same token twice in a row.
- *  Cleared on unregister so the next login always POSTs at least once. */
+ *  Set only AFTER the backend confirms. Cleared on unregister so the
+ *  next login always POSTs at least once. */
 let lastRegisteredToken: string | null = null;
+
+/**
+ * The registration POST currently on the wire, if any (single-flight).
+ *
+ * After login, three callers ask to register within milliseconds of
+ * each other: useVerifyOtp's onSuccess, FcmTokenGate's effect, and
+ * FCM's onTokenRefresh. `lastRegisteredToken` is only set once the
+ * POST succeeds, so on its own it cannot stop those concurrent calls —
+ * each one would see "not registered yet" and POST. Callers asking for
+ * the SAME token while it is in flight await this promise instead.
+ *
+ * The promise never rejects (failures are logged inside), so any
+ * number of callers can await it safely.
+ */
+let inFlight: { token: string; promise: Promise<void> } | null = null;
 
 /** Single onTokenRefresh subscription per process. Guarded so React
  *  StrictMode's double effect-invoke in dev cannot install duplicates. */
@@ -98,15 +114,51 @@ async function postRegister(token: string): Promise<void> {
   await apiClient.post(endpoints.notifications.tokens.register(), body);
 }
 
+/**
+ * POSTs `token` at most once at a time and never twice in a row.
+ *   - Already registered          → no-op.
+ *   - Same token already in flight → join that request.
+ *   - Otherwise                   → start a new request.
+ * A failed POST is NOT cached, so the next call retries. Never throws.
+ */
+function registerOnce(
+  token: string,
+  successEvent: 'fcm.token_registered' | 'fcm.token_refreshed',
+  errorBoundary: string,
+): Promise<void> {
+  if (token === lastRegisteredToken) return Promise.resolve();
+  if (inFlight && inFlight.token === token) return inFlight.promise;
+
+  const entry: { token: string; promise: Promise<void> } = {
+    token,
+    promise: Promise.resolve(),
+  };
+  entry.promise = (async () => {
+    try {
+      await postRegister(token);
+      lastRegisteredToken = token;
+      logEvent(successEvent);
+    } catch (err) {
+      logError(err, { boundary: errorBoundary });
+    } finally {
+      // Only clear our own entry; a newer token may have replaced it.
+      if (inFlight === entry) inFlight = null;
+    }
+  })();
+
+  inFlight = entry;
+  return entry.promise;
+}
+
 /* ------------------------------------------------------------------
  * Public API
  * ------------------------------------------------------------------ */
 
 /**
  * Fetch the current FCM registration token and POST it to the
- * backend. Idempotent — a repeat call with the same token is a no-op
- * (guarded by in-process cache). Call this AFTER a successful login
- * and on every app-authenticated cold start.
+ * backend. Idempotent — a repeat call with the same token is a no-op,
+ * and concurrent calls share one request (see registerOnce). Call this
+ * AFTER a successful login and on every app-authenticated cold start.
  *
  * Does not throw — a failure here must never block login.
  */
@@ -121,11 +173,7 @@ export async function registerFcmToken(): Promise<void> {
       logEvent('fcm.token_unavailable');
       return;
     }
-    if (token === lastRegisteredToken) return;
-
-    await postRegister(token);
-    lastRegisteredToken = token;
-    logEvent('fcm.token_registered');
+    await registerOnce(token, 'fcm.token_registered', 'fcm.registerToken');
   } catch (err) {
     logError(err, { boundary: 'fcm.registerToken' });
   }
@@ -150,16 +198,9 @@ export function startFcmTokenRefreshListener(): () => void {
 
   try {
     const messaging = getMessaging(getApp());
-    refreshUnsubscribe = onTokenRefresh(messaging, async token => {
-      try {
-        if (token === lastRegisteredToken) return;
-        await postRegister(token);
-        lastRegisteredToken = token;
-        logEvent('fcm.token_refreshed');
-      } catch (err) {
-        logError(err, { boundary: 'fcm.tokenRefresh.post' });
-      }
-    });
+    refreshUnsubscribe = onTokenRefresh(messaging, token =>
+      registerOnce(token, 'fcm.token_refreshed', 'fcm.tokenRefresh.post'),
+    );
   } catch (err) {
     logError(err, { boundary: 'fcm.tokenRefresh.install' });
     refreshUnsubscribe = null;
@@ -173,6 +214,8 @@ export function startFcmTokenRefreshListener(): () => void {
 
 /**
  * Clean unregister on logout:
+ *   0. Wait for any in-flight register POST     — so it can't land
+ *                                                 AFTER the DELETE
  *   1. DELETE /notifications/tokens/:deviceId   — backend forgets us
  *   2. deleteToken()                            — FCM invalidates the token
  *   3. Reset in-memory cache                    — next login re-posts
@@ -187,6 +230,9 @@ export function startFcmTokenRefreshListener(): () => void {
  */
 export async function unregisterFcmToken(): Promise<void> {
   try {
+    // Never rejects (see registerOnce).
+    if (inFlight) await inFlight.promise;
+
     const device = await getDeviceInfo();
 
     try {

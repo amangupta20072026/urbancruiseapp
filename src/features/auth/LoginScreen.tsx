@@ -21,6 +21,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -63,6 +64,12 @@ import { ApiError } from '@api/errors';
 import { newIdempotencyKey } from '@api/idempotency';
 import { ENV } from '@config/env';
 import { useRequestOtp } from './hooks';
+import { OTP_LENGTH } from './otpConfig';
+import { requestPhoneNumberHint } from '@/native/phoneNumberHint';
+import {
+  beginSmsOtpListening,
+  stopSmsOtpListening,
+} from '@services/otpAutofill';
 
 /* -----------------------------------------------------------------
  * Types & schema
@@ -223,12 +230,41 @@ const LoginScreen: React.FC = () => {
   const {
     control,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { isValid, errors },
   } = useForm<PhoneForm>({
     mode: 'onChange',
     defaultValues: { phone: '' },
     resolver: phoneResolver,
   });
+
+  /* ---------------------------------------------------------------
+   * SIM number picker (Android only)
+   * ---------------------------------------------------------------
+   * On the FIRST focus of the empty field, show Google's Phone Number
+   * Hint sheet once per visit to this screen. Picking a number fills
+   * the field and closes the keyboard; "None of the above" or closing
+   * the sheet leaves the field focused for typing. Never shown again
+   * until the screen is opened again.
+   * --------------------------------------------------------------- */
+  const phoneInputRef = useRef<TextInput>(null);
+  const phoneHintShownRef = useRef(false);
+
+  const handlePhoneFocus = useCallback(async () => {
+    if (Platform.OS !== 'android') return;
+    if (phoneHintShownRef.current || getValues('phone')) return;
+    phoneHintShownRef.current = true;
+
+    const picked = await requestPhoneNumberHint();
+    if (picked) {
+      setValue('phone', picked, { shouldValidate: true, shouldDirty: true });
+      setServerError(null);
+      phoneInputRef.current?.blur();
+    } else {
+      phoneInputRef.current?.focus();
+    }
+  }, [getValues, setValue]);
 
   const handleOpenRoleSheet = useCallback(() => {
     sheetRef.current?.present();
@@ -256,6 +292,10 @@ const LoginScreen: React.FC = () => {
           // it. A fresh Send tap after a failure gets a new key.
           const idempotencyKey = newIdempotencyKey();
 
+          // Android: start listening for the OTP SMS BEFORE it is sent,
+          // so the consent prompt appears as soon as it arrives.
+          beginSmsOtpListening(OTP_LENGTH);
+
           const res = await requestOtp({
             phone,
             countryCode: COUNTRY_CODE,
@@ -273,6 +313,8 @@ const LoginScreen: React.FC = () => {
             testMode: res.testMode,
           });
         } catch (err) {
+          // No SMS is coming — stop listening for it.
+          stopSmsOtpListening();
           // apiClient's error interceptor normalises everything to
           // ApiError, but keep the instanceof check for the case where
           // something upstream throws a plain Error.
@@ -437,6 +479,7 @@ const LoginScreen: React.FC = () => {
                     <View style={styles.phoneInputWrap}>
                       <PhoneIcon color={Colors.textSecondary} size={18} />
                       <TextInput
+                        ref={phoneInputRef}
                         style={styles.phoneInput}
                         placeholder="Enter mobile number"
                         placeholderTextColor={Colors.textSecondary}
@@ -447,6 +490,7 @@ const LoginScreen: React.FC = () => {
                         value={value}
                         onChangeText={t => onChange(t.replace(/\D/g, ''))}
                         onBlur={onBlur}
+                        onFocus={handlePhoneFocus}
                         returnKeyType="done"
                         accessibilityLabel="Mobile number"
                       />

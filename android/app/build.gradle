@@ -150,6 +150,12 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation("androidx.core:core-splashscreen:1.0.1")
 
+    // Login helpers (android/app/src/main/java/app/urbancruise/auth/):
+    // Phone Number Hint — https://developer.android.com/identity/phone-number-hint
+    implementation("com.google.android.gms:play-services-auth:22.0.0")
+    // SMS User Consent — https://developers.google.com/identity/sms-retriever/user-consent/request
+    implementation("com.google.android.gms:play-services-auth-api-phone:18.3.0")
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
