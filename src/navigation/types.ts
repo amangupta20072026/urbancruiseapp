@@ -210,7 +210,7 @@ export type DriverTabParamList = {
 /* --------------------- UC stack --------------------- */
 export type UcStackParamList = {
   UcTabs: NavigatorScreenParams<UcTabParamList>;
-  CustomersList: { reopenCustomerId?: string } | undefined;
+  CustomersList: undefined;
   CustomerDetail: { customerId: string };
 
   // More-sheet destinations. Some bodies are still the shared

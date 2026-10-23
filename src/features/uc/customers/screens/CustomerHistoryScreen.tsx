@@ -26,10 +26,8 @@
  *   Keeping the group outside the list solves both cleanly.
  *
  * Back-arrow behaviour:
- *   Instead of a bare `goBack()`, we navigate back to CustomersList
- *   with `reopenCustomerId` in the route params. The list screen picks
- *   that up on focus and reopens the contact sheet — so the user's
- *   mental thread ("I was looking at THIS customer") is preserved.
+ *   Identical to Android system back: pops this screen and returns to
+ *   whichever screen opened it, with no contact sheet reopened.
  *
  * Customer lookup:
  *   Cheap synchronous read from the mock fixture. Swaps to
@@ -123,22 +121,21 @@ const CustomerHistoryScreen: React.FC = () => {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   /* -----------------------------------------------------------------
-   * Back handler — return to CustomersList AND reopen the contact
-   * sheet for the same customer. Uses a route param instead of a
-   * ref/global state:
-   *   - Survives React Navigation serialization (deep-links / restore).
-   *   - Cooperates with Android hardware back — that fires
-   *     navigation.goBack() which won't carry the param, so hardware
-   *     back returns to a bare list. That's fine — screen-level back
-   *     preserves context; system-level back doesn't need to.
+   * Back handler — pops this screen, exactly like Android system back
+   * (gesture / hardware button), so both return the user to the
+   * screen that opened Trip History (e.g. Directory › Customers tab)
+   * with a plain list and no contact sheet.
+   *
+   * Never `navigate()` to a fixed route here: that pushes a new screen
+   * when the target is not already in the stack, so the chevron and
+   * system back would diverge again. The canGoBack() guard matches the
+   * app-wide back convention (Settings, Support, Help screens).
    * ----------------------------------------------------------------- */
   const handleBack = useCallback(() => {
-    if (customer) {
-      navigation.navigate('CustomersList', { reopenCustomerId: customer.id });
-      return;
+    if (navigation.canGoBack()) {
+      navigation.goBack();
     }
-    navigation.goBack();
-  }, [customer, navigation]);
+  }, [navigation]);
 
   /* ------------------------ Render ------------------------ */
 
