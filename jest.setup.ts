@@ -5,14 +5,14 @@
  * Loaded via `setupFilesAfterEnv` (see jest.config.js). Runs once per
  * test file, AFTER the jest framework is installed, so jest.mock()
  * and jest.fn() are available.
-*
-* Rule of thumb: any package that reaches into the native bridge must
-* be mocked here or its first import will crash Jest. The mocks are
-* intentionally lightweight — just enough shape to satisfy imports
-* and typical usage. Tests that need richer behavior should override
-* with `jest.mock(...)` at the top of the individual test file.
-* ------------------------------------------------------------------
-*/
+ *
+ * Rule of thumb: any package that reaches into the native bridge must
+ * be mocked here or its first import will crash Jest. The mocks are
+ * intentionally lightweight — just enough shape to satisfy imports
+ * and typical usage. Tests that need richer behavior should override
+ * with `jest.mock(...)` at the top of the individual test file.
+ * ------------------------------------------------------------------
+ */
 
 // -----------------------------------------------------------------
 // Gesture Handler — ships its own jestSetup that patches RN internals.
@@ -452,10 +452,7 @@ jest.mock('@gorhom/bottom-sheet', () => {
 // area (e.g. notch simulation) override per file.
 // -----------------------------------------------------------------
 
-jest.mock(
-  'react-native-safe-area-context',
-  () => mockSafeAreaContext,
-);
+jest.mock('react-native-safe-area-context', () => mockSafeAreaContext);
 
 // -----------------------------------------------------------------
 // FlashList — drop-in FlatList so items still render in RTL queries.
@@ -468,6 +465,14 @@ jest.mock('@shopify/flash-list', () => {
     AnimatedFlashList: FlatList,
   };
 });
+
+// -----------------------------------------------------------------
+// Clipboard — the package's own Jest mock (no native module in Jest).
+// Used by OtpVerifyScreen's long-press paste and ReferralsScreen.
+// -----------------------------------------------------------------
+jest.mock('@react-native-clipboard/clipboard', () =>
+  require('@react-native-clipboard/clipboard/jest/clipboard-mock.js'),
+);
 
 // -----------------------------------------------------------------
 // Lottie

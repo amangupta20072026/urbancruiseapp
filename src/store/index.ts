@@ -66,6 +66,7 @@ const SESSION_DEFAULTS = {
   authStatus: 'unauthenticated' as const,
   isAuthenticated: false,
   appConfig: null,
+  pendingWelcome: false, // session-only — the welcome never replays
 };
 
 const appSliceTransform = createTransform<AppState, PersistedAppSubset>(

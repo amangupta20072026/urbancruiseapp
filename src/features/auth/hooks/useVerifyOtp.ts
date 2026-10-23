@@ -2,14 +2,18 @@
  * ------------------------------------------------------------------
  * useVerifyOtp — Auth, OTP verification & session establishment
  * ------------------------------------------------------------------
- * Wraps POST /auth/otp/verify. On success this hook is what actually
- * logs the user in:
+ * Wraps POST /auth/otp/verify. For an existing account this hook is
+ * what actually logs the user in (steps run in establishSession):
  *
  *   1. Save tokens to Keychain            (secureStorage.saveTokens)
  *   2. Hydrate user profile in Redux      (userSlice.userReceived)
  *   3. Flip auth state in Redux           (appSlice.loginSuccess)
  *   4. Attach analytics identity          (identifyUser)
  *   5. Emit auth.otp_verified + auth.login_success
+ *
+ * For a new customer the server returns 'onboarding_required'
+ * instead; nothing is stored and OtpVerifyScreen navigates to
+ * CustomerProfileSetup.
  *
  * As soon as (3) commits, RootNavigator's conditional groups swap
  * from AuthFlow to the role's navigator — the screen does not need
@@ -47,15 +51,14 @@ import { apiClient } from '@api/axios';
 import { endpoints } from '@api/endpoints';
 import { ApiError } from '@api/errors';
 import { queryKeys } from '@constants/queryKeys';
-import { saveTokens } from '@services/storage/secureStorage';
 import { getDeviceInfo, type DeviceInfoPayload } from '@services/device';
 import { useAppDispatch } from '@store/hooks';
-import { loginSuccess } from '@store/slices/appSlice';
-import { userReceived, type UserProfile } from '@store/slices/userSlice';
 import type { UserRole } from '@rbac/roles';
 import { logEvent } from '@services/telemetry/logEvent';
-import { identifyUser } from '@services/telemetry/identify';
-import { registerFcmToken } from '@services/notifications/fcmToken';
+import {
+  establishSession,
+  type AuthenticatedSession,
+} from '../session/establishSession';
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -78,26 +81,27 @@ export type VerifyOtpInput = {
 };
 
 /**
- * Shape the backend must return on success. Identity fields mirror
- * bootstrap/steps/auth.ts's MeResponse so the two code paths
- * (cold-start /me vs. interactive verify) stay symmetric.
+ * POST /auth/otp/verify returns one of two shapes (backend
+ * VerifyOtpResponseDto):
+ *
+ *   - 'authenticated': an existing account. Tokens + profile; the
+ *     hook logs the user in (see establishSession).
+ *   - 'onboarding_required': the number has no customer account yet.
+ *     No tokens and nothing written to the database. The screen must
+ *     send the user to CustomerProfileSetup with this single-use
+ *     token, which expires after `expiresInSeconds` and works only
+ *     from this device.
  */
-export type VerifyOtpResponse = {
-  accessToken: string;
-  refreshToken: string;
-  userId: string;
-  role: UserRole;
-  entityId: string;
-  /**
-   * True on first successful login when the row was just created
-   * (customer self-signup) and the profile hasn't been filled in
-   * yet. Screen navigates to CompleteProfile in that case.
-   * Non-customer roles never see this — they're pre-provisioned.
-   */
-  requiresProfileSetup: boolean;
-  /** Full display profile — mirrors GET /auth/me. */
-  profile: UserProfile;
+export type VerifyOtpOnboardingRequired = {
+  status: 'onboarding_required';
+  onboardingToken: string;
+  expiresInSeconds: number;
+  role: 'customer';
 };
+
+export type VerifyOtpResponse =
+  | AuthenticatedSession
+  | VerifyOtpOnboardingRequired;
 
 /* ------------------------------------------------------------------ */
 /* Fetcher                                                            */
@@ -134,52 +138,14 @@ export function useVerifyOtp() {
     mutationKey: queryKeys.auth.verifyOtp(),
     mutationFn: verifyOtp,
     onSuccess: async data => {
-      // Order matters:
-      //   1. Save tokens FIRST — if the process is killed between
-      //      steps, next cold start's bootstrap sees a valid token
-      //      in Keychain and lands the user on their role home
-      //      instead of back at Login.
-      //   2. Hydrate user slice BEFORE flipping loginSuccess.
-      //      loginSuccess trips RootNavigator into the role stack;
-      //      the home screen's first render must already see the
-      //      profile populated so the greeting shows the real name.
-      //   3. Flip identity in appSlice — this is what actually swaps
-      //      screens.
-      await saveTokens({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-      });
-      dispatch(userReceived(data.profile));
-      dispatch(
-        loginSuccess({
-          userId: data.userId,
-          role: data.role,
-          entityId: data.entityId,
-        }),
-      );
-
-      // ── Analytics ─────────────────────────────────────────────
-      // identify BEFORE emitting login_success so the event carries
-      // the correct user_id + user properties in Firebase. Do NOT
-      // include the phone number as an event param — it's PII.
-      identifyUser({
-        userId: data.userId,
-        role: data.role,
-        entityId: data.entityId,
-      });
       logEvent('auth.otp_verified');
-      logEvent('auth.login_success', {
-        role: data.role,
-        first_login: data.requiresProfileSetup,
-      });
+      // New customer: no session yet. The screen navigates to the
+      // profile form; nothing to store here.
+      if (data.status === 'onboarding_required') return;
 
-      // Fire-and-forget: register this device's FCM token with the
-      // backend so pushes can be targeted to this session. The
-      // service is best-effort (never throws); we intentionally
-      // don't await so login latency isn't tied to the notifications
-      // endpoint's response time.
-      // eslint-disable-next-line no-void
-      void registerFcmToken();
+      await establishSession(dispatch, data, {
+        firstLogin: data.requiresProfileSetup,
+      });
     },
     onError: err => {
       logEvent('auth.otp_failed', {

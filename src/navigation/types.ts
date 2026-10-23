@@ -49,6 +49,18 @@ export type AuthParamList = {
      */
     testMode?: boolean;
   };
+  /**
+   * New customer only: /auth/otp/verify returned
+   * 'onboarding_required'. The token is single-use, bound to this
+   * device, and expires after `expiresInSeconds`. Kept in navigation
+   * state (memory only, never persisted).
+   */
+  CustomerProfileSetup: {
+    onboardingToken: string;
+    expiresInSeconds: number;
+    /** 10-digit verified mobile, display only (never sent again). */
+    phone: string;
+  };
   Support: undefined;
 };
 

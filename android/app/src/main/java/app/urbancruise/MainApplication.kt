@@ -10,6 +10,7 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.common.assets.ReactFontManager
 
 import app.urbancruise.auth.OtpAutofillPackage
+import app.urbancruise.location.CityLookupPackage
 import app.urbancruise.location.DriverLocationPackage
 
 class MainApplication : Application(), ReactApplication {
@@ -27,6 +28,9 @@ class MainApplication : Application(), ReactApplication {
           // Login: SIM phone-number picker + SMS OTP consent.
           // See android/app/src/main/java/app/urbancruise/auth/.
           add(OtpAutofillPackage())
+          // Onboarding: city name from coordinates via the built-in Geocoder.
+          // See android/app/src/main/java/app/urbancruise/location/.
+          add(CityLookupPackage())
         },
     )
   }

@@ -19,7 +19,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Urban Cruise uses your camera for profile photos, vehicle documents, and trip receipts.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Urban Cruise uses your location only during an active trip — customers see live trip progress, drivers share their location with dispatch. Location is not used at any other time.</string>
+	<string>Urban Cruise uses your location to fill in your city when you tap Use my location, and during an active trip — customers see live trip progress, drivers share their location with dispatch. Location is not used at any other time.</string>
 	<!--
 	     NSLocationAlwaysAndWhenInUseUsageDescription intentionally NOT
 	     declared. Urbancruise uses LOCATION_WHEN_IN_USE authorisation

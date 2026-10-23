@@ -59,6 +59,17 @@ export const FOREGROUND_LOCATION_PERM: Permission | undefined = Platform.select(
  *   - iOS:     CAMERA
  * One grant covers profile photos, KM meter, vehicle/RC docs.
  */
+/**
+ * Approximate location, for the city lookup at onboarding. Android:
+ * COARSE, so a user who picks "Approximate" in the Android 12+ dialog
+ * still counts as granted (a FINE request would report denied). iOS
+ * has one when-in-use permission for both.
+ */
+export const CITY_LOCATION_PERM: Permission | undefined = Platform.select({
+  ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+  android: PERMISSIONS.ANDROID.ACCESS_COARSE_LOCATION,
+});
+
 export const CAMERA_PERM: Permission | undefined = Platform.select({
   ios: PERMISSIONS.IOS.CAMERA,
   android: PERMISSIONS.ANDROID.CAMERA,

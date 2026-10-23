@@ -57,6 +57,15 @@ export type AppState = {
 
   // Remote config
   appConfig: AppConfig | null;
+
+  /**
+   * First-time welcome on Customer Home. SESSION-ONLY (never
+   * persisted): set by onboarding only when the server reports a new
+   * account, cleared when the welcome closes. If the app is killed
+   * before Home shows it, it is not shown later, so it can never
+   * appear twice or to an existing customer.
+   */
+  pendingWelcome: boolean;
 };
 
 const initialState: AppState = {
@@ -69,6 +78,7 @@ const initialState: AppState = {
   userRole: null,
   entityId: null,
   appConfig: null,
+  pendingWelcome: false,
 };
 
 const appSlice = createSlice({
@@ -158,6 +168,14 @@ const appSlice = createSlice({
      * upgrades a provisional session to fully authenticated,
      * or downgrades it to unauthenticated if the server rejected.
      */
+    welcomeQueued: state => {
+      state.pendingWelcome = true;
+    },
+
+    welcomeDismissed: state => {
+      state.pendingWelcome = false;
+    },
+
     reconcileAuth: (state, action: PayloadAction<AuthResolution>) => {
       const auth = action.payload;
       if (auth.status === 'authenticated') {
@@ -183,6 +201,7 @@ const appSlice = createSlice({
       state.userRole = null;
       state.entityId = null;
       state.selectedRole = null;
+      state.pendingWelcome = false;
     },
   },
 });
@@ -194,6 +213,8 @@ export const {
   changeRole,
   loginSuccess,
   reconcileAuth,
+  welcomeQueued,
+  welcomeDismissed,
   logout,
 } = appSlice.actions;
 

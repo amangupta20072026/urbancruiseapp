@@ -40,6 +40,7 @@ import {
   request,
   requestNotifications,
   RESULTS,
+  type Permission,
   type PermissionStatus,
 } from 'react-native-permissions';
 
@@ -56,7 +57,11 @@ import {
 } from '@store/slices/permissionsSlice';
 import { isDeviceLocationEnabled } from '@services/driverLocation';
 
-import { CAMERA_PERM, FOREGROUND_LOCATION_PERM } from './platformMap';
+import {
+  CAMERA_PERM,
+  CITY_LOCATION_PERM,
+  FOREGROUND_LOCATION_PERM,
+} from './platformMap';
 import { getSheetHandlers } from './sheetHandlers';
 import { emitPermissionEvent } from './telemetry';
 import type { CapabilityStatus, EnsureResult } from './types';
@@ -108,7 +113,9 @@ export async function ensureCapability(
     case 'notifications':
       return ensureNotifications(cap);
     case 'foregroundLocation':
-      return ensureForegroundLocation(cap);
+      return ensureForegroundLocation(cap, FOREGROUND_LOCATION_PERM);
+    case 'cityLocation':
+      return ensureForegroundLocation(cap, CITY_LOCATION_PERM);
     case 'camera':
       return ensureCamera(cap);
     case 'photoPicker':
@@ -255,12 +262,13 @@ async function ensureCamera(cap: Capability): Promise<EnsureResult> {
 
 async function ensureForegroundLocation(
   cap: Capability,
+  perm: Permission | undefined,
 ): Promise<EnsureResult> {
-  if (!FOREGROUND_LOCATION_PERM) {
+  if (!perm) {
     return { status: 'unavailable', reason: 'unsupported-os' };
   }
 
-  const current = mapRnpResult(await check(FOREGROUND_LOCATION_PERM));
+  const current = mapRnpResult(await check(perm));
   writeCache(cap, current);
 
   if (current === 'granted' || current === 'limited') {
@@ -275,7 +283,7 @@ async function ensureForegroundLocation(
   if (proceed === 'dismiss') return { status: 'denied', canRetry: true };
 
   emitPermissionEvent(cap, 'prompt_shown');
-  const result = mapRnpResult(await request(FOREGROUND_LOCATION_PERM));
+  const result = mapRnpResult(await request(perm));
   writeCache(cap, result);
   emitPermissionEvent(cap, result === 'granted' ? 'granted' : 'denied');
 
@@ -297,6 +305,10 @@ async function liveCheck(cap: Capability): Promise<CapabilityStatus> {
     case 'foregroundLocation':
       return FOREGROUND_LOCATION_PERM
         ? mapRnpResult(await check(FOREGROUND_LOCATION_PERM))
+        : 'unavailable';
+    case 'cityLocation':
+      return CITY_LOCATION_PERM
+        ? mapRnpResult(await check(CITY_LOCATION_PERM))
         : 'unavailable';
     case 'camera':
       return CAMERA_PERM

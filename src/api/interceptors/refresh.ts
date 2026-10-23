@@ -26,6 +26,7 @@ import {
 } from '@services/storage/secureStorage';
 import { reset } from '@navigation/NavigationService';
 import { toast } from '@services/toast';
+import { isPublicAuthRequest } from '../publicEndpoints';
 
 type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
@@ -40,6 +41,18 @@ export function attachRefreshInterceptor(client: AxiosInstance): void {
       const status = error.response?.status;
 
       if (status !== 401 || !original || original._retry) {
+        return Promise.reject(error);
+      }
+
+      // Only a request sent WITH a login token can mean "session
+      // expired". A 401 from a pre-login endpoint (wrong OTP, expired
+      // onboarding ticket, ...) or from a request sent without a
+      // token is an answer for the screen to show: never refresh or
+      // force a logout for it.
+      if (
+        isPublicAuthRequest(original.url) ||
+        !original.headers?.Authorization
+      ) {
         return Promise.reject(error);
       }
 

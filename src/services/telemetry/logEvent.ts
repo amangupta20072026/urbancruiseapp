@@ -73,6 +73,15 @@ export type EventName =
   | 'auth.otp_failed'
   | 'auth.login_success'
   | 'auth.logout'
+  // New-customer profile form. `_completed` on 2xx with properties
+  // { customer_type, is_new_account, city_source: 'detected' | 'typed' };
+  // `_failed` with { reason } (server code or error kind). Never the
+  // name, email or city themselves (PII).
+  | 'auth.onboarding_completed'
+  | 'auth.onboarding_failed'
+  // "Use my location" outcome on that form. Properties: { status }
+  // from DetectCityResult — never coordinates or the city.
+  | 'auth.city_detect_result'
 
   // ── Home CTAs ─────────────────────────────────────────
   | 'home.cta_tapped'

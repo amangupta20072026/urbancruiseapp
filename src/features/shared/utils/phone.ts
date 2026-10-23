@@ -124,3 +124,16 @@ export function phoneMatchesQuery(
   const { national } = parsePhone(value);
   return national.length > 0 && qDigits === national;
 }
+
+/**
+ * Display form of a 10-digit Indian mobile, grouped 5 + 5 as people
+ * read it aloud: '9625129996' → '96251 29996'. Non-digits are
+ * ignored; a partial number is grouped as far as it goes. No country
+ * code is added; callers prefix '+91' where they need it.
+ */
+export function formatIndianMobile(local: string): string {
+  const digits = local.replace(/\D/g, '');
+  const first = digits.slice(0, 5);
+  const second = digits.slice(5, 10);
+  return second ? `${first} ${second}` : first;
+}

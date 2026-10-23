@@ -41,6 +41,8 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type NativeSyntheticEvent,
+  type TextInputSelectionChangeEventData,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,7 +50,17 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import Clipboard from '@react-native-clipboard/clipboard';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import {
@@ -63,9 +75,11 @@ import type { AuthParamList } from '../../navigation/types';
 import { withAlpha } from '../../components/roles';
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { ApiError } from '@api/errors';
+import { formatIndianMobile } from '@shared/utils';
 import { newIdempotencyKey } from '@api/idempotency';
 import { useRequestOtp, useVerifyOtp } from './hooks';
 import { OTP_LENGTH } from './otpConfig';
+import { applyOtpTextChange } from './otpInput';
 import {
   beginSmsOtpListening,
   stopSmsOtpListening,
@@ -89,13 +103,6 @@ type OtpVerifyNavProp = NativeStackNavigationProp<AuthParamList, 'OtpVerify'>;
 /* -----------------------------------------------------------------
  * Helpers
  * ----------------------------------------------------------------- */
-
-const formatPhone = (phone: string) => {
-  const digits = phone.replace(/\D/g, '');
-  const first = digits.slice(0, 5);
-  const second = digits.slice(5, 10);
-  return second ? `${first} ${second}` : first;
-};
 
 const formatTimer = (seconds: number) => {
   const m = Math.floor(seconds / 60)
@@ -227,70 +234,182 @@ type OtpBoxesInputProps = {
   onChangeValue: (v: string) => void;
   onSubmitEditing: () => void;
   error?: boolean;
+  /** No input (code expired / used up / number locked) until Resend. */
+  disabled?: boolean;
+  /** Increment to shake the boxes once (a wrong code). */
+  shakeKey: number;
 };
 
+type Selection = { start: number; end: number };
+
+/**
+ * Six boxes drawn over ONE hidden TextInput (keeps keyboard entry,
+ * paste and iOS/Android SMS autofill working).
+ *
+ * Fixing one digit: tapping a filled box selects that digit in the
+ * hidden input, so the next key REPLACES it. When all six digits are
+ * present, typing at a caret overwrites the digit after it (the
+ * extra character is removed in handleChangeText), so the user can
+ * keep correcting digit by digit. Backspace still works normally.
+ * The rules are decided from the text change itself, not from event
+ * order, so they hold on both platforms.
+ *
+ * Paste: the hidden input doesn't receive touches (the boxes do), so
+ * a long-press on the boxes pastes the first 6-digit code found in
+ * the clipboard.
+ */
 const OtpBoxesInput: React.FC<OtpBoxesInputProps> = ({
   value,
   onChangeValue,
   onSubmitEditing,
   error,
+  disabled = false,
+  shakeKey,
 }) => {
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
+  const [selection, setSelection] = useState<Selection>({
+    start: value.length,
+    end: value.length,
+  });
+  /** Mirrors the native selection; read when the text changes. */
+  const selectionRef = useRef<Selection>(selection);
+  /** True while a change comes from typing in the hidden input. */
+  const typingRef = useRef(false);
 
-  const handlePress = useCallback(() => {
-    inputRef.current?.focus();
-  }, []);
+  // A value set from outside (SMS autofill, Resend clearing it) puts
+  // the caret at the end.
+  useEffect(() => {
+    if (typingRef.current) {
+      typingRef.current = false;
+      return;
+    }
+    const end = { start: value.length, end: value.length };
+    selectionRef.current = end;
+    setSelection(end);
+  }, [value]);
+
+  /* Wrong code: one short shake, skipped with Reduce Motion. */
+  const reduceMotion = useReducedMotion();
+  const shakeX = useSharedValue(0);
+  useEffect(() => {
+    if (shakeKey === 0 || reduceMotion) return;
+    shakeX.value = withSequence(
+      withTiming(-8, { duration: 50 }),
+      withRepeat(withTiming(8, { duration: 100 }), 4, true),
+      withTiming(0, { duration: 50 }),
+    );
+  }, [reduceMotion, shakeKey, shakeX]);
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeX.value }],
+  }));
+
+  const handlePressBox = useCallback(
+    (index: number) => {
+      if (disabled) return;
+      inputRef.current?.focus();
+      const next =
+        index < value.length
+          ? { start: index, end: index + 1 }
+          : { start: value.length, end: value.length };
+      selectionRef.current = next;
+      setSelection(next);
+    },
+    [disabled, value.length],
+  );
+
+  const handlePaste = useCallback(async () => {
+    if (disabled) return;
+    try {
+      const text = await Clipboard.getString();
+      const code = new RegExp(`\\d{${OTP_LENGTH}}`).exec(text)?.[0];
+      if (code) onChangeValue(code);
+    } catch {
+      // Clipboard unavailable: nothing to paste.
+    }
+  }, [disabled, onChangeValue]);
 
   const handleChangeText = useCallback(
     (text: string) => {
-      onChangeValue(text.replace(/\D/g, '').slice(0, OTP_LENGTH));
+      typingRef.current = true;
+      const { digits, caret } = applyOtpTextChange(
+        value,
+        text,
+        selectionRef.current.start,
+        OTP_LENGTH,
+      );
+      onChangeValue(digits);
+      if (caret !== null) {
+        const c = { start: caret, end: caret };
+        selectionRef.current = c;
+        setSelection(c);
+      }
     },
-    [onChangeValue],
+    [onChangeValue, value],
   );
 
-  const activeIndex = value.length < OTP_LENGTH ? value.length : OTP_LENGTH - 1;
+  const handleSelectionChange = useCallback(
+    (e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+      const { start, end } = e.nativeEvent.selection;
+      selectionRef.current = { start, end };
+      setSelection({ start, end });
+    },
+    [],
+  );
+
+  const activeIndex =
+    selection.end - selection.start === 1
+      ? selection.start
+      : Math.min(selection.start, OTP_LENGTH - 1);
 
   return (
-    <Pressable
-      style={styles.otpRow}
-      onPress={handlePress}
-      accessibilityRole="none"
-    >
-      {Array.from({ length: OTP_LENGTH }).map((_, index) => {
-        const digit = value[index] ?? '';
-        const isActive = focused && index === activeIndex;
-        return (
-          <View
-            key={index}
-            style={[
-              styles.otpBox,
-              isActive && styles.otpBoxActive,
-              error && styles.otpBoxError,
-            ]}
-          >
-            <Text style={styles.otpDigit}>{digit}</Text>
-            {isActive && !digit ? <View style={styles.otpCaret} /> : null}
-          </View>
-        );
-      })}
+    <Animated.View style={shakeStyle}>
+      <View style={[styles.otpRow, disabled && styles.otpRowDisabled]}>
+        {Array.from({ length: OTP_LENGTH }).map((_, index) => {
+          const digit = value[index] ?? '';
+          const isActive = focused && !disabled && index === activeIndex;
+          return (
+            <Pressable
+              key={index}
+              onPress={() => handlePressBox(index)}
+              onLongPress={() => {
+                handlePaste().catch(() => undefined);
+              }}
+              disabled={disabled}
+              accessible={false}
+              style={[
+                styles.otpBox,
+                isActive && styles.otpBoxActive,
+                error && styles.otpBoxError,
+              ]}
+            >
+              <Text style={styles.otpDigit}>{digit}</Text>
+              {isActive && !digit ? <View style={styles.otpCaret} /> : null}
+            </Pressable>
+          );
+        })}
 
-      <TextInput
-        ref={inputRef}
-        value={value}
-        onChangeText={handleChangeText}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        onSubmitEditing={onSubmitEditing}
-        keyboardType="number-pad"
-        maxLength={OTP_LENGTH}
-        textContentType="oneTimeCode"
-        autoComplete="sms-otp"
-        caretHidden
-        style={styles.hiddenInput}
-        accessibilityLabel="Enter OTP"
-      />
-    </Pressable>
+        <TextInput
+          ref={inputRef}
+          value={value}
+          selection={selection}
+          onChangeText={handleChangeText}
+          onSelectionChange={handleSelectionChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onSubmitEditing={onSubmitEditing}
+          editable={!disabled}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete="sms-otp"
+          caretHidden
+          style={styles.hiddenInput}
+          pointerEvents="none"
+          accessibilityLabel="Enter OTP"
+          accessibilityHint="Tap a box to change that digit"
+        />
+      </View>
+    </Animated.View>
   );
 };
 
@@ -314,6 +433,20 @@ const OtpVerifyScreen: React.FC = () => {
 
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /**
+   * The current code can no longer work: expired, used up by too many
+   * wrong tries, or the number is locked. Input and Verify stay off
+   * until a successful Resend issues a new code.
+   */
+  const [codeDead, setCodeDead] = useState(false);
+  const codeDeadRef = useRef(false);
+  /** Incremented on each wrong code to shake the boxes once. */
+  const [shakeKey, setShakeKey] = useState(0);
+
+  const markCodeDead = useCallback((dead: boolean) => {
+    codeDeadRef.current = dead;
+    setCodeDead(dead);
+  }, []);
   const [secondsLeft, setSecondsLeft] = useState(
     // Prefer the server's cooldown when we have it, so the timer
     // matches what the backend will actually accept on resend.
@@ -327,6 +460,8 @@ const OtpVerifyScreen: React.FC = () => {
   }, [secondsLeft]);
 
   const handleChangeOtp = useCallback((v: string) => {
+    // Ignore input (e.g. a late SMS of the old code) until Resend.
+    if (codeDeadRef.current) return;
     setOtp(v);
     setError(null);
   }, []);
@@ -357,37 +492,60 @@ const OtpVerifyScreen: React.FC = () => {
     }
   }, [navigation]);
 
-  const canVerify = otp.length === OTP_LENGTH && !verifying;
+  const canVerify = otp.length === OTP_LENGTH && !verifying && !codeDead;
 
   const handleVerify = useCallback(async () => {
     if (!canVerify) return;
     setError(null);
     try {
-      // The hook handles saveTokens + dispatch(loginSuccess) on
-      // success. RootNavigator will then swap to the role's
-      // navigator on its next render — no navigation call needed.
-      await verifyOtp({
+      // Existing account: the hook logs the user in and RootNavigator
+      // swaps to the role's navigator — no navigation call needed.
+      // New customer: no session yet; collect the profile first.
+      // `replace` drops this screen: its OTP is already spent.
+      const result = await verifyOtp({
         phone,
         countryCode: COUNTRY_CODE,
         otp,
         role,
         requestId: requestIdRef.current,
       });
+      if (result.status === 'onboarding_required') {
+        navigation.replace('CustomerProfileSetup', {
+          onboardingToken: result.onboardingToken,
+          expiresInSeconds: result.expiresInSeconds,
+          phone,
+        });
+      }
     } catch (err) {
+      // Wrong-code feedback: the digits stay so one can be fixed.
+      const wrongCode = (text: string) => {
+        setError(text);
+        setShakeKey(k => k + 1);
+      };
       if (err instanceof ApiError) {
         // Fine-grained server codes first — the coarse `.kind` alone
         // can't tell an expired session from a wrong digit.
         switch (err.code) {
           case 'otp_invalid':
-            setError('That code didn\u2019t work. Please try again.');
+            wrongCode(
+              'That code didn\u2019t work. Tap a digit to fix it, or retype the code.',
+            );
             return;
           case 'otp_expired':
-            setError('This code has expired. Tap Resend to get a new one.');
+            // Expired, already used, or too many wrong tries (the
+            // server sends one code for all three). Only a new code
+            // helps, so input stays off until Resend.
+            markCodeDead(true);
+            setShakeKey(k => k + 1);
+            setError(
+              'This code can\u2019t be used any more. Tap Resend to get a new one.',
+            );
             return;
           case 'account_locked': {
             const mins = err.retryAfter
               ? Math.max(1, Math.round(err.retryAfter / 60))
               : 15;
+            markCodeDead(true);
             setError(`Too many wrong attempts. Try again in ${mins} min.`);
             return;
           }
@@ -399,16 +557,18 @@ const OtpVerifyScreen: React.FC = () => {
         }
         switch (err.kind) {
           case 'unauthorized':
-            setError('That code didn\u2019t work. Please try again.');
+            wrongCode(
+              'That code didn\u2019t work. Tap a digit to fix it, or retype the code.',
+            );
             break;
           case 'rateLimited':
             setError('Too many attempts. Please wait and try again.');
             break;
           case 'network':
-            setError('Network error. Check your connection.');
+            setError('Network error. Check your connection and tap Verify.');
             break;
           case 'timeout':
-            setError('Request timed out. Please try again.');
+            setError('Request timed out. Tap Verify to try again.');
             break;
           case 'validation':
             setError(err.message);
@@ -417,10 +577,10 @@ const OtpVerifyScreen: React.FC = () => {
             setError('Something went wrong. Please try again.');
         }
       } else {
-        setError('That code didn\u2019t work. Please try again.');
+        setError('Something went wrong. Please try again.');
       }
     }
-  }, [canVerify, otp, phone, role, verifyOtp]);
+  }, [canVerify, markCodeDead, navigation, otp, phone, role, verifyOtp]);
 
   /* ---------------------------------------------------------------
    * Auto-verify: submit as soon as all digits are present — from the
@@ -458,6 +618,7 @@ const OtpVerifyScreen: React.FC = () => {
       // original send.
       requestIdRef.current = res.requestId;
       lastAutoSubmittedRef.current = null;
+      markCodeDead(false);
       setOtp('');
       setSecondsLeft(res.resendAfterSeconds ?? RESEND_SECONDS);
     } catch (err) {
@@ -493,9 +654,9 @@ const OtpVerifyScreen: React.FC = () => {
         setError('Couldn\u2019t resend the code. Please try again.');
       }
     }
-  }, [phone, requestOtp, resending, role, secondsLeft]);
+  }, [markCodeDead, phone, requestOtp, resending, role, secondsLeft]);
 
-  const formattedPhone = useMemo(() => formatPhone(phone), [phone]);
+  const formattedPhone = useMemo(() => formatIndianMobile(phone), [phone]);
   // Bottom pad on the scroll content only — SafeScreen owns the top
   // inset, but scroll content must clear the home indicator on its own.
   const bottomPad = Math.max(insets.bottom, Spacing.lg);
@@ -569,10 +730,18 @@ const OtpVerifyScreen: React.FC = () => {
             onChangeValue={handleChangeOtp}
             onSubmitEditing={() => void handleVerify()}
             error={!!error}
+            disabled={codeDead}
+            shakeKey={shakeKey}
           />
 
           {error ? (
-            <Text style={styles.otpErrorText}>{error}</Text>
+            <Text
+              style={styles.otpErrorText}
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+            >
+              {error}
+            </Text>
           ) : (
             <View style={styles.autoReadRow}>
               <ShieldCheckIcon color={Colors.secondary} size={14} />
@@ -780,6 +949,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     position: 'relative',
+  },
+  otpRowDisabled: {
+    opacity: 0.5,
   },
   otpBox: {
     width: 44,

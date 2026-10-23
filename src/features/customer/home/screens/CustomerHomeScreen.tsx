@@ -65,6 +65,8 @@ import { Colors, Radius, Spacing, Typography } from '@theme';
 import type { CustomerStackParamList } from '@navigation/types';
 
 import { selectFirstName } from '@store/selectors/userSelectors';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
+import { welcomeDismissed } from '@store/slices/appSlice';
 
 import { useHomeData } from '../hooks/useHomeData';
 import { useServiceMode } from '../hooks/useServiceMode';
@@ -76,6 +78,7 @@ import { RequestQuotationCard } from '../components/RequestQuotationCard';
 import { UpcomingTripCard } from '../components/UpcomingTripCard';
 import { SectionHeader } from '../components/SectionHeader';
 import { ActivityRow } from '../components/ActivityRow';
+import { WelcomeOverlay } from '../components/WelcomeOverlay';
 import { logEvent } from '@services/telemetry/logEvent';
 
 type CustomerNavigation = NativeStackNavigationProp<CustomerStackParamList>;
@@ -84,6 +87,13 @@ const CustomerHomeScreen: React.FC = () => {
   const navigation = useNavigation<CustomerNavigation>();
 
   const firstName = useSelector(selectFirstName);
+  // First-time welcome: set only for a just-created account (see
+  // useCustomerOnboard), session-only, cleared when closed.
+  const dispatch = useAppDispatch();
+  const pendingWelcome = useAppSelector(s => s.app.pendingWelcome);
+  const onWelcomeDismiss = useCallback(() => {
+    dispatch(welcomeDismissed());
+  }, [dispatch]);
 
   const { mode, change: onServiceModeChange } = useServiceMode();
 
@@ -253,6 +263,12 @@ const CustomerHomeScreen: React.FC = () => {
           </>
         )}
       </ScrollView>
+
+      <WelcomeOverlay
+        visible={pendingWelcome}
+        firstName={firstName}
+        onDismiss={onWelcomeDismiss}
+      />
     </SafeScreen>
   );
 };

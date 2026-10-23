@@ -28,6 +28,7 @@ export const queryKeys = {
     // useIsMutating() elsewhere (e.g. a global "logging you in" banner).
     requestOtp: () => ['auth', 'requestOtp'] as const,
     verifyOtp: () => ['auth', 'verifyOtp'] as const,
+    customerOnboard: () => ['auth', 'customerOnboard'] as const,
     logout: () => ['auth', 'logout'] as const,
   },
 

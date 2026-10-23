@@ -62,6 +62,11 @@ export type Capability =
    */
   | 'foregroundLocation'
   /**
+   * One-time approximate location read that fills in the city during
+   * customer onboarding. Customer only.
+   */
+  | 'cityLocation'
+  /**
    * Camera. One OS grant covers all uses:
    *   - profile photo (all roles)
    *   - KM meter photo (Driver)
@@ -105,6 +110,7 @@ export type Capability =
 export type PermissionTelemetryKey =
   | 'notifications'
   | 'foreground_location'
+  | 'city_location'
   | 'camera'
   | 'photo_picker'
   | 'phone_dialer'
@@ -218,6 +224,24 @@ export const CAPABILITY_REGISTRY: Readonly<
     },
     fallback: 'blockFeature',
     telemetryKey: 'foreground_location',
+  },
+
+  /**
+   * Separate from foregroundLocation so the rationale matches this use
+   * (not trip tracking) and so Android can use approximate location: a
+   * city needs nothing finer. Denial is fine: the user types the city.
+   */
+  cityLocation: {
+    roles: ['customer'],
+    requiresProminentDisclosure: false,
+    requiresDeviceLocationOn: true,
+    rationale: {
+      title: 'Fill in your city',
+      body: 'Urban Cruise reads your location once to fill in your city. You can type it instead.',
+      cta: 'Use my location',
+    },
+    fallback: 'degradedMode',
+    telemetryKey: 'city_location',
   },
 
   camera: {
