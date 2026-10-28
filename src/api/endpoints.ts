@@ -150,6 +150,10 @@ export const endpoints = {
     bookings: {
       list: () => '/uc/bookings',
     },
+    /** All trips across all customers (UC Trips tab). One per booking. */
+    trips: {
+      list: () => '/uc/trips',
+    },
     assignments: {
       assign: (bookingId: BookingId) => `/uc/bookings/${bookingId}/assign`,
       approveVehicleChange: (tripId: TripId) =>

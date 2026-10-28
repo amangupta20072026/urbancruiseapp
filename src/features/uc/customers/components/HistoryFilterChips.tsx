@@ -11,7 +11,9 @@
  * Design decisions:
  *   - Horizontal ScrollView (not FlashList/View row) so future filters
  *     (`no_show`, `paid`, `refunded`, etc.) don't force us to shrink
- *     chips to fit; they scroll instead.
+ *     chips to fit; they scroll instead. The strip is pinned to its
+ *     content height (flexGrow/flexShrink 0) so it never stretches
+ *     when a screen places it straight into a flex column.
  *   - Counts are optional. When the parent hasn't computed them yet
  *     (still loading), the chip shows just the label — no "42" flicker.
  *   - Only the selected chip carries a tint; unselected chips are
@@ -55,6 +57,7 @@ export const HistoryFilterChips: React.FC<Props> = ({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={styles.strip}
       contentContainerStyle={styles.row}
       keyboardShouldPersistTaps="handled"
     >
@@ -133,6 +136,14 @@ FilterChip.displayName = 'FilterChip';
 /* ---------------- Styles ---------------- */
 
 const styles = StyleSheet.create({
+  /* A horizontal ScrollView placed directly in a column grows to fill
+   * the free vertical space (the chips became full-height pills on
+   * the Trips tab). Pin it to its content height so it is correct on
+   * every screen, wrapped or not — same as the UC Quotations chips. */
+  strip: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   row: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,

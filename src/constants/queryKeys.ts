@@ -167,6 +167,12 @@ export const queryKeys = {
         ['uc', 'bookings', 'list', filters] as const,
       detail: (id: BookingId) => ['uc', 'bookings', 'detail', id] as const,
     },
+    trips: {
+      all: () => ['uc', 'trips'] as const,
+      list: (filters: Record<string, unknown>) =>
+        ['uc', 'trips', 'list', filters] as const,
+      detail: (id: TripId) => ['uc', 'trips', 'detail', id] as const,
+    },
     vendors: {
       all: () => ['uc', 'vendors'] as const,
       list: (filters: Record<string, unknown>) =>

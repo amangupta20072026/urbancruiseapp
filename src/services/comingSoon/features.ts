@@ -73,7 +73,8 @@ export type ComingSoonFeature =
   | 'uc.quotationDetail'
   | 'uc.enquiryDetail'
   | 'uc.tripMonitor'
-  | 'uc.bookingDetail';
+  | 'uc.bookingDetail'
+  | 'uc.tripDetail';
 
 /**
  * User-facing label per feature. `Record<ComingSoonFeature, string>`
@@ -119,4 +120,5 @@ export const COMING_SOON_LABELS: Readonly<Record<ComingSoonFeature, string>> =
     'uc.enquiryDetail': 'Enquiry details',
     'uc.tripMonitor': 'Live trip monitoring',
     'uc.bookingDetail': 'Booking details',
+    'uc.tripDetail': 'Trip details',
   });

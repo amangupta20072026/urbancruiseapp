@@ -14,7 +14,12 @@
  *
  * Rails: a segment is solid in the status colour when the step to
  * its RIGHT has been reached; otherwise dotted grey. The outer stubs
- * before the first and after the last dot are always dotted grey.
+ * before the first and after the last dot are dotted grey, or hidden
+ * with `edgeStubs={false}`.
+ *
+ * Shared by UC Bookings (defaults) and UC Trips (`startedMarker="dot"`,
+ * `edgeStubs={false}`) — the two designs differ only in those two
+ * details, so one component keeps both trackers in step.
  *
  * Why not reuse customers/TripProgressTracker: that one inserts a
  * separate "Cancelled" step and fills the current dot. The approved
@@ -43,6 +48,18 @@ type Props = {
   steps: readonly BookingTimelineStep[];
   /** Status colour for reached dots and solid rails. */
   color: string;
+  /**
+   * Marker inside the CURRENT dot on the 'started' step: a car
+   * (Bookings design, default) or a plain inner dot (Trips design).
+   */
+  startedMarker?: 'car' | 'dot';
+  /**
+   * Dotted stubs before the first and after the last dot (Bookings
+   * design, default). The Trips design starts and ends at the dots.
+   */
+  edgeStubs?: boolean;
+  /** Spoken prefix for screen readers. */
+  accessibilityPrefix?: string;
 };
 
 const STATE_SPOKEN: Readonly<Record<BookingStepState, string>> = {
@@ -52,7 +69,14 @@ const STATE_SPOKEN: Readonly<Record<BookingStepState, string>> = {
   pending: 'not reached',
 };
 
-const BookingProgressTrackerImpl: React.FC<Props> = ({ steps, color }) => {
+const BookingProgressTrackerImpl: React.FC<Props> = ({
+  steps,
+  color,
+  startedMarker = 'car',
+  edgeStubs = true,
+  accessibilityPrefix = 'Booking progress',
+}) => {
+  const lastIndex = steps.length - 1;
   const summary = steps
     .map(s => `${s.label} ${STATE_SPOKEN[s.state]}`)
     .join(', ');
@@ -61,7 +85,7 @@ const BookingProgressTrackerImpl: React.FC<Props> = ({ steps, color }) => {
     <View
       style={styles.row}
       accessible
-      accessibilityLabel={`Booking progress: ${summary}`}
+      accessibilityLabel={`${accessibilityPrefix}: ${summary}`}
     >
       {steps.map((step, i) => {
         const leftReached = i > 0 && step.state !== 'pending';
@@ -70,13 +94,21 @@ const BookingProgressTrackerImpl: React.FC<Props> = ({ steps, color }) => {
         return (
           <View key={step.key} style={styles.col}>
             <View style={styles.rail}>
-              <Segment solid={leftReached} color={color} />
+              <Segment
+                solid={leftReached}
+                color={color}
+                hidden={!edgeStubs && i === 0}
+              />
               <Dot
                 state={step.state}
                 color={color}
-                showCar={step.key === 'started'}
+                showCar={step.key === 'started' && startedMarker === 'car'}
               />
-              <Segment solid={rightReached} color={color} />
+              <Segment
+                solid={rightReached}
+                color={color}
+                hidden={!edgeStubs && i === lastIndex}
+              />
             </View>
             <Text
               style={[
@@ -101,10 +133,15 @@ BookingProgressTracker.displayName = 'BookingProgressTracker';
 
 /* ---------------- Segment ---------------- */
 
-const Segment: React.FC<{ solid: boolean; color: string }> = ({
-  solid,
-  color,
-}) => {
+const Segment: React.FC<{
+  solid: boolean;
+  color: string;
+  /** Keeps the column's width so dots stay centred, draws nothing. */
+  hidden?: boolean;
+}> = ({ solid, color, hidden = false }) => {
+  if (hidden) {
+    return <View style={styles.dottedWrap} />;
+  }
   if (solid) {
     return <View style={[styles.solid, { backgroundColor: color }]} />;
   }
