@@ -286,6 +286,15 @@ function passengerRange(vehicleType: string): readonly [number, number] {
   }
 }
 
+/**
+ * Seats in a vehicle type — the top of its passenger range, so it
+ * always agrees with the passenger counts generated above. Used by
+ * the UC bookings fixture ("Innova Crysta (7 Seater)").
+ */
+export function seatingCapacityFor(vehicleType: string): number {
+  return passengerRange(vehicleType)[1];
+}
+
 /** Weighted vehicle pick using VEHICLE_TYPE_WEIGHTS. */
 function pickVehicleType(rng: Rng): string {
   const total = VEHICLE_TYPE_WEIGHTS.reduce((s, w) => s + w, 0);

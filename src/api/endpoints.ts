@@ -146,6 +146,10 @@ export const endpoints = {
       list: () => '/uc/quotations',
       create: (enquiryId: EnquiryId) => `/uc/enquiries/${enquiryId}/quotations`,
     },
+    /** All bookings across all customers (UC Bookings tab). */
+    bookings: {
+      list: () => '/uc/bookings',
+    },
     assignments: {
       assign: (bookingId: BookingId) => `/uc/bookings/${bookingId}/assign`,
       approveVehicleChange: (tripId: TripId) =>
