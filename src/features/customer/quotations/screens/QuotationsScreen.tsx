@@ -15,7 +15,6 @@
  *   - Header CTA (+ Request a Quotation) → RequestQuotation flow
  *   - Card tap / View Details            → QuotationDetail
  *   - Book Now (accepted)                → QuotationDetail + ContinueToBookingSheet
- *   - Need Changes (pending)             → QuotationDetail + NeedChangesSheet
  *   - Request Again (expired)            → RequestQuotation flow
  *   - Sliders button                     → TODO(nav): filter sheet
  *
@@ -221,16 +220,6 @@ const QuotationsScreen: React.FC = () => {
     [navigation],
   );
 
-  const onNeedChanges = useCallback(
-    (item: CustomerQuotationListItem) => {
-      navigation.navigate('QuotationDetail', {
-        quotationId: item.id,
-        openNeedChangesSheet: true,
-      });
-    },
-    [navigation],
-  );
-
   const onFilterSheetOpen = useCallback(() => {
     // TODO(nav): open a filter-refinement bottom sheet (date range,
     // amount range, passenger buckets). Kept as an affordance next
@@ -354,7 +343,6 @@ const QuotationsScreen: React.FC = () => {
               onPress={() => goToQuotationDetail(item)}
               onView={() => goToQuotationDetail(item)}
               onBookNow={() => onBookNow(item)}
-              onNeedChanges={() => onNeedChanges(item)}
               onRequestAgain={goToRequestQuotation}
             />
           ))

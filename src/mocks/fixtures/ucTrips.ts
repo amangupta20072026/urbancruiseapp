@@ -52,6 +52,7 @@ export function getFixtureUcTrips(): readonly UcTripListItem[] {
       bookingRef: trip.bookingRef,
       status: STATUS_FROM_TRIP[trip.status],
       progressStep: trip.progressStep,
+      tripType: trip.tripType,
       customerId: customer.id,
       customerName: customer.name,
       fromCity: trip.fromCity,

@@ -29,7 +29,7 @@
  *
  * STATUS drives the pill and the second button:
  *   accepted → Book Now      (green)  → onBookNow
- *   pending  → Need Changes  (blue)   → onNeedChanges
+ *   pending  → (none — View Details only, full width)
  *   expired  → Request Again (red)    → onRequestAgain
  * View Details (gold) is always present.
  *
@@ -55,7 +55,6 @@ import {
   Clock,
   Copy,
   Eye,
-  PencilLine,
   RotateCw,
   Users,
   XCircle,
@@ -119,7 +118,7 @@ const PILL_STYLE: Record<QuotationStatus, PillStyle> = {
   },
 };
 
-type ActionKey = 'bookNow' | 'needChanges' | 'requestAgain';
+type ActionKey = 'bookNow' | 'requestAgain';
 
 type SecondaryAction = {
   key: ActionKey;
@@ -128,20 +127,18 @@ type SecondaryAction = {
   color: string;
 };
 
-/** Second button per status. Same outline paint as BookingCard. */
-const SECONDARY_ACTION: Record<QuotationStatus, SecondaryAction> = {
+/**
+ * Second button per status. Same outline paint as BookingCard.
+ * `null` means no second button: View Details takes the full row.
+ */
+const SECONDARY_ACTION: Record<QuotationStatus, SecondaryAction | null> = {
   accepted: {
     key: 'bookNow',
     label: 'Book Now',
     Icon: CalendarCheck,
     color: Colors.primary,
   },
-  pending: {
-    key: 'needChanges',
-    label: 'Need Changes',
-    Icon: PencilLine,
-    color: Colors.info,
-  },
+  pending: null,
   expired: {
     key: 'requestAgain',
     label: 'Request Again',
@@ -202,8 +199,6 @@ type Props = {
   onView: () => void;
   /** Accepted quotations. */
   onBookNow: () => void;
-  /** Pending quotations. */
-  onNeedChanges: () => void;
   /** Expired quotations. */
   onRequestAgain: () => void;
 };
@@ -213,7 +208,6 @@ export const QuotationCard: React.FC<Props> = ({
   onPress,
   onView,
   onBookNow,
-  onNeedChanges,
   onRequestAgain,
 }) => {
   const pill = PILL_STYLE[item.status];
@@ -227,7 +221,6 @@ export const QuotationCard: React.FC<Props> = ({
   const secondary = SECONDARY_ACTION[item.status];
   const onSecondary: Record<ActionKey, () => void> = {
     bookNow: onBookNow,
-    needChanges: onNeedChanges,
     requestAgain: onRequestAgain,
   };
 
@@ -356,13 +349,15 @@ export const QuotationCard: React.FC<Props> = ({
           onPress={onView}
           accessibilityLabel={`View details of quotation ${item.quotationNumber}`}
         />
-        <ActionButton
-          label={secondary.label}
-          Icon={secondary.Icon}
-          color={secondary.color}
-          onPress={onSecondary[secondary.key]}
-          accessibilityLabel={`${secondary.label}, quotation ${item.quotationNumber}`}
-        />
+        {secondary && (
+          <ActionButton
+            label={secondary.label}
+            Icon={secondary.Icon}
+            color={secondary.color}
+            onPress={onSecondary[secondary.key]}
+            accessibilityLabel={`${secondary.label}, quotation ${item.quotationNumber}`}
+          />
+        )}
       </View>
     </Pressable>
   );
@@ -372,6 +367,27 @@ export const QuotationCard: React.FC<Props> = ({
  * ActionButton — outline button (white bg, coloured border + text)
  * ================================================================ */
 
+/**
+ * Adds an alpha channel to a 6-digit hex colour ('#F57F17' + 0.12 →
+ * '#F57F171F'). Any other format is returned unchanged.
+ */
+function withAlpha(hex: string, alpha: number): string {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return hex;
+  const a = Math.round(Math.min(Math.max(alpha, 0), 1) * 255)
+    .toString(16)
+    .padStart(2, '0');
+  return `${hex}${a}`;
+}
+
+/**
+ * Press feedback, so the user can see the tap registered:
+ *   - Android: a native ripple in the button's colour. It keeps
+ *     animating after the finger lifts, so even a quick tap shows.
+ *   - Both platforms: while held, the button fills with a light tint
+ *     of its colour and shrinks slightly.
+ * The old feedback (opacity 0.85 on a white button) was too faint
+ * to notice.
+ */
 const ActionButton: React.FC<{
   label: string;
   Icon: IconComp;
@@ -381,10 +397,14 @@ const ActionButton: React.FC<{
 }> = ({ label, Icon, color, onPress, accessibilityLabel }) => (
   <Pressable
     onPress={onPress}
+    android_ripple={{ color: withAlpha(color, 0.2), foreground: true }}
     style={({ pressed }) => [
       styles.actionBtn,
       { borderColor: color },
-      pressed && styles.pressed,
+      pressed && [
+        styles.actionBtnPressed,
+        { backgroundColor: withAlpha(color, 0.12) },
+      ],
     ]}
     accessibilityRole="button"
     accessibilityLabel={accessibilityLabel}
@@ -530,6 +550,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    // Keeps the Android ripple inside the rounded corners.
+    overflow: 'hidden',
+  },
+  actionBtnPressed: {
+    transform: [{ scale: 0.97 }],
   },
   actionBtnText: {
     ...Typography.bodySmall,

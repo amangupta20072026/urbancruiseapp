@@ -15,6 +15,7 @@
  * Shared vocabulary (type-only imports, erased at build time):
  *   - BookingStatus       → @shared/bookings (chip buckets)
  *   - BookingProgressStep → customer bookings (tracker steps)
+ *   - TripType            → customer quotations (trip type tag)
  * ------------------------------------------------------------------
  */
 
@@ -23,6 +24,7 @@ import type { ISODateTime } from '@app-types/datetime';
 import type { Money } from '@app-types/currency';
 import type { BookingStatus } from '@shared/bookings';
 import type { BookingProgressStep } from '@features/customer/bookings/types';
+import type { TripType } from '@features/customer/quotations/types';
 
 /* ================================================================
  * Status
@@ -68,6 +70,8 @@ export type UcTripListItem = {
   status: UcTripStatus;
   /** Last lifecycle step reached — see the pairs table above. */
   progressStep: BookingProgressStep;
+  /** One Way / Round Trip / Pickup & Drop. */
+  tripType: TripType;
 
   customerId: string;
   /** Contact person's name (for corporate/agent too). */
