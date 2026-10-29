@@ -4,23 +4,18 @@
  * ------------------------------------------------------------------
  * The whole card is washed in the trip's status tone (UC_TRIP_TONE).
  *
- * WIDE layout (window >= 440dp, matches the approved design 1:1):
+ * Compact layout (same on every screen width) — 3 detail lines:
  *
  *   (● Ongoing)                              TRP-…-00012 ⧉
  *   Delhi → Jaipur
- *   📅 06 Nov 2026     │ 🚗 Innova Crysta │   ₹7,850.00
- *   ◷ 09:30 AM         │ 👤 Aarav Sharma  │  Total Amount
- *   👥 4 Passengers    │                  │
+ *   📅 06 Nov 2026   ◷ 09:30 AM   👥 4 Passengers
+ *   🚗 Innova Crysta                        ₹7,850.00
+ *   👤 Aarav Sharma
  *   ✓ ━━━━ ✓ ━━━━ ◉ ┄┄┄┄ ○
  *   [            👁 View Details            ]
  *
- * COMPACT layout (most phones, 360–430dp): a third column would
- * squeeze the vehicle and customer to "Inno…" / "Aara…", so the
- * amount moves to its own row under the two columns:
- *
- *   📅 06 Nov 2026     │ 🚗 Innova Crysta
- *   …                  │ 👤 Aarav Sharma
- *   Total Amount                          ₹7,850.00
+ * `layout` is still accepted so TripsScreen needn't change, but the
+ * card no longer switches layouts.
  *
  * Behaviour:
  *   - The person row is the CUSTOMER (confirmed product decision).
@@ -84,13 +79,14 @@ export type UcTripCardLayout = 'wide' | 'compact';
 
 type Props = {
   item: UcTripListItem;
-  layout: UcTripCardLayout;
+  /** Ignored — kept for TripsScreen compatibility. */
+  layout?: UcTripCardLayout;
   onViewDetails: (item: UcTripListItem) => void;
 };
 
 const COPIED_FLASH_MS = 1500;
 
-const UcTripCardImpl: React.FC<Props> = ({ item, layout, onViewDetails }) => {
+const UcTripCardImpl: React.FC<Props> = ({ item, onViewDetails }) => {
   const tone = UC_TRIP_TONE[item.status];
   const amount = formatMoney(item.amount);
   const timeline = useMemo(
@@ -123,23 +119,6 @@ const UcTripCardImpl: React.FC<Props> = ({ item, layout, onViewDetails }) => {
   const handleViewDetails = useCallback(
     () => onViewDetails(item),
     [onViewDetails, item],
-  );
-
-  /* -------- Pieces -------- */
-
-  const scheduleCol = (
-    <View style={styles.scheduleCol}>
-      <MetaItem Icon={Calendar} text={formatTripDate(item.scheduledAt)} />
-      <MetaItem Icon={Clock} text={formatTripTime(item.scheduledAt)} />
-      <MetaItem Icon={Users} text={formatPassengers(item.passengers)} />
-    </View>
-  );
-
-  const peopleCol = (
-    <View style={styles.peopleCol}>
-      <MetaItem Icon={Car} text={item.vehicleName} />
-      <MetaItem Icon={User} text={item.customerName} />
-    </View>
   );
 
   /* -------- Render -------- */
@@ -203,39 +182,29 @@ const UcTripCardImpl: React.FC<Props> = ({ item, layout, onViewDetails }) => {
         </Text>
       </View>
 
-      {/* Row 3: details */}
-      {layout === 'wide' ? (
-        <View style={styles.bodyRow}>
-          {scheduleCol}
-          <View style={styles.vDivider} />
-          {peopleCol}
-          <View style={styles.vDivider} />
-          <View style={styles.amountCol}>
-            <Text style={styles.amount} numberOfLines={1}>
-              {amount}
-            </Text>
-            <Text style={styles.amountLabel}>Total Amount</Text>
-          </View>
+      {/* Line 1: date · time · passengers */}
+      <View style={styles.inlineRow}>
+        <MetaItem Icon={Calendar} text={formatTripDate(item.scheduledAt)} />
+        <MetaItem Icon={Clock} text={formatTripTime(item.scheduledAt)} />
+        <MetaItem Icon={Users} text={formatPassengers(item.passengers)} />
+      </View>
+
+      {/* Line 2: vehicle + amount */}
+      <View
+        style={styles.vehicleRow}
+        accessible
+        accessibilityLabel={`${item.vehicleName}, total amount ${amount}`}
+      >
+        <View style={styles.vehicleName}>
+          <MetaItem Icon={Car} text={item.vehicleName} />
         </View>
-      ) : (
-        <>
-          <View style={styles.bodyRow}>
-            {scheduleCol}
-            <View style={styles.vDivider} />
-            {peopleCol}
-          </View>
-          <View
-            style={styles.amountRow}
-            accessible
-            accessibilityLabel={`Total amount ${amount}`}
-          >
-            <Text style={styles.amountLabel}>Total Amount</Text>
-            <Text style={styles.amount} numberOfLines={1}>
-              {amount}
-            </Text>
-          </View>
-        </>
-      )}
+        <Text style={styles.amount} numberOfLines={1}>
+          {amount}
+        </Text>
+      </View>
+
+      {/* Line 3: customer */}
+      <MetaItem Icon={User} text={item.customerName} bold />
 
       {/* Row 4: progress */}
       <BookingProgressTracker
@@ -265,13 +234,17 @@ UcTripCard.displayName = 'UcTripCard';
 
 /* ---------------- Sub-components ---------------- */
 
-const MetaItem: React.FC<{ Icon: LucideIcon; text: string }> = ({
-  Icon,
-  text,
-}) => (
+const MetaItem: React.FC<{
+  Icon: LucideIcon;
+  text: string;
+  bold?: boolean;
+}> = ({ Icon, text, bold }) => (
   <View style={styles.metaItem}>
     <Icon size={16} color={Colors.textSecondary} strokeWidth={2} />
-    <Text style={styles.metaText} numberOfLines={1}>
+    <Text
+      style={[styles.metaText, bold && styles.metaTextBold]}
+      numberOfLines={1}
+    >
       {text}
     </Text>
   </View>
@@ -283,9 +256,9 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.xl,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    gap: Spacing.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
   },
   pressed: {
     opacity: 0.6,
@@ -304,7 +277,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 4,
     borderRadius: Radius.pill,
   },
   statusDot: {
@@ -341,55 +314,42 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
 
-  /* Row 3 */
-  bodyRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: Spacing.md,
-  },
-  vDivider: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.border,
-  },
-  scheduleCol: {
-    flex: 1,
-    minWidth: 0,
-    gap: Spacing.sm,
-  },
-  peopleCol: {
-    flex: 1,
-    minWidth: 0,
-    gap: Spacing.sm,
-  },
-  metaItem: {
+  /* Detail lines */
+  inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    minWidth: 0,
+    columnGap: Spacing.md,
   },
-  metaText: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    flexShrink: 1,
-  },
-  amountCol: {
-    alignItems: 'flex-end',
-  },
-  amountRow: {
+  vehicleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.md,
   },
+  vehicleName: {
+    flex: 1,
+    minWidth: 0,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  metaText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    flexShrink: 1,
+  },
+  metaTextBold: {
+    fontWeight: FontWeight.bold,
+  },
   amount: {
-    fontSize: FontSize.xxl,
+    fontSize: FontSize.xl,
     lineHeight: LineHeight.xl,
     fontWeight: FontWeight.extraBold,
     color: Colors.textPrimary,
-  },
-  amountLabel: {
-    ...Typography.body,
-    color: Colors.textSecondary,
   },
 
   /* Row 5 */
@@ -398,7 +358,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    minHeight: 48,
+    minHeight: 44,
     borderRadius: Radius.md,
     borderWidth: 1.5,
     borderColor: Colors.primaryDark,

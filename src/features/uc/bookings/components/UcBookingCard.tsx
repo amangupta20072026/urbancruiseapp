@@ -2,30 +2,21 @@
  * ------------------------------------------------------------------
  * UcBookingCard — one row on the UC Bookings tab
  * ------------------------------------------------------------------
- * WIDE layout (window >= 440dp, matches the approved design 1:1):
+ * Compact layout (same on every screen width):
  *
- *   (● Ongoing)                                  BKG-2611-467128 ⧉
- *                                                    (🚗 Round Trip)
- *   Aarav Sharma     │ Delhi → Jaipur              │   ₹7,850.00
- *   📞 +91 ***** 43210│ 📅 06 Nov 2026  ◷ 09:30 AM  │  Total Amount
- *   🏢 Corporate      │ 👥 4 Passengers             │ [View Details ›]
- *                    │ 🚗 Innova Crysta (7 Seater) │
+ *   (● Ongoing)                              BKG-2611-467128 ⧉
+ *   Delhi → Jaipur                              (Round Trip)
+ *   📅 06 Nov 2026   ◷ 09:30 AM   👥 4 Passengers
+ *   🚗 Innova Crysta (7 Seater)                  ₹7,850.00
+ *   👤 Aarav Sharma                        [View Details ›]
  *   ┄ ✓ ━━━━ ✓ ━━━━ (🚗) ┄┄┄┄ ○ ┄
  *
- * COMPACT layout (most phones, 360–430dp): the amount column would
- * squeeze the route to "Del… → Jai…", so it moves to its own row:
- *
- *   Aarav Sharma     │ Delhi → Jaipur
- *   …                │ …
- *   ₹7,850.00                              [View Details ›]
- *   Total Amount
- *
- * Header: row 1 = status pill (left) + booking ref (right); row 2 =
- * trip type pill on the right, on the light grey backgroundSecondary.
+ * `layout` is still accepted so BookingsScreen needn't change, but
+ * the card no longer switches layouts.
  *
  * Behaviour:
- *   - Phone is shown MASKED (maskPhone), like every other UC surface
- *     (customer summary card, directory). Display only.
+ *   - The person row is the CUSTOMER. Phone / category are on the
+ *     booking details screen, not on the list card.
  *   - Copy icon puts the booking ref on the clipboard and flashes a
  *     check for 1.5s.
  *   - View Details → `onViewDetails(item)`.
@@ -49,14 +40,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import {
   ArrowRight,
-  Building2,
   Calendar,
   Car,
   Check,
   ChevronRight,
   Clock,
   Copy,
-  Phone,
+  User,
   Users,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -72,11 +62,9 @@ import {
   Typography,
 } from '@theme';
 import { formatMoney } from '@app-types/currency';
-import { maskPhone } from '@shared/utils';
-// Direct file imports (not feature index files) so the UC bundle
+// Direct file import (not the feature index) so the UC bundle
 // doesn't evaluate other features' screens.
 import { getTripTypeOption } from '@features/customer/quotations/tripTypeOptions';
-import { CUSTOMER_CATEGORY_LABEL } from '@features/uc/customers/types';
 
 import type { UcBookingListItem } from '../types';
 import { buildBookingTimeline } from '../utils/bookingTimeline';
@@ -93,17 +81,14 @@ export type UcBookingCardLayout = 'wide' | 'compact';
 
 type Props = {
   item: UcBookingListItem;
-  layout: UcBookingCardLayout;
+  /** Ignored — kept for BookingsScreen compatibility. */
+  layout?: UcBookingCardLayout;
   onViewDetails: (item: UcBookingListItem) => void;
 };
 
 const COPIED_FLASH_MS = 1500;
 
-const UcBookingCardImpl: React.FC<Props> = ({
-  item,
-  layout,
-  onViewDetails,
-}) => {
+const UcBookingCardImpl: React.FC<Props> = ({ item, onViewDetails }) => {
   const visual = UC_BOOKING_STATUS_VISUAL[item.status];
   const StatusIcon = visual.Icon;
   const tripTypeLabel = getTripTypeOption(item.tripType).label;
@@ -140,146 +125,123 @@ const UcBookingCardImpl: React.FC<Props> = ({
     [onViewDetails, item],
   );
 
-  /* -------- Pieces -------- */
-
-  const customerCol = (
-    <View style={styles.customerCol}>
-      <Text style={styles.customerName} numberOfLines={1}>
-        {item.customerName}
-      </Text>
-      <MetaItem Icon={Phone} text={maskPhone(item.customerPhone)} />
-      <MetaItem
-        Icon={Building2}
-        text={CUSTOMER_CATEGORY_LABEL[item.customerCategory]}
-      />
-    </View>
-  );
-
-  const tripCol = (
-    <View style={styles.tripCol}>
-      <View
-        style={styles.routeRow}
-        accessible
-        accessibilityLabel={`${item.fromCity} to ${item.toCity}`}
-      >
-        <Text style={styles.routeCity} numberOfLines={1}>
-          {item.fromCity}
-        </Text>
-        <ArrowRight size={18} color={Colors.textPrimary} strokeWidth={2.2} />
-        <Text style={styles.routeCity} numberOfLines={1}>
-          {item.toCity}
-        </Text>
-      </View>
-      <View style={styles.dateRow}>
-        <MetaItem Icon={Calendar} text={formatBookingDate(item.scheduledAt)} />
-        <MetaItem Icon={Clock} text={formatBookingTime(item.scheduledAt)} />
-      </View>
-      <MetaItem Icon={Users} text={formatPassengers(item.passengers)} />
-      <MetaItem
-        Icon={Car}
-        text={formatVehicle(item.vehicleName, item.seatingCapacity)}
-      />
-    </View>
-  );
-
-  const amountBlock = (
-    <View style={layout === 'wide' ? styles.amountWide : styles.amountCompact}>
-      <Text style={styles.amount} numberOfLines={1}>
-        {amount}
-      </Text>
-      <Text style={styles.amountLabel}>Total Amount</Text>
-    </View>
-  );
-
-  const detailsButton = (
-    <Pressable
-      onPress={handleViewDetails}
-      style={({ pressed }) => [styles.detailsBtn, pressed && styles.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel={`View details for booking ${item.bookingRef}`}
-    >
-      <Text style={styles.detailsText}>View Details</Text>
-      <ChevronRight size={18} color={Colors.primaryDark} strokeWidth={2.4} />
-    </Pressable>
-  );
-
   /* -------- Render -------- */
 
   return (
     <View style={styles.card}>
-      {/* Header: [status | booking ref] then [trip type] on the right */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View
-            style={[styles.statusPill, { backgroundColor: visual.bg }]}
-            accessible
-            accessibilityLabel={`Status: ${visual.label}`}
-          >
-            <StatusIcon size={16} color={visual.fg} strokeWidth={2.4} />
-            <Text style={[styles.statusText, { color: visual.fg }]}>
-              {visual.label}
-            </Text>
-          </View>
-
-          <View style={styles.refRow}>
-            <Text style={styles.refText} selectable>
-              {item.bookingRef}
-            </Text>
-            <Pressable
-              onPress={onCopyRef}
-              hitSlop={10}
-              style={({ pressed }) => pressed && styles.pressed}
-              accessibilityRole="button"
-              accessibilityLabel={
-                copied
-                  ? `Booking ID ${item.bookingRef} copied`
-                  : `Copy booking ID ${item.bookingRef}`
-              }
-            >
-              {copied ? (
-                <Check size={16} color={Colors.success} strokeWidth={2.5} />
-              ) : (
-                <Copy size={16} color={Colors.textSecondary} strokeWidth={2} />
-              )}
-            </Pressable>
-          </View>
+      {/* Row 1: status | booking ref */}
+      <View style={styles.headerRow}>
+        <View
+          style={[styles.statusPill, { backgroundColor: visual.bg }]}
+          accessible
+          accessibilityLabel={`Status: ${visual.label}`}
+        >
+          <StatusIcon size={16} color={visual.fg} strokeWidth={2.4} />
+          <Text style={[styles.statusText, { color: visual.fg }]}>
+            {visual.label}
+          </Text>
         </View>
 
+        <View style={styles.refRow}>
+          <Text style={styles.refText} selectable>
+            {item.bookingRef}
+          </Text>
+          <Pressable
+            onPress={onCopyRef}
+            hitSlop={10}
+            style={({ pressed }) => pressed && styles.pressed}
+            accessibilityRole="button"
+            accessibilityLabel={
+              copied
+                ? `Booking ID ${item.bookingRef} copied`
+                : `Copy booking ID ${item.bookingRef}`
+            }
+          >
+            {copied ? (
+              <Check size={16} color={Colors.success} strokeWidth={2.5} />
+            ) : (
+              <Copy size={16} color={Colors.textSecondary} strokeWidth={2} />
+            )}
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Row 2: route | trip type */}
+      <View style={styles.routeLine}>
+        <View
+          style={styles.routeRow}
+          accessible
+          accessibilityLabel={`${item.fromCity} to ${item.toCity}`}
+        >
+          <Text style={styles.routeCity} numberOfLines={1}>
+            {item.fromCity}
+          </Text>
+          <ArrowRight size={18} color={Colors.textPrimary} strokeWidth={2.2} />
+          <Text style={styles.routeCity} numberOfLines={1}>
+            {item.toCity}
+          </Text>
+        </View>
         <View
           style={styles.typePill}
           accessible
           accessibilityLabel={`Trip type: ${tripTypeLabel}`}
         >
-          <Car size={15} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.typeText}>{tripTypeLabel}</Text>
+          <Text style={styles.typeText} numberOfLines={1}>
+            {tripTypeLabel}
+          </Text>
         </View>
       </View>
 
-      {/* Row 2: body */}
-      {layout === 'wide' ? (
-        <View style={styles.bodyRow}>
-          {customerCol}
-          <View style={styles.vDivider} />
-          {tripCol}
-          <View style={styles.vDivider} />
-          <View style={styles.amountCol}>
-            {amountBlock}
-            {detailsButton}
-          </View>
+      {/* Line 1: date · time · passengers */}
+      <View style={styles.inlineRow}>
+        <MetaItem Icon={Calendar} text={formatBookingDate(item.scheduledAt)} />
+        <MetaItem Icon={Clock} text={formatBookingTime(item.scheduledAt)} />
+        <MetaItem Icon={Users} text={formatPassengers(item.passengers)} />
+      </View>
+
+      {/* Line 2: vehicle + amount */}
+      <View
+        style={styles.splitRow}
+        accessible
+        accessibilityLabel={`${formatVehicle(
+          item.vehicleName,
+          item.seatingCapacity,
+        )}, total amount ${amount}`}
+      >
+        <View style={styles.leftSlot}>
+          <MetaItem
+            Icon={Car}
+            text={formatVehicle(item.vehicleName, item.seatingCapacity)}
+          />
         </View>
-      ) : (
-        <>
-          <View style={styles.bodyRow}>
-            {customerCol}
-            <View style={styles.vDivider} />
-            {tripCol}
-          </View>
-          <View style={styles.footerRow}>
-            {amountBlock}
-            {detailsButton}
-          </View>
-        </>
-      )}
+        <Text style={styles.amount} numberOfLines={1}>
+          {amount}
+        </Text>
+      </View>
+
+      {/* Line 3: customer + View Details */}
+      <View style={styles.splitRow}>
+        <View style={styles.leftSlot}>
+          <MetaItem Icon={User} text={item.customerName} bold />
+        </View>
+        <Pressable
+          onPress={handleViewDetails}
+          hitSlop={4}
+          style={({ pressed }) => [
+            styles.detailsBtn,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={`View details for booking ${item.bookingRef}`}
+        >
+          <Text style={styles.detailsText}>View Details</Text>
+          <ChevronRight
+            size={16}
+            color={Colors.primaryDark}
+            strokeWidth={2.4}
+          />
+        </Pressable>
+      </View>
 
       {/* Row 3: progress */}
       <BookingProgressTracker steps={timeline} color={visual.fg} />
@@ -292,13 +254,17 @@ UcBookingCard.displayName = 'UcBookingCard';
 
 /* ---------------- Sub-components ---------------- */
 
-const MetaItem: React.FC<{ Icon: LucideIcon; text: string }> = ({
-  Icon,
-  text,
-}) => (
+const MetaItem: React.FC<{
+  Icon: LucideIcon;
+  text: string;
+  bold?: boolean;
+}> = ({ Icon, text, bold }) => (
   <View style={styles.metaItem}>
     <Icon size={15} color={Colors.textSecondary} strokeWidth={2} />
-    <Text style={styles.metaText} numberOfLines={1}>
+    <Text
+      style={[styles.metaText, bold && styles.metaTextBold]}
+      numberOfLines={1}
+    >
       {text}
     </Text>
   </View>
@@ -312,20 +278,16 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    gap: Spacing.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
     ...Shadows.xs,
   },
   pressed: {
     opacity: 0.6,
   },
 
-  /* Header */
-  header: {
-    gap: Spacing.sm,
-  },
-  /* Status left, ref pinned right by `marginLeft: 'auto'`. On a very
+  /* Row 1 — ref pinned right by `marginLeft: 'auto'`. On a very
    * narrow screen the ref wraps to its own line instead of being
    * truncated (a truncated ref can't be read back to a customer). */
   headerRow: {
@@ -340,7 +302,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 4,
     borderRadius: Radius.pill,
   },
   statusText: {
@@ -357,52 +319,17 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.textSecondary,
   },
-  /* Right-aligned. The border keeps the light grey pill visible on
-   * the white card (#F8F9FA alone is almost the same as white). */
-  typePill: {
-    alignSelf: 'flex-end',
+
+  /* Row 2 — route left, trip-type pill right */
+  routeLine: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 5,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundSecondary,
-  },
-  typeText: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-  },
-
-  /* Row 2 */
-  bodyRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: Spacing.md,
-  },
-  vDivider: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.border,
-  },
-  customerCol: {
-    flex: 1,
-    minWidth: 0,
-    gap: Spacing.sm,
-  },
-  customerName: {
-    fontSize: FontSize.xl,
-    lineHeight: LineHeight.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-  },
-  tripCol: {
-    flex: 1.4,
-    minWidth: 0,
+    justifyContent: 'space-between',
     gap: Spacing.sm,
   },
   routeRow: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
@@ -414,51 +341,58 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
     color: Colors.textPrimary,
   },
-  dateRow: {
+  /* The border keeps the light grey pill visible on the white card
+   * (#F8F9FA alone is almost the same as white). */
+  typePill: {
+    flexShrink: 0,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.backgroundSecondary,
+  },
+  typeText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+  },
+
+  /* Detail lines */
+  inlineRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     columnGap: Spacing.md,
-    rowGap: Spacing.sm,
+  },
+  splitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  leftSlot: {
+    flex: 1,
+    minWidth: 0,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 1,
     minWidth: 0,
   },
   metaText: {
-    ...Typography.body,
+    ...Typography.bodySmall,
     color: Colors.textSecondary,
     flexShrink: 1,
   },
-
-  /* Amount — wide: own column; compact: footer row */
-  amountCol: {
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
-  amountWide: {
-    alignItems: 'flex-end',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
-  amountCompact: {
-    flexShrink: 1,
+  metaTextBold: {
+    fontWeight: FontWeight.bold,
   },
   amount: {
-    fontSize: FontSize.xxl,
+    fontSize: FontSize.xl,
     lineHeight: LineHeight.xl,
     fontWeight: FontWeight.extraBold,
     color: Colors.textPrimary,
-  },
-  amountLabel: {
-    ...Typography.body,
-    color: Colors.textSecondary,
   },
 
   detailsBtn: {
@@ -466,14 +400,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    minHeight: 44,
-    paddingLeft: Spacing.lg,
-    paddingRight: Spacing.md,
+    minHeight: 36,
+    paddingLeft: Spacing.md,
+    paddingRight: Spacing.sm,
     borderRadius: Radius.md,
     backgroundColor: Colors.primaryTint,
   },
   detailsText: {
-    ...Typography.body,
+    ...Typography.bodySmall,
     color: Colors.primaryDark,
     fontWeight: FontWeight.bold,
   },
