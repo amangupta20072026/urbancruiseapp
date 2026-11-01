@@ -1,62 +1,77 @@
 /**
  * ------------------------------------------------------------------
- * UcTripCard — one row on the UC Trips tab (ticket design)
+ * UcTripCard — one row on the UC Trips tab
  * ------------------------------------------------------------------
- * One layout for EVERY status (approved "Option 2 · ticket"):
+ * One layout for EVERY status:
  *
- *   ┌───────────────────────────────────────────────────────┐
- *   │ [status pill] [trip type]          TRP-M-0175-00330 📋 │
- *   │ From                                               To │
- *   │ Udaipur  🚗- - - - - - - - - - - - - - - - - -  Noida │
- *   │ 📅 12 Nov · 04:44 PM                     [in 13 days] │
- *   ├ - - - - - - - - - - - - - - - - - - - - - - - - - - - ┤  ← tear line
- *   │ SUV · 6 Seater                                   (📞) │
- *   │ 🪪 Ramesh Yadav  /  Driver not assigned (amber)        │
- *   │ 👤 Karan Mehta · 4 Passengers         View details ›  │
- *   └───────────────────────────────────────────────────────┘
+ *   ┃┌─────────────────────────────────────────────────────┐
+ *   ┃│ [● Ongoing] [⇆ One Way]                     Trip ID │
+ *   ┃│                                   TRP-A-0211-00111 📋│
+ *   ┃│ 📍 Goa  - - - - - 🚗 - - - - -  📍 Chandigarh        │
+ *   ┃│ 📅 15 Nov 2026  │  🕑 02:28 AM                       │
+ *   ┃│ [photo] │ Sedan · 4 Seater                     (📞) │
+ *   ┃│         │ 👤 Ravi Shankar / Driver not assigned     │
+ *   ┃│ 👥 Amit Verma · 4 Passengers       [View details ›] │
+ *   ┃└─────────────────────────────────────────────────────┘
+ *    ↑ left edge in the status colour
  *
- * What changes per status:
+ * Status colours — all from `@theme` Colors. Each status uses ONE
+ * accent for the left edge, the solid pill and the city pins, with
+ * white pill text. Every pair passes WCAG AA for small text:
  *
- *   status     card wash   car on route line      chip
- *   upcoming   green       at the start           "in 13 days" / "in 5h 20m"
- *                                                 / "Pickup time passed"
- *   ongoing    blue        middle (blue)          "1h 20m on road"
- *   completed  grey        end, solid green line  "1,618 km · 26h 10m"
- *   cancelled  red         start (greyed)         "Before / After confirmation"
- *   no_show    amber       start (greyed)         "Trip didn't start"
+ *   status     accent                     white text on it   car
+ *   upcoming   primaryDark  #2E7D32       5.13:1             start
+ *   ongoing    completed    #2563EB       5.17:1             middle
+ *   completed  textSecondary #6B7280      4.83:1             end, solid line
+ *   cancelled  error        #DC2626       4.83:1             start (grey)
+ *   no_show    pendingDark  #B45309       5.02:1             start (grey)
  *
- * Card wash + border and pill colours are the same values as the UC
- * Bookings card, so a status looks the same on both tabs.
+ * Ongoing uses `Colors.completed` (blue) to match the approved
+ * design. `Colors.info` (#0288D1) was not used: white text on it is
+ * 3.86:1 and fails AA. `Colors.ongoing` (#C2410C) is orange, not the
+ * blue in the design. To change a status colour, edit STATUS_STYLE
+ * only.
+ *
+ * Compact sizing ("Option B"): 8dp between rows, 18dp city names,
+ * 56×36 vehicle photo with no box around the vehicle row, 12dp date
+ * and time text.
+ *
+ * Header row matches UcBookingCard's header 1:1 (pill sizes, "Trip
+ * ID" label, bold id) so status, trip type and id fit on ONE row.
+ * On very narrow screens / large system font, the trip type wraps
+ * under the status pill instead of being clipped (same as
+ * UcBookingCard).
  *
  * Always the same:
  *   - No amount, no vehicle number, no pickup / drop areas.
+ *   - Vehicle photo: `vehicleImageUrl` (https only), else the bundled
+ *     placeholder. A URL that fails to load also falls back.
  *   - Driver line: name, or "Driver not assigned" (amber) on
  *     upcoming / ongoing, or "No driver assigned" (grey) on ended
  *     trips.
  *   - Call button: upcoming / ongoing with a driver AND a phone.
- *   - "View details ›" link; tapping anywhere on the card does the
+ *   - "View details ›" button; tapping anywhere on the card does the
  *     same.
  *
  * Dashed lines are drawn with small views, not `borderStyle:
  * 'dashed'`, which renders unreliably on one side of a view on
  * Android and iOS.
  *
- * Times ("in 5h 20m", "1h 20m on road") are worked out when the row
- * renders; they refresh on pull-to-refresh or scroll, not every
- * minute.
- *
  * `layout` is still accepted so TripsScreen needn't change.
  *
  * FlashList notes:
  *   - Memoised; the screen keeps `item` refs and handlers stable.
- *   - The copied flag stores WHICH ID was copied, so a recycled row
- *     never shows a stale check mark.
+ *   - The copied flag stores WHICH ID was copied, and the failed-
+ *     image flag stores WHICH URL failed, so a recycled row never
+ *     shows another row's state.
  * ------------------------------------------------------------------
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   GestureResponderEvent,
+  Image,
+  type ImageSourcePropType,
   Linking,
   Pressable,
   StyleSheet,
@@ -69,18 +84,28 @@ import {
   Car,
   Check,
   ChevronRight,
+  CircleUserRound,
+  Clock,
   Copy,
-  IdCard,
+  type LucideProps,
+  MapPin,
   Phone,
   User,
+  Users,
 } from 'lucide-react-native';
 
-import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
-import { toast } from '@services/toast';
 import {
-  BOOKING_STATUS_VISUAL,
-  type BookingStatusVisual,
-} from '@shared/bookings';
+  Colors,
+  FontSize,
+  FontWeight,
+  LineHeight,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from '@theme';
+import { toast } from '@services/toast';
+import { BOOKING_STATUS_VISUAL } from '@shared/bookings';
 // Direct file imports (not the feature index) so the UC bundle
 // doesn't evaluate other features' screens.
 import { getTripTypeOption } from '@features/customer/quotations/tripTypeOptions';
@@ -103,22 +128,24 @@ type Props = {
 };
 
 const COPIED_FLASH_MS = 1500;
-const MINUTE_MS = 60 * 1000;
-const DAY_MS = 24 * 60 * MINUTE_MS;
+
+// Same placeholder the customer VehicleDetailsCard uses until real
+// vehicle photos come from the backend.
+const PLACEHOLDER_VEHICLE_IMG: ImageSourcePropType = require('@assets/images/service-car.png');
 
 /* ================================================================
- * Status → visual mappings
+ * Status → visual mapping
  * ================================================================ */
 
 type CarPosition = 'start' | 'middle' | 'end';
 
-type StatusStyle = BookingStatusVisual & {
-  /** Whole-card wash + border (same values as UcBookingCard). */
-  cardBg: string;
-  cardBorder: string;
-  /** Chip under the route. */
-  chipBg: string;
-  chipFg: string;
+type StatusStyle = {
+  label: string;
+  Icon: React.ComponentType<LucideProps>;
+  /** Left edge, solid pill background and city pins. */
+  accent: string;
+  /** Pill text + icon on `accent`. */
+  onAccent: string;
   /** Where the car sits on the route line, and its colour. */
   car: CarPosition;
   carColor: string;
@@ -126,47 +153,42 @@ type StatusStyle = BookingStatusVisual & {
 
 const STATUS_STYLE: Readonly<Record<UcTripStatus, StatusStyle>> = {
   upcoming: {
-    ...BOOKING_STATUS_VISUAL.upcoming,
-    cardBg: '#EAF7EE',
-    cardBorder: '#C8EBD3',
-    chipBg: Colors.surface,
-    chipFg: Colors.primaryDark,
+    label: BOOKING_STATUS_VISUAL.upcoming.label,
+    Icon: BOOKING_STATUS_VISUAL.upcoming.Icon,
+    accent: Colors.primaryDark,
+    onAccent: Colors.textOnPrimary,
     car: 'start',
     carColor: Colors.primaryDark,
   },
   ongoing: {
-    ...BOOKING_STATUS_VISUAL.ongoing,
-    cardBg: '#F0F8FE',
-    cardBorder: '#CBE6F7',
-    chipBg: Colors.surface,
-    chipFg: Colors.info,
+    label: BOOKING_STATUS_VISUAL.ongoing.label,
+    Icon: BOOKING_STATUS_VISUAL.ongoing.Icon,
+    accent: Colors.completed,
+    onAccent: Colors.textOnPrimary,
     car: 'middle',
-    carColor: Colors.info,
+    carColor: Colors.completed,
   },
   completed: {
-    ...BOOKING_STATUS_VISUAL.completed,
-    cardBg: '#F6F7F9',
-    cardBorder: '#E1E4E9',
-    chipBg: Colors.surface,
-    chipFg: Colors.textSecondary,
+    label: BOOKING_STATUS_VISUAL.completed.label,
+    Icon: BOOKING_STATUS_VISUAL.completed.Icon,
+    accent: Colors.textSecondary,
+    onAccent: Colors.textOnPrimary,
     car: 'end',
     carColor: Colors.textSecondary,
   },
   cancelled: {
-    ...BOOKING_STATUS_VISUAL.cancelled,
-    cardBg: '#FEF6F6',
-    cardBorder: '#FAD5D5',
-    chipBg: Colors.surface,
-    chipFg: Colors.error,
+    label: BOOKING_STATUS_VISUAL.cancelled.label,
+    Icon: BOOKING_STATUS_VISUAL.cancelled.Icon,
+    accent: Colors.error,
+    onAccent: Colors.textOnPrimary,
     car: 'start',
     carColor: Colors.textTertiary,
   },
   no_show: {
-    ...UC_BOOKING_STATUS_VISUAL.no_show,
-    cardBg: '#FFFBEB',
-    cardBorder: '#FDE9B0',
-    chipBg: Colors.surface,
-    chipFg: Colors.pendingDark,
+    label: UC_BOOKING_STATUS_VISUAL.no_show.label,
+    Icon: UC_BOOKING_STATUS_VISUAL.no_show.Icon,
+    accent: Colors.pendingDark,
+    onAccent: Colors.textOnPrimary,
     car: 'start',
     carColor: Colors.textTertiary,
   },
@@ -176,89 +198,23 @@ const STATUS_STYLE: Readonly<Record<UcTripStatus, StatusStyle>> = {
  * Pure helpers (exported for tests)
  * ================================================================ */
 
-/** 1570 → "26h 10m", 45 → "45m", 120 → "2h". */
-export function formatDurationMinutes(totalMinutes: number): string {
-  const m = Math.max(0, Math.round(totalMinutes));
-  const h = Math.floor(m / 60);
-  const rest = m % 60;
-  if (h === 0) return `${rest}m`;
-  return rest === 0 ? `${h}h` : `${h}h ${rest}m`;
+/** "SUV" + 6 → "SUV · 6 Seater"; unknown seats → just the name. */
+export function vehicleLine(
+  name: string,
+  seats: number | null | undefined,
+): string {
+  return seats && seats > 0 ? `${name} · ${seats} Seater` : name;
 }
 
 /**
- * Text for the chip under the route. `overdue` makes an upcoming
- * chip amber ("Pickup time passed").
+ * Returns the URL only if it is a non-empty https URL; otherwise
+ * null (the card then shows the placeholder). Plain http is refused:
+ * Android blocks cleartext traffic by default and iOS ATS does too.
  */
-export function buildChip(
-  item: Pick<
-    UcTripListItem,
-    | 'status'
-    | 'progressStep'
-    | 'scheduledAt'
-    | 'startedAt'
-    | 'distanceKm'
-    | 'durationMinutes'
-  >,
-  nowMs: number,
-): { text: string; overdue: boolean } {
-  switch (item.status) {
-    case 'upcoming': {
-      const left = new Date(item.scheduledAt).getTime() - nowMs;
-      if (left <= 0) return { text: 'Pickup time passed', overdue: true };
-      if (left >= 2 * DAY_MS) {
-        return { text: `in ${Math.floor(left / DAY_MS)} days`, overdue: false };
-      }
-      return {
-        text: `in ${formatDurationMinutes(left / MINUTE_MS)}`,
-        overdue: false,
-      };
-    }
-    case 'ongoing': {
-      const start = new Date(item.startedAt ?? item.scheduledAt).getTime();
-      const elapsed = nowMs - start;
-      return {
-        text:
-          elapsed >= MINUTE_MS
-            ? `${formatDurationMinutes(elapsed / MINUTE_MS)} on road`
-            : 'Just started',
-        overdue: false,
-      };
-    }
-    case 'completed': {
-      const parts: string[] = [];
-      if (item.distanceKm != null) {
-        parts.push(`${item.distanceKm.toLocaleString('en-IN')} km`);
-      }
-      if (item.durationMinutes != null) {
-        parts.push(formatDurationMinutes(item.durationMinutes));
-      }
-      return {
-        text: parts.length > 0 ? parts.join(' · ') : 'Trip completed',
-        overdue: false,
-      };
-    }
-    case 'cancelled':
-      return {
-        text:
-          item.progressStep === 'confirmed'
-            ? 'After confirmation'
-            : 'Before confirmation',
-        overdue: false,
-      };
-    case 'no_show':
-      return { text: "Trip didn't start", overdue: false };
-  }
-}
-
-/** "12 Nov · 04:44 PM" */
-function formatWhen(iso: string): string {
-  const dayMonth = formatTripDate(iso).split(' ').slice(0, 2).join(' ');
-  return `${dayMonth} · ${formatTripTime(iso)}`;
-}
-
-/** "SUV" + 6 → "SUV · 6 Seater"; unknown seats → just the name. */
-function vehicleLine(name: string, seats: number | null | undefined): string {
-  return seats && seats > 0 ? `${name} · ${seats} Seater` : name;
+export function safeImageUrl(url: string | null | undefined): string | null {
+  if (typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  return /^https:\/\/\S+$/i.test(trimmed) ? trimmed : null;
 }
 
 /**
@@ -286,7 +242,6 @@ const UcTripCardImpl: React.FC<Props> = ({ item, onViewDetails }) => {
   const tripType = item.tripType ? getTripTypeOption(item.tripType) : null;
 
   const isActive = item.status === 'upcoming' || item.status === 'ongoing';
-  const chip = buildChip(item, Date.now());
   const canCall = isActive && !!item.driverName && !!item.driverPhone;
   const driverText = item.driverName
     ? item.driverName
@@ -294,6 +249,24 @@ const UcTripCardImpl: React.FC<Props> = ({ item, onViewDetails }) => {
     ? 'Driver not assigned'
     : 'No driver assigned';
   const driverMissingActive = !item.driverName && isActive;
+
+  const dateText = formatTripDate(item.scheduledAt);
+  const timeText = formatTripTime(item.scheduledAt);
+  const vehicleText = vehicleLine(item.vehicleName, item.seatingCapacity);
+
+  /* -------- Vehicle photo -------- *
+   * Falls back to the placeholder if the URL is missing, not https,
+   * or fails to load. Stores the failed URL (not a boolean) so a
+   * recycled row with a different URL tries again. */
+  const imageUrl = safeImageUrl(item.vehicleImageUrl);
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const showRemoteImage = imageUrl !== null && imageUrl !== failedImageUrl;
+  const vehicleImageSource: ImageSourcePropType = showRemoteImage
+    ? { uri: imageUrl }
+    : PLACEHOLDER_VEHICLE_IMG;
+  const onImageError = useCallback(() => {
+    if (imageUrl) setFailedImageUrl(imageUrl);
+  }, [imageUrl]);
 
   /* -------- Copy trip ID -------- *
    * `e.stopPropagation()` stops the tap also opening the trip. */
@@ -348,25 +321,25 @@ const UcTripCardImpl: React.FC<Props> = ({ item, onViewDetails }) => {
       onPress={handleViewDetails}
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: style.cardBg, borderColor: style.cardBorder },
+        { borderLeftColor: style.accent },
         pressed && styles.pressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Trip ${item.tripRef}, ${style.label}, ${
+      accessibilityLabel={`Trip ID ${item.tripRef}, ${style.label}, ${
         tripType ? `${tripType.label}, ` : ''
-      }from ${item.fromCity} to ${item.toCity}, ${formatWhen(
-        item.scheduledAt,
-      )}, ${chip.text}, ${vehicleLine(
-        item.vehicleName,
-        item.seatingCapacity,
-      )}, ${driverText}, customer ${item.customerName}`}
+      }from ${item.fromCity} to ${
+        item.toCity
+      }, ${dateText} at ${timeText}, ${vehicleText}, ${driverText}, customer ${
+        item.customerName
+      }, ${formatPassengers(item.passengers)}`}
     >
-      {/* Row 1 — status pill + trip type (left), trip id (right) */}
+      {/* Row 1 — status pill + trip type (left), trip id (right).
+          Same sizes as the UcBookingCard header. */}
       <View style={styles.headerRow}>
         <View style={styles.tagsRow}>
-          <View style={[styles.pill, { backgroundColor: style.bg }]}>
-            <StatusIcon size={12} color={style.fg} strokeWidth={2.5} />
-            <Text style={[styles.pillText, { color: style.fg }]}>
+          <View style={[styles.pill, { backgroundColor: style.accent }]}>
+            <StatusIcon size={12} color={style.onAccent} strokeWidth={2.5} />
+            <Text style={[styles.pillText, { color: style.onAccent }]}>
               {style.label}
             </Text>
           </View>
@@ -382,34 +355,40 @@ const UcTripCardImpl: React.FC<Props> = ({ item, onViewDetails }) => {
           ) : null}
         </View>
 
-        <View style={styles.idRow}>
-          <Text style={styles.idValue} selectable>
-            {item.tripRef}
-          </Text>
-          <Pressable
-            onPress={onCopyRef}
-            hitSlop={8}
-            style={({ pressed }) => [styles.copyBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={
-              copied
-                ? `Trip ID ${item.tripRef} copied`
-                : `Copy trip ID ${item.tripRef}`
-            }
-          >
-            {copied ? (
-              <Check size={13} color={Colors.success} strokeWidth={2.5} />
-            ) : (
-              <Copy size={13} color={Colors.textTertiary} strokeWidth={2} />
-            )}
-          </Pressable>
+        <View style={styles.idBlock}>
+          <Text style={styles.idLabel}>Trip ID</Text>
+          <View style={styles.idRow}>
+            <Text style={styles.idValue} selectable>
+              {item.tripRef}
+            </Text>
+            <Pressable
+              onPress={onCopyRef}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.copyBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={
+                copied
+                  ? `Trip ID ${item.tripRef} copied`
+                  : `Copy trip ID ${item.tripRef}`
+              }
+            >
+              {copied ? (
+                <Check size={13} color={Colors.success} strokeWidth={2.5} />
+              ) : (
+                <Copy size={13} color={Colors.textSecondary} strokeWidth={2} />
+              )}
+            </Pressable>
+          </View>
         </View>
       </View>
 
-      {/* Row 2 — From  🚗- - - -  To */}
+      {/* Row 2 — 📍 From  - - 🚗 - -  📍 To */}
       <View style={styles.routeRow}>
-        <View style={styles.cityCol}>
-          <Text style={styles.cityLabel}>From</Text>
+        <View style={styles.cityGroup}>
+          <CityPin color={style.accent} />
           <Text style={styles.city} numberOfLines={1}>
             {item.fromCity}
           </Text>
@@ -418,74 +397,60 @@ const UcTripCardImpl: React.FC<Props> = ({ item, onViewDetails }) => {
         <RouteLine
           position={style.car}
           carColor={style.carColor}
-          maskColor={style.cardBg}
           solid={item.status === 'completed'}
         />
 
-        <View style={[styles.cityCol, styles.cityColRight]}>
-          <Text style={styles.cityLabel}>To</Text>
-          <Text style={[styles.city, styles.cityRight]} numberOfLines={1}>
+        <View style={[styles.cityGroup, styles.cityGroupRight]}>
+          <CityPin color={style.accent} />
+          <Text style={styles.city} numberOfLines={1}>
             {item.toCity}
           </Text>
         </View>
       </View>
 
-      {/* Row 3 — date + time (left), status chip (right) */}
+      {/* Row 3 — 📅 date │ 🕑 time */}
       <View style={styles.whenRow}>
-        <View style={styles.whenLeft}>
-          <Calendar size={13} color={Colors.textSecondary} strokeWidth={2} />
+        <View style={styles.whenItem}>
+          <Calendar size={14} color={Colors.textSecondary} strokeWidth={2} />
           <Text style={styles.whenText} numberOfLines={1}>
-            {formatWhen(item.scheduledAt)}
+            {dateText}
           </Text>
         </View>
-        <View
-          style={[
-            styles.chip,
-            {
-              backgroundColor: style.chipBg,
-              borderColor: withAlpha(
-                chip.overdue ? Colors.pendingDark : style.chipFg,
-                0.25,
-              ),
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.chipText,
-              { color: chip.overdue ? Colors.pendingDark : style.chipFg },
-            ]}
-            numberOfLines={1}
-          >
-            {chip.text}
+        <View style={styles.whenDivider} />
+        <View style={styles.whenItem}>
+          <Clock size={14} color={Colors.textSecondary} strokeWidth={2} />
+          <Text style={styles.whenText} numberOfLines={1}>
+            {timeText}
           </Text>
         </View>
       </View>
 
-      {/* Tear line — runs edge to edge */}
-      <DashedLine
-        color={style.cardBorder}
-        style={styles.tearLine}
-        thickness={1.5}
-      />
-
-      {/* Row 4 — vehicle + driver (left), call (right) */}
+      {/* Row 4 — vehicle row: photo │ vehicle + driver, call */}
       <View style={styles.vehicleRow}>
+        <Image
+          source={vehicleImageSource}
+          onError={showRemoteImage ? onImageError : undefined}
+          style={styles.vehicleImage}
+          resizeMode="contain"
+          accessibilityIgnoresInvertColors
+          accessible={false}
+        />
+        <View style={styles.vehicleDivider} />
+
         <View style={styles.vehicleInfo}>
-          <View style={styles.vehicleLine}>
-            <Car size={14} color={Colors.textSecondary} strokeWidth={2} />
-            <Text style={styles.vehicleText} numberOfLines={1}>
-              {vehicleLine(item.vehicleName, item.seatingCapacity)}
-            </Text>
-          </View>
-          <View style={styles.vehicleLine}>
-            <IdCard
-              size={14}
-              color={
-                driverMissingActive ? Colors.pendingDark : Colors.textSecondary
-              }
-              strokeWidth={2}
-            />
+          <Text style={styles.vehicleText} numberOfLines={1}>
+            {vehicleText}
+          </Text>
+          <View style={styles.driverLine}>
+            {driverMissingActive ? (
+              <CircleUserRound
+                size={15}
+                color={Colors.pendingDark}
+                strokeWidth={2.2}
+              />
+            ) : (
+              <User size={15} color={Colors.textSecondary} strokeWidth={2} />
+            )}
             <Text
               style={[
                 styles.driverText,
@@ -513,7 +478,7 @@ const UcTripCardImpl: React.FC<Props> = ({ item, onViewDetails }) => {
             accessibilityRole="button"
             accessibilityLabel={`Call driver ${item.driverName ?? ''}`}
           >
-            <Phone size={16} color={Colors.primary} strokeWidth={2.5} />
+            <Phone size={18} color={Colors.primary} strokeWidth={2.2} />
           </Pressable>
         ) : null}
       </View>
@@ -521,7 +486,7 @@ const UcTripCardImpl: React.FC<Props> = ({ item, onViewDetails }) => {
       {/* Row 5 — customer (left), View details (right) */}
       <View style={styles.footerRow}>
         <View style={styles.customerRow}>
-          <User size={13} color={Colors.textSecondary} strokeWidth={2} />
+          <Users size={16} color={Colors.textSecondary} strokeWidth={2} />
           <Text style={styles.customerText} numberOfLines={1}>
             {`${item.customerName} · ${formatPassengers(item.passengers)}`}
           </Text>
@@ -534,15 +499,15 @@ const UcTripCardImpl: React.FC<Props> = ({ item, onViewDetails }) => {
             foreground: true,
           }}
           style={({ pressed }) => [
-            styles.detailsLink,
-            pressed && styles.detailsLinkPressed,
+            styles.detailsBtn,
+            pressed && styles.detailsBtnPressed,
           ]}
           accessibilityRole="button"
           accessibilityLabel={`View details for trip ${item.tripRef}`}
         >
           <Text style={styles.detailsText}>View details</Text>
           <ChevronRight
-            size={15}
+            size={16}
             color={Colors.primaryDark}
             strokeWidth={2.5}
           />
@@ -559,18 +524,26 @@ UcTripCard.displayName = 'UcTripCard';
  * Sub-components
  * ================================================================ */
 
+/**
+ * Solid pin with a white centre. The outline is drawn in the card
+ * colour (`surface`) so only the filled shape shows; the inner
+ * circle's stroke then reads as the white dot.
+ */
+const CityPin: React.FC<{ color: string }> = ({ color }) => (
+  <MapPin size={16} color={Colors.surface} fill={color} strokeWidth={2} />
+);
+
 const DASH = 5;
 const DASH_GAP = 4;
 /** Enough dashes for the widest phone; extra ones are clipped. */
-const DASH_COUNT = 90;
+const DASH_COUNT = 60;
 
 /** A horizontal dashed line that fills its width. */
-const DashedLine: React.FC<{
-  color: string;
-  thickness?: number;
-  style?: object;
-}> = ({ color, thickness = 1.5, style }) => (
-  <View style={[styles.dashedRow, { height: thickness }, style]}>
+const DashedLine: React.FC<{ color: string; thickness?: number }> = ({
+  color,
+  thickness = 1.5,
+}) => (
+  <View style={[styles.dashedRow, { height: thickness }]}>
     {Array.from({ length: DASH_COUNT }, (_, i) => (
       <View
         key={i}
@@ -588,14 +561,14 @@ const DashedLine: React.FC<{
 
 /**
  * The line between the two cities with a car on it. `solid` draws a
- * filled green line (completed trips).
+ * filled green line (completed trips). The car sits on a `surface`
+ * box so the line doesn't show through it.
  */
 const RouteLine: React.FC<{
   position: CarPosition;
   carColor: string;
-  maskColor: string;
   solid: boolean;
-}> = ({ position, carColor, maskColor, solid }) => (
+}> = ({ position, carColor, solid }) => (
   <View style={styles.routeLineWrap}>
     {solid ? (
       <View style={styles.solidLine} />
@@ -605,7 +578,6 @@ const RouteLine: React.FC<{
     <View
       style={[
         styles.carWrap,
-        { backgroundColor: maskColor },
         position === 'start' && styles.carStart,
         position === 'middle' && styles.carMiddle,
         position === 'end' && styles.carEnd,
@@ -621,6 +593,10 @@ const RouteLine: React.FC<{
  * ================================================================ */
 
 const CAR_BOX = 24;
+const ACCENT_EDGE = 4;
+const VEHICLE_IMG_W = 56;
+const VEHICLE_IMG_H = 36;
+const CALL_BTN = 40;
 
 const styles = StyleSheet.create({
   card: {
@@ -628,18 +604,21 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
+    borderLeftWidth: ACCENT_EDGE,
+    backgroundColor: Colors.surface,
     marginBottom: Spacing.sm,
-    gap: 10,
-    ...Shadows.xs,
+    gap: Spacing.sm,
+    ...Shadows.sm,
   },
   pressed: {
     opacity: 0.85,
   },
 
-  /* Row 1 — tags + trip id */
+  /* Row 1 — tags (left) + trip id (right). Values match the
+     UcBookingCard header so both cards look the same. */
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: Spacing.sm,
   },
@@ -653,22 +632,22 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
     borderRadius: Radius.pill,
   },
   pillText: {
     ...Typography.caption,
-    fontWeight: '700',
+    fontWeight: FontWeight.bold,
     includeFontPadding: false,
   },
   tripTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: Spacing.xxs,
     borderRadius: Radius.pill,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -677,7 +656,17 @@ const styles = StyleSheet.create({
   tripTagText: {
     ...Typography.caption,
     color: Colors.textSecondary,
-    fontWeight: '600',
+    fontWeight: FontWeight.semiBold,
+    includeFontPadding: false,
+  },
+  idBlock: {
+    alignItems: 'flex-end',
+    gap: 1,
+  },
+  idLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: FontWeight.medium,
     includeFontPadding: false,
   },
   idRow: {
@@ -687,47 +676,40 @@ const styles = StyleSheet.create({
   },
   idValue: {
     ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontWeight: FontWeight.bold,
     includeFontPadding: false,
   },
   copyBtn: {
-    padding: 2,
+    padding: Spacing.xxs,
   },
 
   /* Row 2 — route */
   routeRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
   },
-  cityCol: {
-    maxWidth: '38%',
+  cityGroup: {
+    maxWidth: '40%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
-  cityColRight: {
-    alignItems: 'flex-end',
-  },
-  cityLabel: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    includeFontPadding: false,
+  cityGroupRight: {
+    justifyContent: 'flex-end',
   },
   city: {
-    ...Typography.subtitle,
+    ...Typography.title,
+    fontSize: FontSize.xl,
+    lineHeight: LineHeight.lg,
+    fontWeight: FontWeight.extraBold,
     color: Colors.textPrimary,
-    fontWeight: '800',
-    fontSize: 19,
-    lineHeight: 24,
-  },
-  cityRight: {
-    textAlign: 'right',
+    flexShrink: 1,
   },
   routeLineWrap: {
     flex: 1,
     height: CAR_BOX,
     justifyContent: 'center',
-    // Same height as a city line, so the route line sits on the
-    // middle of the city names (the row aligns to the bottom).
     marginHorizontal: Spacing.sm,
   },
   solidLine: {
@@ -735,12 +717,17 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     backgroundColor: Colors.primary,
   },
+  dashedRow: {
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
   carWrap: {
     position: 'absolute',
     width: CAR_BOX,
     height: CAR_BOX,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.surface,
   },
   carStart: {
     left: 0,
@@ -753,82 +740,75 @@ const styles = StyleSheet.create({
     right: 0,
   },
 
-  /* Row 3 — when + chip */
+  /* Row 3 — date │ time */
   whenRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
   },
-  whenLeft: {
+  whenItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: Spacing.sm,
     flexShrink: 1,
+  },
+  whenDivider: {
+    width: 1,
+    height: LineHeight.sm,
+    backgroundColor: Colors.border,
+    marginHorizontal: Spacing.md,
   },
   whenText: {
     ...Typography.bodySmall,
-    color: Colors.textSecondary,
-    fontWeight: '500',
+    color: Colors.textPrimary,
+    fontWeight: FontWeight.semiBold,
     flexShrink: 1,
   },
-  chip: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-  },
-  chipText: {
-    ...Typography.caption,
-    fontWeight: '700',
-    includeFontPadding: false,
-  },
 
-  /* Tear line */
-  dashedRow: {
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  tearLine: {
-    // Run from card edge to card edge.
-    marginHorizontal: -Spacing.md,
-  },
-
-  /* Row 4 — vehicle + driver */
+  /* Row 4 — vehicle row (no box around it) */
   vehicleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.md,
+  },
+  vehicleImage: {
+    width: VEHICLE_IMG_W,
+    height: VEHICLE_IMG_H,
+  },
+  vehicleDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.border,
   },
   vehicleInfo: {
     flex: 1,
     minWidth: 0,
-    gap: 4,
-  },
-  vehicleLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    gap: Spacing.xs,
   },
   vehicleText: {
-    ...Typography.bodySmall,
+    ...Typography.body,
+    lineHeight: LineHeight.sm,
     color: Colors.textPrimary,
-    fontWeight: '700',
-    flexShrink: 1,
+    fontWeight: FontWeight.bold,
+  },
+  driverLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + Spacing.xxs,
   },
   driverText: {
-    ...Typography.bodySmall,
+    ...Typography.body,
+    lineHeight: LineHeight.sm,
     color: Colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: FontWeight.medium,
     flexShrink: 1,
   },
   driverMissing: {
     color: Colors.pendingDark,
-    fontWeight: '600',
+    fontWeight: FontWeight.semiBold,
   },
   callBtn: {
-    width: 38,
-    height: 38,
+    width: CALL_BTN,
+    height: CALL_BTN,
     borderRadius: Radius.circle,
     borderWidth: 1.5,
     borderColor: Colors.primary,
@@ -853,31 +833,33 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: Spacing.xs + Spacing.xxs,
   },
   customerText: {
-    ...Typography.caption,
+    ...Typography.bodySmall,
     color: Colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: FontWeight.medium,
     flexShrink: 1,
     includeFontPadding: false,
   },
-  detailsLink: {
+  detailsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingVertical: 4,
-    paddingLeft: Spacing.sm,
-    paddingRight: 4,
-    borderRadius: Radius.md,
+    gap: Spacing.xxs,
+    paddingVertical: Spacing.xs,
+    paddingLeft: Spacing.md,
+    paddingRight: Spacing.sm,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primaryTint,
     overflow: 'hidden',
   },
-  detailsLinkPressed: {
-    backgroundColor: withAlpha(Colors.primary, 0.12),
+  detailsBtnPressed: {
+    backgroundColor: withAlpha(Colors.primary, 0.2),
   },
   detailsText: {
     ...Typography.bodySmall,
     color: Colors.primaryDark,
-    fontWeight: '700',
+    fontWeight: FontWeight.bold,
+    includeFontPadding: false,
   },
 });

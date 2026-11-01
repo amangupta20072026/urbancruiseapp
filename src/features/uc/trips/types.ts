@@ -99,6 +99,12 @@ export type UcTripListItem = {
   vehicleName: string;
   /** Seats in that vehicle class, e.g. 12. null = unknown. */
   seatingCapacity: number | null;
+  /**
+   * Vehicle photo: an absolute https URL (CDN) sent by the backend.
+   * Optional — not sent yet. Missing, empty, non-https, or failing
+   * to load → the card shows the bundled placeholder image.
+   */
+  vehicleImageUrl?: string | null;
   /** Registration number, e.g. "MH-12-AB-1234". Missing = not assigned. */
   vehicleNumber?: string;
   /** Assigned driver. Missing = not assigned. */
