@@ -2,17 +2,32 @@
  * ------------------------------------------------------------------
  * QuotationActionsSheet — kebab (⋮) menu for a UC quotation card
  * ------------------------------------------------------------------
- * Actions:
- *   - Open quotation   → navigate (deferred until the sheet is gone)
- *   - Call customer    → system dialer
- *   - WhatsApp         → WhatsApp chat with a prefilled greeting
- *   - Copy quote ID    → clipboard + toast
  *
- * Navigation is deferred to `onDismiss` (same invariant as MoreSheet
- * and DirectoryContactSheet): the destination screen must not mount
- * while the sheet is still animating out.
+ *   ┌──────────────────────────────────────────────┐
+ *   │                    ────                      │
+ *   │ #QU-2026-563698                 [Accepted]   │
+ *   │ Rahul Sharma                                 │
+ *   │ 📞 +91 98765 43210                            │
+ *   │ ✉ rahul.sharma@example.com   (if on file)    │
+ *   │ ┌────────┐ ┌──────────┐ ┌────────┐           │
+ *   │ │   📞   │ │    🟢    │ │   ✉    │           │
+ *   │ │  Call  │ │ WhatsApp │ │ Email  │           │
+ *   │ └────────┘ └──────────┘ └────────┘           │
+ *   └──────────────────────────────────────────────┘
  *
- * Content-sized (dynamic sizing) — four rows never need a scroll.
+ * Actions: Call, WhatsApp, and Email ONLY when the quotation has a
+ * customer email (`customerEmail`). With no email the row shows two
+ * cards that share the width.
+ *
+ * The action row is the shared `QuickActions` ('card' variant) from
+ * the directory contact sheets, so Call / WhatsApp / Email look the
+ * same everywhere in the UC app.
+ *
+ * Each action closes the sheet, then opens the dialer / WhatsApp /
+ * mail app. A ref blocks a second launch while one is resolving
+ * (a fast double tap would otherwise open the app twice).
+ *
+ * Content-sized (dynamic sizing): never needs a scroll.
  * ------------------------------------------------------------------
  */
 
@@ -22,44 +37,44 @@ import React, {
   useImperativeHandle,
   useRef,
 } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
-import Clipboard from '@react-native-clipboard/clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Copy,
-  FileText,
-  MessageCircle,
-  Phone,
-  type LucideIcon,
-} from 'lucide-react-native';
+import { Mail, Phone } from 'lucide-react-native';
 
-import { Colors, Radius, Spacing, Typography } from '@theme';
-import { makePhoneCall, openWhatsApp } from '@services/contact';
-import { toast } from '@services/toast';
+import { Colors, FontWeight, Radius, Spacing, Typography } from '@theme';
+import { makePhoneCall, openWhatsApp, sendEmail } from '@services/contact';
+import { QuickActions } from '@features/uc/_directory';
 
 import { UC_QUOTATION_STATUS_LABEL, type UcQuotationListItem } from '../types';
 import { STATUS_TONE } from '../utils/format';
 
 type Props = {
   quotation: UcQuotationListItem | null;
-  /** Called after the sheet has fully closed with "Open quotation" chosen. */
-  onOpenQuotation: (q: UcQuotationListItem) => void;
   onDismiss?: () => void;
 };
 
+type LaunchResult = { ok: boolean };
+
+/** Trimmed email, or null when missing / blank. */
+function emailOf(q: UcQuotationListItem): string | null {
+  const email = q.customerEmail?.trim();
+  return email ? email : null;
+}
+
 export const QuotationActionsSheet = forwardRef<BottomSheetModal, Props>(
-  ({ quotation, onOpenQuotation, onDismiss }, ref) => {
+  ({ quotation, onDismiss }, ref) => {
     const sheetRef = useRef<BottomSheetModal>(null);
     useImperativeHandle(ref, () => sheetRef.current as BottomSheetModal, []);
     const insets = useSafeAreaInsets();
 
-    const pendingOpenRef = useRef(false);
+    /* Blocks a second launch while one is still resolving. */
+    const launchingRef = useRef(false);
 
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
@@ -76,50 +91,62 @@ export const QuotationActionsSheet = forwardRef<BottomSheetModal, Props>(
 
     const close = useCallback(() => sheetRef.current?.dismiss(), []);
 
-    const handleDismiss = useCallback(() => {
-      const shouldOpen = pendingOpenRef.current;
-      pendingOpenRef.current = false;
-      const target = quotation;
-      onDismiss?.();
-      if (shouldOpen && target) {
-        requestAnimationFrame(() => onOpenQuotation(target));
-      }
-    }, [quotation, onDismiss, onOpenQuotation]);
+    const runLaunch = useCallback(
+      async (launch: () => Promise<LaunchResult>, onFail: () => void) => {
+        if (launchingRef.current) return;
+        launchingRef.current = true;
+        close();
+        try {
+          const result = await launch();
+          if (!result.ok) onFail();
+        } catch {
+          onFail();
+        } finally {
+          launchingRef.current = false;
+        }
+      },
+      [close],
+    );
 
-    const handleOpen = useCallback(() => {
-      pendingOpenRef.current = true;
-      close();
-    }, [close]);
-
-    const handleCall = useCallback(async () => {
+    const handleCall = useCallback(() => {
       if (!quotation) return;
-      close();
-      const r = await makePhoneCall(quotation.customerPhone);
-      if (!r.ok) Alert.alert('Cannot place call', 'Dialer unavailable.');
-    }, [quotation, close]);
-
-    const handleWhatsApp = useCallback(async () => {
-      if (!quotation) return;
-      close();
-      const firstName = quotation.customerName.split(' ')[0];
-      const r = await openWhatsApp(
-        quotation.customerPhone,
-        `Hi ${firstName}, this is Urban Cruise regarding your quotation #${quotation.quotationNumber}.`,
+      const phone = quotation.customerPhone;
+      runLaunch(
+        () => makePhoneCall(phone),
+        () => Alert.alert('Cannot place call', 'Dialer unavailable.'),
       );
-      if (!r.ok)
-        Alert.alert('WhatsApp unavailable', 'Could not open WhatsApp.');
-    }, [quotation, close]);
+    }, [quotation, runLaunch]);
 
-    const handleCopy = useCallback(() => {
+    const handleWhatsApp = useCallback(() => {
       if (!quotation) return;
-      Clipboard.setString(quotation.quotationNumber);
-      close();
-      toast.success('Quotation ID copied', {
-        description: `#${quotation.quotationNumber}`,
-      });
-    }, [quotation, close]);
+      const phone = quotation.customerPhone;
+      const firstName = quotation.customerName.split(' ')[0];
+      const message = `Hi ${firstName}, this is Urban Cruise regarding your quotation #${quotation.quotationNumber}.`;
+      runLaunch(
+        () => openWhatsApp(phone, message),
+        () => Alert.alert('WhatsApp unavailable', 'Could not open WhatsApp.'),
+      );
+    }, [quotation, runLaunch]);
+
+    const handleEmail = useCallback(() => {
+      if (!quotation) return;
+      const to = emailOf(quotation);
+      if (!to) return;
+      const firstName = quotation.customerName.split(' ')[0];
+      const payload = {
+        to,
+        subject: `Your Urban Cruise quotation #${quotation.quotationNumber}`,
+        body: `Hi ${firstName},\n\nThis is Urban Cruise regarding your quotation #${quotation.quotationNumber}.\n\n`,
+      };
+      runLaunch(
+        () => sendEmail(payload),
+        () => Alert.alert('Email unavailable', 'No email app configured.'),
+      );
+    }, [quotation, runLaunch]);
 
     const tone = quotation ? STATUS_TONE[quotation.status] : null;
+    const email = quotation ? emailOf(quotation) : null;
+    const hasPhone = !!quotation && quotation.customerPhone.trim().length > 0;
 
     return (
       <BottomSheetModal
@@ -127,7 +154,7 @@ export const QuotationActionsSheet = forwardRef<BottomSheetModal, Props>(
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={styles.handle}
         backgroundStyle={styles.sheetBg}
-        onDismiss={handleDismiss}
+        onDismiss={onDismiss}
         enablePanDownToClose
       >
         <BottomSheetView
@@ -138,53 +165,64 @@ export const QuotationActionsSheet = forwardRef<BottomSheetModal, Props>(
         >
           {quotation && tone ? (
             <>
+              {/* Quotation + customer */}
               <View style={styles.header}>
-                <View style={styles.headerText}>
-                  <Text style={styles.title} numberOfLines={1}>
+                <View style={styles.titleRow}>
+                  <Text
+                    style={styles.title}
+                    numberOfLines={1}
+                    accessibilityRole="header"
+                  >
                     #{quotation.quotationNumber}
                   </Text>
-                  <Text style={styles.subtitle} numberOfLines={1}>
-                    {quotation.customerName}
-                  </Text>
+                  <View style={[styles.pill, { backgroundColor: tone.bg }]}>
+                    <Text style={[styles.pillText, { color: tone.fg }]}>
+                      {UC_QUOTATION_STATUS_LABEL[quotation.status]}
+                    </Text>
+                  </View>
                 </View>
-                <View style={[styles.pill, { backgroundColor: tone.bg }]}>
-                  <Text style={[styles.pillText, { color: tone.fg }]}>
-                    {UC_QUOTATION_STATUS_LABEL[quotation.status]}
-                  </Text>
-                </View>
+
+                <Text style={styles.customerName} numberOfLines={1}>
+                  {quotation.customerName}
+                </Text>
+
+                {hasPhone ? (
+                  <View style={styles.detailRow}>
+                    <Phone
+                      size={14}
+                      color={Colors.textSecondary}
+                      strokeWidth={2}
+                    />
+                    <Text style={styles.detailText} numberOfLines={1}>
+                      {quotation.customerPhone}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {email ? (
+                  <View style={styles.detailRow}>
+                    <Mail
+                      size={14}
+                      color={Colors.textSecondary}
+                      strokeWidth={2}
+                    />
+                    <Text style={styles.detailText} numberOfLines={1}>
+                      {email}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
-              <View style={styles.list}>
-                <ActionRow
-                  Icon={FileText}
-                  label="Open quotation"
-                  fg={Colors.primaryDark}
-                  bg={Colors.primaryTint}
-                  onPress={handleOpen}
-                />
-                <ActionRow
-                  Icon={Phone}
-                  label="Call customer"
-                  hint={quotation.customerPhone}
-                  fg={Colors.info}
-                  bg={Colors.infoTint}
-                  onPress={handleCall}
-                />
-                <ActionRow
-                  Icon={MessageCircle}
-                  label="WhatsApp customer"
-                  fg={Colors.success}
-                  bg={Colors.successTint}
-                  onPress={handleWhatsApp}
-                />
-                <ActionRow
-                  Icon={Copy}
-                  label="Copy quotation ID"
-                  fg={Colors.secondaryDark}
-                  bg={Colors.secondaryTint}
-                  onPress={handleCopy}
-                />
-              </View>
+              {/* Call / WhatsApp / Email (only when on file) */}
+              <QuickActions
+                variant="card"
+                hasPhone={hasPhone}
+                hasEmail={email !== null}
+                hideUnavailableEmail
+                onCall={handleCall}
+                onWhatsApp={handleWhatsApp}
+                onEmail={handleEmail}
+              />
             </>
           ) : null}
         </BottomSheetView>
@@ -194,36 +232,6 @@ export const QuotationActionsSheet = forwardRef<BottomSheetModal, Props>(
 );
 
 QuotationActionsSheet.displayName = 'QuotationActionsSheet';
-
-/* ================================================================
- * Row
- * ================================================================ */
-
-const ActionRow: React.FC<{
-  Icon: LucideIcon;
-  label: string;
-  hint?: string;
-  fg: string;
-  bg: string;
-  onPress: () => void;
-}> = ({ Icon, label, hint, fg, bg, onPress }) => (
-  <Pressable
-    onPress={onPress}
-    style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-    accessibilityRole="button"
-    accessibilityLabel={label}
-  >
-    <View style={[styles.rowIcon, { backgroundColor: bg }]}>
-      <Icon size={18} color={fg} strokeWidth={2} />
-    </View>
-    <Text style={styles.rowLabel}>{label}</Text>
-    {hint ? (
-      <Text style={styles.rowHint} numberOfLines={1}>
-        {hint}
-      </Text>
-    ) : null}
-  </Pressable>
-);
 
 /* ================================================================
  * Styles
@@ -236,26 +244,26 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
   },
+  /* No horizontal padding: QuickActions brings its own (Spacing.lg),
+   * so the header uses the same inset to line up with the cards. */
   content: {
-    paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xs,
-    gap: Spacing.lg,
   },
 
   header: {
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.xs,
+  },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
   },
-  headerText: { flex: 1, gap: 2 },
   title: {
     ...Typography.title,
     color: Colors.textPrimary,
-    fontWeight: '700',
-  },
-  subtitle: {
-    ...Typography.body,
-    color: Colors.textSecondary,
+    fontWeight: FontWeight.bold,
+    flex: 1,
   },
   pill: {
     paddingHorizontal: Spacing.md,
@@ -264,42 +272,21 @@ const styles = StyleSheet.create({
   },
   pillText: {
     ...Typography.label,
-    fontWeight: '600',
+    fontWeight: FontWeight.semiBold,
   },
-
-  list: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.divider,
-  },
-  rowPressed: { backgroundColor: Colors.backgroundSecondary },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowLabel: {
+  customerName: {
     ...Typography.body,
     color: Colors.textPrimary,
-    fontWeight: '600',
-    flex: 1,
+    fontWeight: FontWeight.semiBold,
   },
-  rowHint: {
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + Spacing.xxs,
+  },
+  detailText: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
-    maxWidth: '45%',
+    flexShrink: 1,
   },
 });

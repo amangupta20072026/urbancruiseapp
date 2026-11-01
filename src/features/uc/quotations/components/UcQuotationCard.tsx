@@ -1,54 +1,133 @@
 /**
  * ------------------------------------------------------------------
- * UcQuotationCard — one row on the UC Quotations tab
+ * UcQuotationCard — one row on the UC Quotations tab ("Option A")
  * ------------------------------------------------------------------
- *   [AV]  Customer name                     [● Status]  ⋮
- *         #Q-2025-00128 • 10:30 AM                ₹12,500 ›
- *         📞 +91 98765 43210
- *   🚗 Car Rental      📅 12 Sep 2025      📍 Delhi → Agra
- *      Sedan             1 Day                One Way
+ * Same family as UcBookingCard / UcTripCard (status edge, solid pill,
+ * trip-type tag, ID block), with content borrowed from the customer
+ * QuotationCard (trip-type tag, Quotation ID + copy, date · days,
+ * View details):
  *
- * Two touch targets: the card (→ onPress) and the kebab (→ onMore).
- * The kebab is a sibling Pressable with its own hitSlop, so a tap on
- * it never also fires the card press.
+ *   ┃┌─────────────────────────────────────────────────────┐
+ *   ┃│ [✓ Accepted] [✈ One Way]               Quotation ID │
+ *   ┃│                                   QU-2026-563698 📋 │
+ *   ┃│ Delhi → Agra                               ₹12,500  │
+ *   ┃│ 📅 04 Nov 2026   🕒 1 Day   🚗 Car Rental · Sedan    │
+ *   ┃│ ─────────────────────────────────────────────────── │
+ *   ┃│ (RS) Rahul Sharma                 ⋮ [View details ›]│
+ *   ┃│      +91 98765 43210                                │
+ *   ┃└─────────────────────────────────────────────────────┘
+ *    ↑ left edge in the status colour
  *
- * Memoised: FlashList re-renders rows on scroll; props are stable
- * (item reference + useCallback handlers from the screen).
+ * Status colours (all `@theme` Colors). One accent per status for the
+ * left edge and the solid pill, with white pill text — every pair
+ * passes WCAG AA for small text:
+ *
+ *   accepted  primaryDark   #2E7D32   5.13:1
+ *   sent      completed     #2563EB   5.17:1
+ *   draft     textSecondary #6B7280   4.83:1
+ *   rejected  error         #DC2626   4.83:1
+ *
+ * STATUS_TONE (tinted pills) is left unchanged for the actions sheet.
+ *
+ * Nothing is truncated except the customer name (one line): the
+ * route wraps, the meta line wraps, the ID and amount never shrink.
+ * Unpriced quotations show "Not priced" instead of the amount.
+ *
+ * Touch targets (each stops the tap reaching the card):
+ *   - Card / "View details" → onPress
+ *   - ⋮                       → onMore (actions sheet)
+ *   - Copy icon               → copies the quotation number
+ *
+ * FlashList: memoised; the copied flag stores WHICH number was
+ * copied, so a recycled row never shows another row's "copied" tick.
  * ------------------------------------------------------------------
  */
 
-import React, { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  GestureResponderEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import {
   Bus,
-  CalendarCheck,
+  Calendar,
   Car,
+  Check,
   ChevronRight,
+  CircleCheck,
+  CircleX,
+  Clock,
+  Copy,
   EllipsisVertical,
+  FileText,
   MapPin,
-  Phone,
+  Plane,
+  RefreshCw,
+  Send,
   TrainFront,
   type LucideIcon,
 } from 'lucide-react-native';
 
-import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
+import {
+  Colors,
+  FontSize,
+  FontWeight,
+  LineHeight,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from '@theme';
 import { avatarColorFor, initials } from '@shared/utils';
 
 import {
   UC_QUOTATION_STATUS_LABEL,
   UC_SERVICE_TYPE_LABEL,
   type UcQuotationListItem,
+  type UcQuotationStatus,
   type UcServiceType,
+  type UcTripType,
 } from '../types';
 import {
-  STATUS_TONE,
-  formatCreatedStamp,
   formatDayMonthYear,
   formatDays,
   formatQuoteAmount,
   formatRoute,
   formatTripType,
 } from '../utils/format';
+
+type Props = {
+  item: UcQuotationListItem;
+  onPress: (item: UcQuotationListItem) => void;
+  onMore: (item: UcQuotationListItem) => void;
+};
+
+const COPIED_FLASH_MS = 1500;
+
+/* ================================================================
+ * Visual mappings
+ * ================================================================ */
+
+/** Left edge + solid pill background; pill text is white. */
+const STATUS_STYLE: Readonly<
+  Record<UcQuotationStatus, { accent: string; Icon: LucideIcon }>
+> = {
+  accepted: { accent: Colors.primaryDark, Icon: CircleCheck },
+  sent: { accent: Colors.completed, Icon: Send },
+  draft: { accent: Colors.textSecondary, Icon: FileText },
+  rejected: { accent: Colors.error, Icon: CircleX },
+};
+
+/** Same icons as the customer trip-type options; Local has none there. */
+const TRIP_TYPE_ICON: Readonly<Record<UcTripType, LucideIcon>> = {
+  one_way: Plane,
+  round_trip: RefreshCw,
+  local: MapPin,
+};
 
 const SERVICE_ICON: Readonly<Record<UcServiceType, LucideIcon>> = {
   car_rental: Car,
@@ -57,145 +136,229 @@ const SERVICE_ICON: Readonly<Record<UcServiceType, LucideIcon>> = {
   rail_rental: TrainFront,
 };
 
-type Props = {
-  item: UcQuotationListItem;
-  onPress: (item: UcQuotationListItem) => void;
-  onMore: (item: UcQuotationListItem) => void;
-};
+/* ================================================================
+ * Card
+ * ================================================================ */
 
 const UcQuotationCardBase: React.FC<Props> = ({ item, onPress, onMore }) => {
-  const avatar = avatarColorFor(item.customerId);
-  const tone = STATUS_TONE[item.status];
-  const amount = formatQuoteAmount(item.amountPaise);
-  const ServiceIcon = SERVICE_ICON[item.serviceType];
+  const status = STATUS_STYLE[item.status] ?? STATUS_STYLE.draft;
+  const StatusIcon = status.Icon;
+  const TripIcon = TRIP_TYPE_ICON[item.tripType] ?? MapPin;
+  const ServiceIcon = SERVICE_ICON[item.serviceType] ?? Car;
+
   const statusLabel = UC_QUOTATION_STATUS_LABEL[item.status];
+  const tripTypeLabel = formatTripType(item);
+  const amount = formatQuoteAmount(item.amountPaise);
+  const route = formatRoute(item);
+  const dateText = formatDayMonthYear(item.travelDate);
+  const daysText = formatDays(item.days);
+  const serviceText = `${UC_SERVICE_TYPE_LABEL[item.serviceType]} · ${
+    item.vehicleLabel
+  }`;
+  const avatar = avatarColorFor(item.customerId);
+
+  /* -------- Copy quotation number -------- */
+  const [copiedRef, setCopiedRef] = useState<string | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copied = copiedRef === item.quotationNumber;
+
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    },
+    [],
+  );
+
+  const onCopy = useCallback(
+    (e: GestureResponderEvent) => {
+      e.stopPropagation();
+      Clipboard.setString(item.quotationNumber);
+      setCopiedRef(item.quotationNumber);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(
+        () => setCopiedRef(null),
+        COPIED_FLASH_MS,
+      );
+    },
+    [item.quotationNumber],
+  );
+
+  /* -------- Navigation -------- */
+  const handlePress = useCallback(() => onPress(item), [onPress, item]);
+
+  const handleMore = useCallback(
+    (e: GestureResponderEvent) => {
+      e.stopPropagation();
+      onMore(item);
+    },
+    [onMore, item],
+  );
+
+  const handleViewDetails = useCallback(
+    (e: GestureResponderEvent) => {
+      e.stopPropagation();
+      onPress(item);
+    },
+    [onPress, item],
+  );
+
+  /* -------- Render -------- */
 
   return (
     <Pressable
-      onPress={() => onPress(item)}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.card,
+        { borderLeftColor: status.accent },
+        pressed && styles.pressed,
+      ]}
       accessibilityRole="button"
-      accessibilityLabel={`Quotation ${item.quotationNumber} for ${
-        item.customerName
-      }, ${statusLabel}${amount ? `, ${amount}` : ', not priced'}`}
+      accessibilityLabel={`Quotation ${
+        item.quotationNumber
+      }, ${statusLabel}, ${tripTypeLabel}, ${route}, ${dateText}, ${daysText}, ${serviceText}, ${
+        amount ?? 'not priced'
+      }, customer ${item.customerName}`}
     >
-      {/* ---------- Top: identity + status/amount ---------- */}
-      <View style={styles.topRow}>
-        <View style={[styles.avatar, { backgroundColor: avatar.bg }]}>
-          <Text style={[styles.avatarText, { color: avatar.fg }]}>
-            {initials(item.customerName)}
-          </Text>
-        </View>
-
-        <View style={styles.identity}>
-          <Text style={styles.name} numberOfLines={1}>
-            {item.customerName}
-          </Text>
-          <Text style={styles.metaText} numberOfLines={1}>
-            #{item.quotationNumber}
-            {'  •  '}
-            {formatCreatedStamp(item.createdAt)}
-          </Text>
-          <View style={styles.phoneRow}>
-            <Phone size={13} color={Colors.textSecondary} strokeWidth={2} />
-            <Text style={styles.metaText} numberOfLines={1}>
-              {item.customerPhone}
-            </Text>
+      {/* Row 1 — status + trip type (left), quotation id (right) */}
+      <View style={styles.headerRow}>
+        <View style={styles.tagsRow}>
+          <View style={[styles.pill, { backgroundColor: status.accent }]}>
+            <StatusIcon
+              size={12}
+              color={Colors.textOnPrimary}
+              strokeWidth={2.5}
+            />
+            <Text style={styles.pillText}>{statusLabel}</Text>
+          </View>
+          <View style={styles.tripTag}>
+            <TripIcon
+              size={12}
+              color={Colors.textSecondary}
+              strokeWidth={2.5}
+            />
+            <Text style={styles.tripTagText}>{tripTypeLabel}</Text>
           </View>
         </View>
 
-        <View style={styles.trailing}>
-          <View style={styles.statusRow}>
-            <View style={[styles.pill, { backgroundColor: tone.bg }]}>
-              <View style={[styles.dot, { backgroundColor: tone.fg }]} />
-              <Text style={[styles.pillText, { color: tone.fg }]}>
-                {statusLabel}
-              </Text>
-            </View>
+        <View style={styles.idBlock}>
+          <Text style={styles.idLabel}>Quotation ID</Text>
+          <View style={styles.idRow}>
+            <Text style={styles.idValue} selectable>
+              {item.quotationNumber}
+            </Text>
             <Pressable
-              onPress={() => onMore(item)}
-              hitSlop={10}
+              onPress={onCopy}
+              hitSlop={8}
               style={({ pressed }) => [
-                styles.moreBtn,
-                pressed && styles.morePressed,
+                styles.copyBtn,
+                pressed && styles.pressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel={`More actions for ${item.quotationNumber}`}
+              accessibilityLabel={
+                copied
+                  ? `Quotation ID ${item.quotationNumber} copied`
+                  : `Copy quotation ID ${item.quotationNumber}`
+              }
             >
-              <EllipsisVertical
-                size={20}
-                color={Colors.iconSecondary}
-                strokeWidth={2}
-              />
+              {copied ? (
+                <Check size={13} color={Colors.success} strokeWidth={2.5} />
+              ) : (
+                <Copy size={13} color={Colors.textSecondary} strokeWidth={2} />
+              )}
             </Pressable>
-          </View>
-
-          <View style={styles.amountRow}>
-            {amount ? (
-              <Text style={styles.amount} numberOfLines={1}>
-                {amount}
-              </Text>
-            ) : (
-              <Text style={styles.amountPending} numberOfLines={1}>
-                Not priced
-              </Text>
-            )}
-            <ChevronRight
-              size={18}
-              color={Colors.textPrimary}
-              strokeWidth={2.25}
-            />
           </View>
         </View>
       </View>
 
-      {/* ---------- Bottom: service / date / route ---------- */}
-      <View style={styles.detailsRow}>
-        <DetailCell
-          Icon={ServiceIcon}
-          primary={UC_SERVICE_TYPE_LABEL[item.serviceType]}
-          secondary={item.vehicleLabel}
-          flex={1.05}
-        />
-        <DetailCell
-          Icon={CalendarCheck}
-          primary={formatDayMonthYear(item.travelDate)}
-          secondary={formatDays(item.days)}
-          flex={0.95}
-        />
-        <DetailCell
-          Icon={MapPin}
-          primary={formatRoute(item)}
-          secondary={formatTripType(item)}
-          flex={1.15}
-        />
+      {/* Row 2 — route (left, wraps), amount (right, never shrinks) */}
+      <View style={styles.routeRow}>
+        <Text style={styles.route}>{route}</Text>
+        {amount ? (
+          <Text style={styles.amount}>{amount}</Text>
+        ) : (
+          <Text style={styles.notPriced}>Not priced</Text>
+        )}
+      </View>
+
+      {/* Row 3 — date · days · service (wraps on narrow phones) */}
+      <View style={styles.metaRow}>
+        <MetaItem Icon={Calendar} text={dateText} />
+        <MetaItem Icon={Clock} text={daysText} />
+        <MetaItem Icon={ServiceIcon} text={serviceText} />
+      </View>
+
+      <View style={styles.divider} />
+
+      {/* Row 4 — customer (left), ⋮ + View details (right) */}
+      <View style={styles.footerRow}>
+        <View style={styles.customer}>
+          <View style={[styles.avatar, { backgroundColor: avatar.bg }]}>
+            <Text style={[styles.avatarText, { color: avatar.fg }]}>
+              {initials(item.customerName)}
+            </Text>
+          </View>
+          <View style={styles.customerText}>
+            <Text style={styles.customerName} numberOfLines={1}>
+              {item.customerName}
+            </Text>
+            <Text style={styles.customerPhone}>{item.customerPhone}</Text>
+          </View>
+        </View>
+
+        <View style={styles.actions}>
+          <Pressable
+            onPress={handleMore}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.moreBtn,
+              pressed && styles.morePressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`More actions for ${item.quotationNumber}`}
+          >
+            <EllipsisVertical
+              size={20}
+              color={Colors.iconSecondary}
+              strokeWidth={2}
+            />
+          </Pressable>
+          <Pressable
+            onPress={handleViewDetails}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.detailsBtn,
+              pressed && styles.detailsBtnPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`View details for quotation ${item.quotationNumber}`}
+          >
+            <Text style={styles.detailsText}>View details</Text>
+            <ChevronRight
+              size={16}
+              color={Colors.primaryDark}
+              strokeWidth={2.5}
+            />
+          </Pressable>
+        </View>
       </View>
     </Pressable>
   );
 };
 
 export const UcQuotationCard = memo(UcQuotationCardBase);
+UcQuotationCard.displayName = 'UcQuotationCard';
 
 /* ================================================================
- * Detail cell
+ * Meta item
  * ================================================================ */
 
-const DetailCell: React.FC<{
-  Icon: LucideIcon;
-  primary: string;
-  secondary: string;
-  flex: number;
-}> = ({ Icon, primary, secondary, flex }) => (
-  <View style={[styles.cell, { flex }]}>
-    <Icon size={20} color={Colors.iconSecondary} strokeWidth={1.75} />
-    <View style={styles.cellText}>
-      <Text style={styles.cellPrimary} numberOfLines={1}>
-        {primary}
-      </Text>
-      <Text style={styles.cellSecondary} numberOfLines={1}>
-        {secondary}
-      </Text>
-    </View>
+const MetaItem: React.FC<{ Icon: LucideIcon; text: string }> = ({
+  Icon,
+  text,
+}) => (
+  <View style={styles.metaItem}>
+    <Icon size={14} color={Colors.textSecondary} strokeWidth={2} />
+    <Text style={styles.metaText}>{text}</Text>
   </View>
 );
 
@@ -203,26 +366,164 @@ const DetailCell: React.FC<{
  * Styles
  * ================================================================ */
 
-const AVATAR = 48;
+const ACCENT_EDGE = 4;
+const AVATAR = 32;
+const MORE_BTN = 28;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
+    padding: Spacing.md,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    gap: Spacing.lg,
-    ...Shadows.xs,
+    borderColor: Colors.border,
+    borderLeftWidth: ACCENT_EDGE,
+    backgroundColor: Colors.surface,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+    ...Shadows.sm,
   },
-  pressed: { opacity: 0.9 },
+  pressed: {
+    opacity: 0.85,
+  },
 
-  /* Top */
-  topRow: {
+  /* Row 1 — tags + id (same sizes as UcBookingCard / UcTripCard) */
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  tagsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+  },
+  pillText: {
+    ...Typography.caption,
+    color: Colors.textOnPrimary,
+    fontWeight: FontWeight.bold,
+    includeFontPadding: false,
+  },
+  tripTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xxs,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  tripTagText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: FontWeight.semiBold,
+    includeFontPadding: false,
+  },
+  idBlock: {
+    alignItems: 'flex-end',
+    gap: 1,
+  },
+  idLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: FontWeight.medium,
+    includeFontPadding: false,
+  },
+  idRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  idValue: {
+    ...Typography.caption,
+    color: Colors.textPrimary,
+    fontWeight: FontWeight.bold,
+    includeFontPadding: false,
+  },
+  copyBtn: {
+    padding: Spacing.xxs,
+  },
+
+  /* Row 2 — route + amount */
+  routeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: Spacing.md,
+  },
+  route: {
+    ...Typography.title,
+    fontSize: FontSize.xl,
+    lineHeight: LineHeight.lg,
+    fontWeight: FontWeight.extraBold,
+    color: Colors.textPrimary,
+    flex: 1,
+  },
+  amount: {
+    ...Typography.title,
+    fontSize: FontSize.xl,
+    lineHeight: LineHeight.lg,
+    fontWeight: FontWeight.extraBold,
+    color: Colors.textPrimary,
+    flexShrink: 0,
+  },
+  notPriced: {
+    ...Typography.bodySmall,
+    lineHeight: LineHeight.lg,
+    color: Colors.textSecondary,
+    fontWeight: FontWeight.semiBold,
+    flexShrink: 0,
+  },
+
+  /* Row 3 — meta */
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: Spacing.md,
+    rowGap: Spacing.xs,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  metaText: {
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    fontWeight: FontWeight.medium,
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+  },
+
+  /* Row 4 — customer + actions */
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  customer: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   avatar: {
     width: AVATAR,
@@ -232,107 +533,55 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: {
-    ...Typography.body,
-    fontWeight: '700',
+    ...Typography.bodySmall,
+    fontWeight: FontWeight.extraBold,
+    includeFontPadding: false,
   },
-  identity: {
+  customerText: {
     flex: 1,
-    gap: 3,
+    minWidth: 0,
   },
-  name: {
-    ...Typography.subtitle,
+  customerName: {
+    ...Typography.bodySmall,
     color: Colors.textPrimary,
-    fontWeight: '700',
+    fontWeight: FontWeight.bold,
   },
-  metaText: {
+  customerPhone: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
-    flexShrink: 1,
   },
-  phoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-
-  /* Trailing column */
-  trailing: {
-    alignItems: 'flex-end',
-    gap: Spacing.sm,
-  },
-  statusRow: {
+  actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
   },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 5,
-    borderRadius: Radius.pill,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  pillText: {
-    ...Typography.label,
-    fontWeight: '600',
-  },
   moreBtn: {
-    width: 28,
-    height: 28,
+    width: MORE_BTN,
+    height: MORE_BTN,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: -Spacing.xs,
   },
   morePressed: {
     backgroundColor: Colors.surfaceMuted,
   },
-  amountRow: {
+  detailsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: Spacing.xxs,
+    paddingVertical: Spacing.xs,
+    paddingLeft: Spacing.md,
+    paddingRight: Spacing.sm,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primaryTint,
   },
-  amount: {
-    ...Typography.title,
-    color: Colors.textPrimary,
-    fontWeight: '800',
+  detailsBtnPressed: {
+    opacity: 0.8,
   },
-  amountPending: {
+  detailsText: {
     ...Typography.bodySmall,
-    color: Colors.textMuted,
-    fontWeight: '600',
-  },
-
-  /* Details */
-  detailsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-  },
-  cell: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-    minWidth: 0,
-  },
-  cellText: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  cellPrimary: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '500',
-  },
-  cellSecondary: {
-    ...Typography.bodySmall,
-    color: Colors.textSecondary,
+    color: Colors.primaryDark,
+    fontWeight: FontWeight.bold,
+    includeFontPadding: false,
   },
 });

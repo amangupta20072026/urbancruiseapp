@@ -26,6 +26,8 @@ import type {
 type Seed = {
   customerName: string;
   customerPhone: string;
+  /** null = no email on file (exercises the hidden Email action). */
+  customerEmail: string | null;
   status: UcQuotationStatus;
   serviceType: UcServiceType;
   vehicleLabel: string;
@@ -42,6 +44,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Rahul Sharma',
     customerPhone: '+91 98765 43210',
+    customerEmail: 'rahul.sharma@example.com',
     status: 'accepted',
     serviceType: 'car_rental',
     vehicleLabel: 'Sedan',
@@ -54,6 +57,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Priya Mehta',
     customerPhone: '+91 99887 66554',
+    customerEmail: null,
     status: 'sent',
     serviceType: 'car_rental',
     vehicleLabel: 'Hatchback',
@@ -66,6 +70,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Amit Kumar',
     customerPhone: '+91 91234 56789',
+    customerEmail: 'amit.kumar@example.com',
     status: 'draft',
     serviceType: 'tempo_traveller',
     vehicleLabel: '12 Seater',
@@ -78,6 +83,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Sneha Gupta',
     customerPhone: '+91 87654 32109',
+    customerEmail: null,
     status: 'rejected',
     serviceType: 'bus_rental',
     vehicleLabel: 'Coach',
@@ -90,6 +96,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Vikram Singh',
     customerPhone: '+91 76543 21098',
+    customerEmail: 'vikram.singh@example.com',
     status: 'sent',
     serviceType: 'rail_rental',
     vehicleLabel: 'Executive',
@@ -102,6 +109,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Neha Iyer',
     customerPhone: '+91 98111 22334',
+    customerEmail: null,
     status: 'accepted',
     serviceType: 'tempo_traveller',
     vehicleLabel: '17 Seater',
@@ -114,6 +122,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Karan Mehta',
     customerPhone: '+91 99100 45678',
+    customerEmail: 'karan.mehta@example.com',
     status: 'draft',
     serviceType: 'car_rental',
     vehicleLabel: 'SUV',
@@ -126,6 +135,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Divya Nair',
     customerPhone: '+91 90000 11223',
+    customerEmail: null,
     status: 'sent',
     serviceType: 'car_rental',
     vehicleLabel: 'Innova Crysta',
@@ -138,6 +148,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Suresh Rao',
     customerPhone: '+91 98989 89898',
+    customerEmail: 'suresh.rao@example.com',
     status: 'accepted',
     serviceType: 'bus_rental',
     vehicleLabel: '35 Seater',
@@ -150,6 +161,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Anita Deshmukh',
     customerPhone: '+91 97654 01234',
+    customerEmail: null,
     status: 'rejected',
     serviceType: 'car_rental',
     vehicleLabel: 'Sedan',
@@ -162,6 +174,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Kavya Menon',
     customerPhone: '+91 93111 77665',
+    customerEmail: 'kavya.menon@example.com',
     status: 'sent',
     serviceType: 'tempo_traveller',
     vehicleLabel: '26 Seater',
@@ -174,6 +187,7 @@ const SEEDS: readonly Seed[] = [
   {
     customerName: 'Rohit Bansal',
     customerPhone: '+91 98110 55443',
+    customerEmail: null,
     status: 'draft',
     serviceType: 'rail_rental',
     vehicleLabel: 'Saloon',
@@ -237,6 +251,7 @@ function buildFixture(): UcQuotationListItem[] {
       customerId: `uc-c-${(i % SEEDS.length) + 1}`,
       customerName: seed.customerName,
       customerPhone: seed.customerPhone,
+      customerEmail: seed.customerEmail,
       serviceType: seed.serviceType,
       vehicleLabel: seed.vehicleLabel,
       tripType: seed.tripType,

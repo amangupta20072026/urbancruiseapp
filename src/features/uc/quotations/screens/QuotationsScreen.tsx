@@ -350,7 +350,6 @@ const QuotationsScreen: React.FC = () => {
       <QuotationActionsSheet
         ref={actionsSheetRef}
         quotation={selected}
-        onOpenQuotation={openQuotation}
         onDismiss={onActionsDismiss}
       />
       <QuotationFilterSheet

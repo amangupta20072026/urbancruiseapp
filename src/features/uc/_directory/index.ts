@@ -8,6 +8,7 @@ export {
   DirectoryContactSheet,
   PhoneNumberPickerSheet,
   QUICK_ACTION_TINT,
+  QuickActions,
 } from './contact';
 export { DirectoryCard } from './card';
 export type { DirectoryContact, DirectoryContactKind } from './contact';

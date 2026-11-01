@@ -85,6 +85,11 @@ export type UcQuotationListItem = {
   customerName: string;
   /** Display format, e.g. "+91 98765 43210". */
   customerPhone: string;
+  /**
+   * Customer email, if on file. Optional — the backend may not send it
+   * yet. Missing, null or blank → the actions sheet hides "Email".
+   */
+  customerEmail?: string | null;
 
   serviceType: UcServiceType;
   /** Vehicle class / variant, e.g. "Sedan", "12 Seater", "Executive". */

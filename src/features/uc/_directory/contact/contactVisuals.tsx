@@ -110,15 +110,28 @@ export const CancelButton: React.FC<{ onPress: () => void }> = ({
  * Call / WhatsApp / Email row.
  *  - 'plain': icon circles on the sheet background (list layout).
  *  - 'card':  each action in its own bordered card (sectioned layout).
+ *
+ * With no email, Email is shown greyed out (disabled) by default.
+ * `hideUnavailableEmail` removes it instead (quotation actions sheet);
+ * in the 'card' variant the remaining cards then share the width.
  */
 export const QuickActions: React.FC<{
   variant: 'plain' | 'card';
   hasPhone: boolean;
   hasEmail: boolean;
+  hideUnavailableEmail?: boolean;
   onCall: () => void;
   onWhatsApp: () => void;
   onEmail: () => void;
-}> = ({ variant, hasPhone, hasEmail, onCall, onWhatsApp, onEmail }) => (
+}> = ({
+  variant,
+  hasPhone,
+  hasEmail,
+  hideUnavailableEmail = false,
+  onCall,
+  onWhatsApp,
+  onEmail,
+}) => (
   <View style={variant === 'card' ? styles.quickRowCard : styles.quickRowPlain}>
     <QuickAction
       variant={variant}
@@ -138,15 +151,17 @@ export const QuickActions: React.FC<{
       disabledHint="No phone number on file"
       icon={<WhatsAppIcon size={22} color={WHATSAPP_TINT.fg} />}
     />
-    <QuickAction
-      variant={variant}
-      label="Email"
-      tint={EMAIL_TINT}
-      onPress={onEmail}
-      disabled={!hasEmail}
-      disabledHint="No email address on file"
-      icon={<Mail size={22} color={EMAIL_TINT.fg} strokeWidth={2.2} />}
-    />
+    {hasEmail || !hideUnavailableEmail ? (
+      <QuickAction
+        variant={variant}
+        label="Email"
+        tint={EMAIL_TINT}
+        onPress={onEmail}
+        disabled={!hasEmail}
+        disabledHint="No email address on file"
+        icon={<Mail size={22} color={EMAIL_TINT.fg} strokeWidth={2.2} />}
+      />
+    ) : null}
   </View>
 );
 

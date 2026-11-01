@@ -6,14 +6,19 @@
  * booking (confirmed product rule), shown trip-first.
  *
  * LAYOUT (top → bottom):
- *   [ Trips                                                    ]
+ *   [ Trips                                             [ 🔍 ] ]
  *   [ Monitor live trips and driver progress.                  ]
- *   [ 🔍 Search by trip ID, route or customer            (✕) ]
+ *   [ 🔍 Search by trip ID, route or customer            (✕) ]  ← on tap
  *   [ All 124 | Upcoming 28 | Ongoing 16 | Completed 64 | … ]  ← chips
  *   [ UcTripCard × N ]                                   ← FlashList
  *
  * No filter button (confirmed product decision): search + status
  * chips cover the list.
+ *
+ * SEARCH (same as BookingsScreen):
+ *   The header search icon opens the search row (input auto-focused).
+ *   The ✕ closes it AND clears the text, so no hidden filter stays
+ *   active while the row is closed.
  *
  * DATA:
  *   `useUcTripList` (TanStack infinite query, cursor-paged). Chip +
@@ -24,9 +29,8 @@
  *   the hook header for the contract.
  *
  * CARD LAYOUT:
- *   Wide (>= 440dp) shows the approved 3-column card; narrower phones
- *   get the compact card (amount on its own row). Picked once here so
- *   every row uses the same layout.
+ *   `layout` is still computed and passed, but UcTripCard now uses one
+ *   layout for every width and ignores it.
  *
  * NAVIGATION INTENTS:
  *   - View Details → trip detail (not built yet): shows the standard
@@ -101,6 +105,7 @@ const TripsScreen: React.FC = () => {
     width >= WIDE_CARD_MIN_WINDOW_WIDTH ? 'wide' : 'compact';
 
   const [status, setStatus] = useState<UcTripStatusFilter>('all');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
 
@@ -117,10 +122,20 @@ const TripsScreen: React.FC = () => {
     refetch,
   } = useUcTripList({ status, search });
 
+  /* -------- Search -------- */
+
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+
+  /** Closing search also clears it, so no hidden filter stays active. */
+  const closeSearch = useCallback(() => {
+    setSearchInput('');
+    setSearchOpen(false);
+  }, []);
+
   const clearAll = useCallback(() => {
     setStatus('all');
-    setSearchInput('');
-  }, []);
+    closeSearch();
+  }, [closeSearch]);
 
   /* -------- List -------- */
 
@@ -211,45 +226,71 @@ const TripsScreen: React.FC = () => {
     <SafeScreen edges={['top']} backgroundColor={Colors.background}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle} accessibilityRole="header">
-          Trips
-        </Text>
-        <Text style={styles.headerSubtitle}>
-          Monitor live trips and driver progress.
-        </Text>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle} accessibilityRole="header">
+            Trips
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            Monitor live trips and driver progress.
+          </Text>
+        </View>
+        {searchOpen ? null : (
+          <Pressable
+            onPress={openSearch}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.searchIconBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Search trips"
+          >
+            <Search size={22} color={Colors.textPrimary} strokeWidth={2} />
+          </Pressable>
+        )}
       </View>
 
-      {/* Search */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchWrap}>
-          <Search size={20} color={Colors.textTertiary} strokeWidth={2} />
-          <TextInput
-            style={styles.searchInput}
-            value={searchInput}
-            onChangeText={setSearchInput}
-            placeholder="Search by trip ID, route or customer"
-            placeholderTextColor={Colors.textTertiary}
-            returnKeyType="search"
-            autoCorrect={false}
-            autoCapitalize="none"
-            accessibilityLabel="Search trips"
-          />
-          {searchInput.length > 0 ? (
-            <Pressable
-              onPress={() => setSearchInput('')}
-              hitSlop={10}
-              style={styles.clearBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Clear search"
-            >
-              <X size={12} color={Colors.textInverse} strokeWidth={3} />
-            </Pressable>
-          ) : null}
+      {/* Search (revealed by the header icon) */}
+      {searchOpen ? (
+        <View style={styles.searchRow}>
+          <View style={styles.searchWrap}>
+            <Search size={20} color={Colors.textTertiary} strokeWidth={2} />
+            <TextInput
+              style={styles.searchInput}
+              value={searchInput}
+              onChangeText={setSearchInput}
+              placeholder="Search by trip ID, route or customer"
+              placeholderTextColor={Colors.textTertiary}
+              returnKeyType="search"
+              autoFocus
+              autoCorrect={false}
+              autoCapitalize="none"
+              accessibilityLabel="Search trips"
+            />
+          </View>
+          <Pressable
+            onPress={closeSearch}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.searchCloseBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Close search"
+          >
+            <X size={20} color={Colors.textPrimary} strokeWidth={2.2} />
+          </Pressable>
         </View>
-      </View>
+      ) : null}
 
       {/* Status chips */}
-      <HistoryFilterChips value={status} onChange={setStatus} counts={counts} />
+      <View style={styles.chipStrip}>
+        <HistoryFilterChips
+          value={status}
+          onChange={setStatus}
+          counts={counts}
+        />
+      </View>
 
       <View style={styles.body}>{renderBody()}</View>
     </SafeScreen>
@@ -291,12 +332,18 @@ const ListFooter: React.FC<{
 const CONTROL_HEIGHT = 48;
 
 const styles = StyleSheet.create({
-  /* Header */
+  /* Header — same as BookingsScreen */
   header: {
-    gap: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  headerText: {
+    flex: 1,
+    gap: Spacing.xs,
   },
   headerTitle: {
     ...Typography.h3,
@@ -307,12 +354,25 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.textSecondary,
   },
+  searchIconBtn: {
+    width: CONTROL_HEIGHT,
+    height: CONTROL_HEIGHT,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  /* Search */
+  /* Search — same as BookingsScreen */
   searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.xs,
   },
   searchWrap: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
@@ -330,13 +390,18 @@ const styles = StyleSheet.create({
     padding: 0,
     includeFontPadding: false,
   },
-  clearBtn: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.textMuted,
+  searchCloseBtn: {
+    width: CONTROL_HEIGHT,
+    height: CONTROL_HEIGHT,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  /* Chips */
+  chipStrip: {
+    paddingTop: Spacing.xs,
   },
 
   /* Body */
@@ -368,4 +433,6 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.textMuted,
   },
+
+  pressed: { opacity: 0.7 },
 });
