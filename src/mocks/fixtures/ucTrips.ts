@@ -14,6 +14,7 @@
  */
 
 import { asTripId } from '@app-types/ids';
+import { seatingCapacityFor } from '@mocks/data/customerHistory';
 import type { Trip } from '@features/uc/customers/types';
 import type { UcTripListItem, UcTripStatus } from '@features/uc/trips/types';
 
@@ -29,6 +30,18 @@ const STATUS_FROM_TRIP: Readonly<Record<Trip['status'], UcTripStatus>> = {
 };
 
 let cache: readonly UcTripListItem[] | null = null;
+
+/**
+ * MOCK ONLY: a stable fake phone number per trip, so the Call button
+ * can be seen in development. Real numbers come from GET /uc/trips.
+ */
+function mockDriverPhone(tripId: string): string {
+  let h = 0;
+  for (let i = 0; i < tripId.length; i += 1) {
+    h = (h * 31 + tripId.charCodeAt(i)) % 1000000007;
+  }
+  return `+9198${String(h % 100000000).padStart(8, '0')}`;
+}
 
 /**
  * Every trip, newest pickup first (ties broken by id, so the order —
@@ -57,9 +70,23 @@ export function getFixtureUcTrips(): readonly UcTripListItem[] {
       customerName: customer.name,
       fromCity: trip.fromCity,
       toCity: trip.toCity,
+      fromLocation: trip.fromLocation,
+      toLocation: trip.toLocation,
       scheduledAt: trip.scheduledAt,
+      // The mock has no separate start time; the card falls back to
+      // scheduledAt.
+      startedAt: null,
+      completedAt: trip.completedAt,
       passengers: trip.passengers,
       vehicleName: trip.vehicleType,
+      // Same source as the UC Bookings fixture, so both tabs agree.
+      seatingCapacity: seatingCapacityFor(trip.vehicleType),
+      vehicleNumber: trip.vehicleNumber,
+      driverName: trip.driverName,
+      driverPhone: trip.driverName ? mockDriverPhone(trip.id) : undefined,
+      distanceKm: trip.distanceKm,
+      durationMinutes: trip.durationMinutes,
+      rating: trip.rating,
       amount: trip.amount,
     });
   }

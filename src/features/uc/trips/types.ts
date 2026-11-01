@@ -79,14 +79,40 @@ export type UcTripListItem = {
 
   fromCity: string;
   toCity: string;
+  /** Pickup area within the city, e.g. "Karol Bagh". Optional. */
+  fromLocation?: string;
+  /** Drop area within the city, e.g. "Malviya Nagar". Optional. */
+  toLocation?: string;
   /** Pickup date-time (UTC ISO). Rendered in device local time. */
   scheduledAt: ISODateTime;
+  /**
+   * When the trip actually started (ongoing / completed). Optional:
+   * not sent yet, so the card falls back to `scheduledAt`.
+   */
+  startedAt?: ISODateTime | null;
+  /** When the trip ended. Only for status 'completed'. */
+  completedAt: ISODateTime | null;
   /** Total passengers, >= 1. */
   passengers: number;
 
   /** Vehicle class / model, e.g. "Innova Crysta", "Sedan". */
   vehicleName: string;
+  /** Seats in that vehicle class, e.g. 12. null = unknown. */
+  seatingCapacity: number | null;
+  /** Registration number, e.g. "MH-12-AB-1234". Missing = not assigned. */
+  vehicleNumber?: string;
+  /** Assigned driver. Missing = not assigned. */
+  driverName?: string;
+  /** Driver's phone for the Call button. Missing = button hidden. */
+  driverPhone?: string;
 
-  /** Trip total. */
+  /** Actual distance. null until the trip is completed. */
+  distanceKm: number | null;
+  /** Actual duration in minutes. null until the trip is completed. */
+  durationMinutes: number | null;
+  /** Customer rating 1–5, only on rated completed trips. */
+  rating?: number;
+
+  /** Trip total. Not shown on the card (it lives on Bookings). */
   amount: Money;
 };
