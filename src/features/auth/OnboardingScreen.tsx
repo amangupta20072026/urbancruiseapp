@@ -23,6 +23,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
+  cancelAnimation,
+  Easing,
   Extrapolation,
   FadeIn,
   FadeInDown,
@@ -31,7 +33,10 @@ import Animated, {
   interpolateColor,
   SharedValue,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
+  withRepeat,
+  withTiming,
 } from 'react-native-reanimated';
 import PagerView, {
   PageScrollStateChangedNativeEvent,
@@ -170,6 +175,28 @@ const IndiaFlagIcon: React.FC<FeatureIconProps> = ({ size }) => (
   </Svg>
 );
 
+// Double chevron (») for the "Swipe to continue" hint. Drawn with SVG
+// like the icons above, so it renders the same on every font/platform
+// (a "»" text glyph varies in weight and baseline between fonts).
+const ChevronsRightIcon: React.FC<FeatureIconProps> = ({ color, size }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="m6 17 5-5-5-5"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="m13 17 5-5-5-5"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
 /* -----------------------------------------------------------------
  * Constants
  * ----------------------------------------------------------------- */
@@ -304,6 +331,93 @@ const Pagination: React.FC<{
     ))}
   </View>
 );
+
+/* -----------------------------------------------------------------
+ * Next-slide hint ("Swipe to continue »")
+ * -----------------------------------------------------------------
+ * Shown in the footer on every slide except the last, in the space
+ * the Get Started button uses on the last slide — so the footer
+ * height never changes between slides and nothing jumps.
+ *
+ *   - Arrow nudges right in a loop to show that a next page exists.
+ *     Skipped when the OS "reduce motion" setting is on.
+ *   - Whole hint fades out as the user drags towards the next slide,
+ *     driven by the same `progress` value as the pagination dots.
+ *   - Tapping it goes to the next slide (handled by the screen).
+ * ----------------------------------------------------------------- */
+
+const HINT_NUDGE_DISTANCE = 6;
+const HINT_NUDGE_HALF_CYCLE_MS = 700;
+// Fully hidden by the time the user has dragged half a page.
+const HINT_FADE_END_PROGRESS = 0.5;
+
+const NextSlideHint: React.FC<{
+  /** Page the hint is shown on; it fades as the pager moves away from it. */
+  pageIndex: number;
+  progress: SharedValue<number>;
+  onPress: () => void;
+}> = memo(({ pageIndex, progress, onPress }) => {
+  const reduceMotion = useReducedMotion();
+  const nudge = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      cancelAnimation(nudge);
+      nudge.value = 0;
+      return;
+    }
+    // reverse=true → glides out and back smoothly, no snap at the end.
+    nudge.value = withRepeat(
+      withTiming(HINT_NUDGE_DISTANCE, {
+        duration: HINT_NUDGE_HALF_CYCLE_MS,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true,
+    );
+    return () => {
+      cancelAnimation(nudge);
+    };
+  }, [reduceMotion, nudge]);
+
+  const fadeStyle = useAnimatedStyle(() => {
+    // Distance from the hint's own page. Measuring from the nearest page
+    // instead would make it fade back in past the halfway point of a
+    // drag, before onPageSelected unmounts it.
+    const fromPage = Math.abs(progress.value - pageIndex);
+    return {
+      opacity: interpolate(
+        fromPage,
+        [0, HINT_FADE_END_PROGRESS],
+        [1, 0],
+        Extrapolation.CLAMP,
+      ),
+    };
+  });
+
+  const arrowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: nudge.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.nextHintWrap, fadeStyle]}>
+      <Pressable
+        onPress={onPress}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Go to next slide"
+        style={({ pressed }) => [styles.nextHint, pressed && styles.pressed]}
+      >
+        <Text style={styles.nextHintText}>Swipe to continue</Text>
+        {/* translateX doesn't affect layout, so the text never shifts. */}
+        <Animated.View style={arrowStyle}>
+          <ChevronsRightIcon color={Colors.primary} size={Dimensions.iconLg} />
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
+  );
+});
+NextSlideHint.displayName = 'NextSlideHint';
 
 /* -----------------------------------------------------------------
  * Slides
@@ -496,6 +610,18 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
     dispatch(completeOnboarding());
   }, [clearTimer, dispatch]);
 
+  // Tap on "Swipe to continue". Counts as user interaction, like a
+  // manual drag, so auto-advance stops for the rest of this visit.
+  // pageRef (not `page`) keeps the callback stable; a quick double tap
+  // asks for the same target page twice, which PagerView ignores.
+  const handleNextSlide = useCallback(() => {
+    userInteractedRef.current = true;
+    clearTimer();
+    const nextPage = pageRef.current + 1;
+    if (nextPage >= SLIDE_COUNT) return;
+    pagerRef.current?.setPage(nextPage);
+  }, [clearTimer]);
+
   const topPad = Math.max(insets.top, Spacing.md);
   const bottomPad = Math.max(insets.bottom, Spacing.md);
 
@@ -534,10 +660,9 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
         </View>
       </PagerView>
 
-      {/* Footer no longer has the "Available in 21+ Cities" row — that
-          chip moved into SlideOne, right under the tagline. Footer now
-          only carries pagination dots (both slides) and the Get Started
-          CTA (last slide only). */}
+      {/* Footer: pagination dots (all slides), then one slot of fixed
+          height — Get Started on the last slide, "Swipe to continue »"
+          on every other slide. Same height both ways, so no layout jump. */}
       <View style={[styles.footer, { paddingBottom: bottomPad }]}>
         <Pagination count={SLIDE_COUNT} progress={progress} />
 
@@ -556,7 +681,11 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
             </Pressable>
           </Animated.View>
         ) : (
-          <View style={styles.ctaSpacer} />
+          <NextSlideHint
+            pageIndex={page}
+            progress={progress}
+            onPress={handleNextSlide}
+          />
         )}
       </View>
     </View>
@@ -738,5 +867,23 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
   },
-  ctaSpacer: { height: Dimensions.buttonHeightLarge },
+  // Same height as the CTA, so swapping hint ↔ Get Started never moves
+  // the dots or the slide content.
+  nextHintWrap: {
+    height: Dimensions.buttonHeightLarge,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    minHeight: Dimensions.touchTargetMinimum,
+    paddingHorizontal: Spacing.md,
+  },
+  nextHintText: {
+    ...Typography.label,
+    color: Colors.textSecondary,
+    fontSize: 15,
+  },
 });

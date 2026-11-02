@@ -36,8 +36,10 @@ type RoleCardProps = {
 
 const RoleCard: React.FC<RoleCardProps> = memo(
   ({ role, selected, onPress }) => {
-    const { Icon, pickerTitle, description, tint, id } = role;
+    const { Icon, pickerTitle, description, tint, id, iconFillsCircle } = role;
     const tintColor = TINT_COLOR[tint];
+    // Brand logo fills the whole circle; line icons use the standard size.
+    const iconSize = iconFillsCircle ? Dimensions.avatarLg : Dimensions.iconLg;
 
     const scale = useSharedValue(1);
 
@@ -82,7 +84,7 @@ const RoleCard: React.FC<RoleCardProps> = memo(
               { backgroundColor: withAlpha(tintColor, 0.12) },
             ]}
           >
-            <Icon color={tintColor} size={Dimensions.iconLg} />
+            <Icon color={tintColor} size={iconSize} />
           </View>
           <View style={styles.cardText}>
             <Text style={styles.cardTitle} numberOfLines={1}>

@@ -10,6 +10,7 @@
  */
 
 import React from 'react';
+import { Image, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { Colors } from '../../theme';
@@ -31,6 +32,12 @@ export type RoleConfig = {
   description: string;
   Icon: React.FC<IconProps>;
   tint: RoleTint;
+  /**
+   * When true, RoleCard passes the full icon-circle diameter as `size`
+   * (instead of the standard icon size) and the Icon fits itself inside
+   * that circle. Used for the brand logo, which must fill the circle.
+   */
+  iconFillsCircle?: boolean;
 };
 
 /* -----------------------------------------------------------------
@@ -85,22 +92,82 @@ export const SteeringIcon: React.FC<IconProps> = ({ color, size }) => (
   </Svg>
 );
 
-export const BadgeIcon: React.FC<IconProps> = ({ color, size }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M12 2.5 4.5 5.2v6c0 4.9 3.2 9.3 7.5 10.5 4.3-1.2 7.5-5.6 7.5-10.5v-6L12 2.5z"
-      stroke={color}
-      strokeWidth={1.8}
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M9 11h6M9 14h4"
-      stroke={color}
-      strokeWidth={1.8}
-      strokeLinecap="round"
-    />
-  </Svg>
-);
+// Urban Cruise logo mark used as the "uc" role icon.
+//
+// Uses the existing uc-icon.png as is (no extra image files). That file
+// is 1280×1280 with empty transparent space around the logo, so the
+// image is drawn larger than the circle and shifted so only the logo
+// area shows, inside a clipping box exactly the logo's size.
+//
+// `size` is the diameter of the circle the logo sits in (RoleCard
+// passes the full circle because the role sets `iconFillsCircle`).
+// The logo is scaled to the largest box of its own shape that fits
+// inside that circle, with a small gap so its corners never touch the
+// circle edge.
+//
+// `color` is intentionally ignored: the logo keeps its brand colours.
+const UC_ICON = require('@assets/icons/uc-icon.png');
+
+/**
+ * Where the visible logo sits inside uc-icon.png, as fractions of the
+ * image's width/height. Measured from the file's non-transparent pixels:
+ * the 1280×1280 image has the logo at x 251–1031 and y 398–882.
+ * If uc-icon.png is ever replaced, measure these four values again.
+ */
+const UC_ICON_LOGO_BOX = {
+  left: 251 / 1280,
+  top: 398 / 1280,
+  width: 780 / 1280,
+  height: 484 / 1280,
+} as const;
+
+/** Logo width ÷ height (the image is square, so fractions compare directly). */
+const UC_ICON_LOGO_ASPECT = UC_ICON_LOGO_BOX.width / UC_ICON_LOGO_BOX.height;
+
+/** Gap (pt) between the logo's corners and the circle edge, per side. */
+const UC_LOGO_CIRCLE_GAP = 1;
+
+export const UcLogoIcon: React.FC<IconProps> = ({ size }) => {
+  const diameter = Math.max(0, size - UC_LOGO_CIRCLE_GAP * 2);
+  // Rectangle with aspect a inside a circle of diameter d:
+  // height = d / sqrt(a² + 1), width = a × height.
+  const logoHeight =
+    diameter / Math.sqrt(UC_ICON_LOGO_ASPECT * UC_ICON_LOGO_ASPECT + 1);
+  const logoWidth = logoHeight * UC_ICON_LOGO_ASPECT;
+
+  // Draw the whole square image so its logo area is logoWidth wide,
+  // then shift it so that area lines up with the clipping box.
+  const imageSize = logoWidth / UC_ICON_LOGO_BOX.width;
+
+  return (
+    <View style={[logoStyles.clip, { width: logoWidth, height: logoHeight }]}>
+      <Image
+        source={UC_ICON}
+        style={[
+          logoStyles.image,
+          {
+            width: imageSize,
+            height: imageSize,
+            left: -imageSize * UC_ICON_LOGO_BOX.left,
+            top: -imageSize * UC_ICON_LOGO_BOX.top,
+          },
+        ]}
+        resizeMode="contain"
+        // Android: decode the 1280px file at the drawn size, not full size,
+        // to keep memory low.
+        resizeMethod="resize"
+        // Decorative: the card's accessibilityLabel already says "Urban Cruise".
+        accessible={false}
+        accessibilityIgnoresInvertColors
+      />
+    </View>
+  );
+};
+
+const logoStyles = StyleSheet.create({
+  clip: { overflow: 'hidden' },
+  image: { position: 'absolute' },
+});
 
 export const CheckIcon: React.FC<IconProps> = ({ color, size }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -148,8 +215,9 @@ export const ROLES: RoleConfig[] = [
     pickerTitle: 'Urban Cruise',
     shortLabel: 'Urban Cruise',
     description: 'Manage Sales & Operations',
-    Icon: BadgeIcon,
+    Icon: UcLogoIcon,
     tint: 'accent',
+    iconFillsCircle: true,
   },
 ];
 
