@@ -38,6 +38,7 @@
     "react": "19.2.3",
     "react-hook-form": "^7.84.0",
     "react-native": "0.86.2",
+    "react-native-biometrics": "^3.0.1",
     "react-native-blob-util": "^0.24.10",
     "react-native-capture-protection": "^2.4.1",
     "react-native-config": "^1.6.1",
