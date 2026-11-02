@@ -3,7 +3,7 @@
  * Directory — Shared types
  * ------------------------------------------------------------------
  * The Directory hub renders four independent tabs (Customers,
- * Vendors, UC Staff, Drivers). Each tab is backed by its own
+ * Vendors, Drivers, UC Staff). Each tab is backed by its own
  * feature module with its own list hook, filter sheet, card, and
  * contact sheet — because the four entities have genuinely different
  * fields and filter semantics, so a "generic list" abstraction
@@ -52,16 +52,18 @@ export type DirectoryListState<T> = {
  */
 export type DirectoryTab = 'customers' | 'vendors' | 'staff' | 'drivers';
 
+/** Tab order, left → right. Must match the Tab.Screen order in
+ *  DirectoryScreen.tsx (the navigator draws tabs in that order). */
 export const DIRECTORY_TABS: readonly DirectoryTab[] = [
   'customers',
   'vendors',
-  'staff',
   'drivers',
+  'staff',
 ] as const;
 
 export const DIRECTORY_TAB_LABEL: Record<DirectoryTab, string> = {
   customers: 'Customers',
   vendors: 'Vendors',
-  staff: 'UC Staff',
   drivers: 'Drivers',
+  staff: 'UC',
 };

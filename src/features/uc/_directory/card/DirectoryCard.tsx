@@ -34,6 +34,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  Warehouse,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -56,6 +57,7 @@ const ICON: Record<CardIcon, LucideIcon> = {
   trips: Briefcase,
   company: Building2,
   location: MapPin,
+  garage: Warehouse,
 };
 
 const DirectoryCardComponent: React.FC<Props> = ({ contact, onPress }) => {

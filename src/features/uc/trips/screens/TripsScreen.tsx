@@ -59,11 +59,16 @@ import { EmptyState, ErrorView, SafeScreen } from '@shared/components';
 import { Colors, FontWeight, Radius, Spacing, Typography } from '@theme';
 import { notifyComingSoon } from '@services/comingSoon';
 // Same five chips (All / Upcoming / Ongoing / Completed / Cancelled)
-// and the same look as Bookings and Trip History.
+// and layout as Bookings and Trip History; colours match this tab's
+// own cards (UC_TRIP_CHIP_PALETTE).
 import { HistoryFilterChips } from '@features/uc/customers/components/HistoryFilterChips';
 
 import { useUcTripList } from '../hooks/useUcTripList';
-import { UcTripCard, type UcTripCardLayout } from '../components/UcTripCard';
+import {
+  UC_TRIP_CHIP_PALETTE,
+  UcTripCard,
+  type UcTripCardLayout,
+} from '../components/UcTripCard';
 import { TripListSkeleton } from '../components/TripListSkeleton';
 import type { UcTripListItem, UcTripStatusFilter } from '../types';
 
@@ -289,6 +294,7 @@ const TripsScreen: React.FC = () => {
           value={status}
           onChange={setStatus}
           counts={counts}
+          palette={UC_TRIP_CHIP_PALETTE}
         />
       </View>
 

@@ -34,6 +34,14 @@ export const VENDOR_VERIFICATION_LABEL: Record<VendorVerification, string> = {
   rejected: 'Rejected',
 };
 
+/** One garage of a vendor: where its vehicles are kept and its
+ *  drivers pick them up. A vendor may have garages in many cities. */
+export type VendorGarage = {
+  /** Area within the city, e.g. 'Sakinaka'. */
+  locality: string;
+  city: string;
+};
+
 export type Vendor = {
   id: string;
   /** Contact person / owner. The directory card's title. */
@@ -47,8 +55,21 @@ export type Vendor = {
   email: string;
   city: string;
   /** Full postal address as one text (DB: single full-address column).
-   * Shown on the directory card. Empty string when not set. */
+   * Shown on the contact sheet. Empty string when not set. */
   address: string;
+  /**
+   * Area / locality within the city (e.g. 'Andheri East'). Shown on the
+   * directory card as '<locality>, <city>'. Optional: when missing or
+   * blank, the card shows the city alone.
+   */
+  locality?: string;
+  /**
+   * The vendor's garages, shared by all its drivers. Optional and may be
+   * empty. When the vendor has more than one garage in a city, the FIRST
+   * one in this list is that city's main garage (shown on driver cards),
+   * so the server must send the main garage first.
+   */
+  garages?: readonly VendorGarage[];
   /** GST number, when registered. Displayed on the sheet. */
   gstin?: string;
   /** PAN (Permanent Account Number), when on file. Displayed on the sheet. */

@@ -39,7 +39,8 @@ export type CardIcon =
   | 'calendar'
   | 'trips'
   | 'company'
-  | 'location';
+  | 'location'
+  | 'garage';
 
 /** Rounded pill, normal-case text (one style for every role). */
 export type CardBadge = { label: string; bg: string; fg: string };
@@ -116,7 +117,7 @@ const text = (v: string | null | undefined): string => (v ?? '').trim();
 const orEmpty = (v: string | null | undefined): string =>
   text(v) || EMPTY_VALUE;
 
-/** '1 trip' / '3 trips' — `one` and `many` keep each role's casing. */
+/** '1 booking' / '3 trips' — `one` and `many` keep each role's casing. */
 export const countLabel = (n: number, one: string, many: string): string =>
   `${n} ${n === 1 ? one : many}`;
 
@@ -188,13 +189,15 @@ function customerCard(c: Customer): DirectoryCardModel {
     ],
     footer: {
       left: shrinkable('calendar', joined),
-      right: count('trips', countLabel(c.totalBookings, 'Trip', 'Trips')),
+      // The count is the customer's bookings (totalBookings), so it is
+      // labelled "Bookings", not "Trips".
+      right: count('trips', countLabel(c.totalBookings, 'Booking', 'Bookings')),
     },
     accessibilityLabel: [
       `${orEmpty(c.name)}, ${categoryLabel} customer`,
       hasCompany ? text(c.companyName) : '',
       city,
-      countLabel(c.totalBookings, 'trip', 'trips'),
+      countLabel(c.totalBookings, 'booking', 'bookings'),
       `joined ${joined}`,
     ]
       .filter(Boolean)
@@ -205,36 +208,56 @@ function customerCard(c: Customer): DirectoryCardModel {
 
 function vendorCard(v: Vendor): DirectoryCardModel {
   const status = VENDOR_STATUS_LABEL[v.status];
-  // Full address; falls back to the city when no address is saved.
-  const location = text(v.address) || text(v.city);
   const city = text(v.city);
+  // Main garage in the vendor's own city: the first matching garage in
+  // v.garages (the server sends the main garage first). Matched ignoring
+  // case and spaces. Shown as warehouse icon + '<garage area>, <city>'.
+  const mainGarage = city
+    ? v.garages?.find(
+        g =>
+          text(g.city).toLowerCase() === city.toLowerCase() &&
+          text(g.locality) !== '',
+      )
+    : undefined;
+  // No garage in its city: fall back to the office area with a map pin,
+  // '<locality>, <city>' (either part may be missing; blanks left out).
+  // The full address is not on the card (it's on the contact sheet).
+  const locationLine: CardLine | null = mainGarage
+    ? {
+        key: 'location',
+        icon: 'garage',
+        text: `${text(mainGarage.locality)}, ${city}`,
+        wrap: true,
+      }
+    : (() => {
+        const office = [text(v.locality), city].filter(Boolean).join(', ');
+        return office
+          ? { key: 'location', icon: 'location', text: office, wrap: true }
+          : null;
+      })();
   return {
     id: v.id,
     // Owner name is the title; the company name is the first line below it.
     title: orEmpty(v.ownerName),
     badge: { label: status, ...VENDOR_STATUS_COLOUR[v.status] },
     lines: [
-      // '[building] Highway Kings Transports [pin] Mumbai' in one chip.
-      ...companyLine('company', v.companyName, city),
+      // Company name only; the city is on the location line below.
+      ...companyLine('company', v.companyName),
       ...phoneLine(v.phone),
       ...optionalLine('email', 'mail', v.email),
-      ...(location
-        ? [
-            {
-              key: 'address',
-              icon: 'location' as const,
-              text: location,
-              wrap: true,
-            },
-          ]
-        : []),
+      ...(locationLine ? [locationLine] : []),
     ],
-    // No footer: vehicle count removed; city is part of the address.
+    // No footer: vehicle count removed; city is on the location line.
     footer: null,
     accessibilityLabel: [
       `Vendor ${orEmpty(v.ownerName)}`,
       orEmpty(v.companyName),
-      city,
+      // The icon alone tells sighted users it's a garage; say it in words.
+      locationLine
+        ? mainGarage
+          ? `garage ${locationLine.text}`
+          : locationLine.text
+        : '',
       status,
     ]
       .filter(Boolean)
@@ -269,6 +292,13 @@ function staffCard(s: Staff): DirectoryCardModel {
 
 function driverCard(d: Driver): DirectoryCardModel {
   const verification = DRIVER_VERIFICATION_LABEL[d.verification];
+  const city = text(d.city);
+  const garage = text(d.garageLocality);
+  // Garage in the driver's city: warehouse icon + 'Sakinaka, Mumbai'.
+  // No garage there: map pin + city, as before.
+  const place = garage
+    ? shrinkable('garage', [garage, city].filter(Boolean).join(', '))
+    : shrinkable('location', orEmpty(d.city));
   return {
     id: d.id,
     title: orEmpty(d.name),
@@ -286,10 +316,17 @@ function driverCard(d: Driver): DirectoryCardModel {
       ...optionalLine('email', 'mail', d.email),
     ],
     footer: {
-      left: shrinkable('location', orEmpty(d.city)),
+      left: place,
       right: count('trips', countLabel(d.completedTrips, 'trip', 'trips')),
     },
-    accessibilityLabel: `Driver ${orEmpty(d.name)}, ${verification}`,
+    // The icon alone tells sighted users it's a garage; say it in words.
+    accessibilityLabel: [
+      `Driver ${orEmpty(d.name)}`,
+      verification,
+      garage ? `garage ${place.text}` : city,
+    ]
+      .filter(Boolean)
+      .join(', '),
     accessibilityHint: 'Opens contact actions',
   };
 }

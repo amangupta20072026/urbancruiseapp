@@ -322,6 +322,14 @@ function vendorProfile(v: Vendor): SectionedContactProfile {
             label: 'City',
             value: v.city,
           }),
+          // Area within the city (e.g. 'Andheri East'). Same map-pin icon
+          // as City; hidden when the vendor has no locality.
+          ...optionalRow({
+            key: 'locality',
+            kind: 'city',
+            label: 'Locality',
+            value: v.locality,
+          }),
           ...optionalRow({
             key: 'address',
             kind: 'address',

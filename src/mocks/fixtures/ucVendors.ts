@@ -15,6 +15,7 @@
 
 import type {
   Vendor,
+  VendorGarage,
   VendorStatus,
   VendorVerification,
 } from '@features/uc/vendors/types';
@@ -89,28 +90,75 @@ const CITIES = [
   'Kochi',
 ];
 
-/** Sample street, state and PIN per city — mock data only. */
-const ADDRESS_PARTS: Record<string, [string, string, string]> = {
-  Mumbai: ['Andheri Kurla Road, Andheri East', 'Maharashtra', '400069'],
-  Pune: ['FC Road, Shivajinagar', 'Maharashtra', '411005'],
-  Bengaluru: ['MG Road, Ashok Nagar', 'Karnataka', '560001'],
-  Hyderabad: ['Road No. 2, Banjara Hills', 'Telangana', '500034'],
-  Chennai: ['Usman Road, T Nagar', 'Tamil Nadu', '600017'],
-  Delhi: ['Barakhamba Road, Connaught Place', 'Delhi', '110001'],
-  Ahmedabad: ['CG Road, Navrangpura', 'Gujarat', '380009'],
-  Kolkata: ['Park Street, Mullick Bazar', 'West Bengal', '700016'],
-  Jaipur: ['MI Road, Panch Batti', 'Rajasthan', '302001'],
-  Kochi: ['MG Road, Ernakulam', 'Kerala', '682016'],
+/** Sample road, locality, state and PIN per city — mock data only. */
+const ADDRESS_PARTS: Record<string, [string, string, string, string]> = {
+  Mumbai: ['Andheri Kurla Road', 'Andheri East', 'Maharashtra', '400069'],
+  Pune: ['FC Road', 'Shivajinagar', 'Maharashtra', '411005'],
+  Bengaluru: ['MG Road', 'Ashok Nagar', 'Karnataka', '560001'],
+  Hyderabad: ['Road No. 2', 'Banjara Hills', 'Telangana', '500034'],
+  Chennai: ['Usman Road', 'T Nagar', 'Tamil Nadu', '600017'],
+  Delhi: ['Barakhamba Road', 'Connaught Place', 'Delhi', '110001'],
+  Ahmedabad: ['CG Road', 'Navrangpura', 'Gujarat', '380009'],
+  Kolkata: ['Park Street', 'Mullick Bazar', 'West Bengal', '700016'],
+  Jaipur: ['MI Road', 'Panch Batti', 'Rajasthan', '302001'],
+  Kochi: ['MG Road', 'Ernakulam', 'Kerala', '682016'],
 };
 
-/** Deterministic sample address; every 13th vendor has none, to
- *  exercise the "no address" case. */
+/** Every 13th vendor has no address and no locality, to exercise the
+ *  "no address" case (card falls back to the city alone). */
+const hasNoAddress = (index: number): boolean => index % 13 === 12;
+
+/** Deterministic sample address. */
 function addressFor(index: number, city: string): string {
-  if (index % 13 === 12) return '';
+  if (hasNoAddress(index)) return '';
   const parts = ADDRESS_PARTS[city];
   if (!parts) return '';
-  const [street, state, pin] = parts;
-  return `Shop ${((index * 7) % 90) + 1}, ${street}, ${city}, ${state} ${pin}`;
+  const [road, locality, state, pin] = parts;
+  return `Shop ${
+    ((index * 7) % 90) + 1
+  }, ${road}, ${locality}, ${city}, ${state} ${pin}`;
+}
+
+/** Locality for the same vendor; undefined when it has no address. */
+function localityFor(index: number, city: string): string | undefined {
+  if (hasNoAddress(index)) return undefined;
+  return ADDRESS_PARTS[city]?.[1];
+}
+
+/** Sample garage area per city — mock data only. */
+const GARAGE_LOCALITY: Record<string, string> = {
+  Mumbai: 'Sakinaka',
+  Pune: 'Hinjewadi',
+  Bengaluru: 'Peenya',
+  Hyderabad: 'Kukatpally',
+  Chennai: 'Guindy',
+  Delhi: 'Mahipalpur',
+  Ahmedabad: 'Naroda',
+  Kolkata: 'Topsia',
+  Jaipur: 'Sitapura',
+  Kochi: 'Kalamassery',
+};
+
+/**
+ * Deterministic sample garages. Each vendor has garages in most cities
+ * but not all, so some drivers have no garage in their city (the card
+ * then shows the city alone). Vendors with no address have no garages.
+ * Vendor 1 has two Mumbai garages, to exercise "first one is shown".
+ */
+function garagesFor(index: number): VendorGarage[] {
+  if (hasNoAddress(index)) return [];
+  const garages: VendorGarage[] = CITIES.filter(
+    (_, c) => (c + index) % 4 !== 0,
+  ).map(city => ({ locality: GARAGE_LOCALITY[city], city }));
+  if (index === 0) {
+    // Two Mumbai garages, main one (Sakinaka) first.
+    return [
+      { locality: GARAGE_LOCALITY.Mumbai, city: 'Mumbai' },
+      { locality: 'Marol', city: 'Mumbai' },
+      ...garages.filter(g => g.city !== 'Mumbai'),
+    ];
+  }
+  return garages;
 }
 
 const STATUS_CYCLE: VendorStatus[] = [
@@ -182,6 +230,8 @@ export const fixtureUcVendorsAll: Vendor[] = COMPANIES.map((company, i) => ({
   email: emailFor(company),
   city: CITIES[i % CITIES.length],
   address: addressFor(i, CITIES[i % CITIES.length]),
+  locality: localityFor(i, CITIES[i % CITIES.length]),
+  garages: garagesFor(i),
   gstin: i % 4 === 0 ? undefined : `27${panFor(i)}1Z${i % 10}`,
   // Every 5th vendor has no PAN and every 7th no business type, to
   // exercise the hidden-row case on the contact sheet.

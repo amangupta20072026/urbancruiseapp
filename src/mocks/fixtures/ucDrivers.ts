@@ -104,6 +104,11 @@ function build(): Driver[] {
     for (let i = 0; i < perVendor; i++) {
       const name = NAMES[seed % NAMES.length];
       const verification = VERIFICATION_CYCLE[seed % VERIFICATION_CYCLE.length];
+      const city = CITIES[seed % CITIES.length];
+      // Same join the server does: the vendor's first garage in this city.
+      const garageLocality = vendor.garages?.find(
+        g => g.city === city,
+      )?.locality;
       out.push({
         id: `d_${seed + 1}`,
         name,
@@ -113,9 +118,10 @@ function build(): Driver[] {
           seed % 3 === 0
             ? `${name.toLowerCase().split(/\s+/).join('.')}@example.com`
             : undefined,
-        city: CITIES[seed % CITIES.length],
+        city,
         vendorId: vendor.id,
         vendorName: vendor.companyName,
+        garageLocality,
         licenseNo: licenseFor(seed),
         verification,
         completedTrips: 10 + ((seed * 23) % 400),

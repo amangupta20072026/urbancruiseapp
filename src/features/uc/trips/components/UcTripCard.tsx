@@ -110,6 +110,7 @@ import { BOOKING_STATUS_VISUAL } from '@shared/bookings';
 // doesn't evaluate other features' screens.
 import { getTripTypeOption } from '@features/customer/quotations/tripTypeOptions';
 import { UC_BOOKING_STATUS_VISUAL } from '@features/uc/bookings/utils/format';
+import type { FilterChipPalette } from '@features/uc/customers/components/HistoryFilterChips';
 
 import type { UcTripListItem, UcTripStatus } from '../types';
 import {
@@ -193,6 +194,22 @@ const STATUS_STYLE: Readonly<Record<UcTripStatus, StatusStyle>> = {
     carColor: Colors.textTertiary,
   },
 };
+
+/**
+ * Status filter chip colours for the Trips tab. Each status `solid`
+ * is read from STATUS_STYLE above, so the chips always match these
+ * cards. "All" has no card: royal purple, same as the other screens.
+ */
+export const UC_TRIP_CHIP_PALETTE: FilterChipPalette = Object.freeze({
+  all: { solid: Colors.royal, tint: Colors.royalTint },
+  upcoming: { solid: STATUS_STYLE.upcoming.accent, tint: Colors.primaryTint },
+  ongoing: { solid: STATUS_STYLE.ongoing.accent, tint: Colors.completedTint },
+  completed: {
+    solid: STATUS_STYLE.completed.accent,
+    tint: Colors.backgroundTertiary,
+  },
+  cancelled: { solid: STATUS_STYLE.cancelled.accent, tint: Colors.errorTint },
+});
 
 /* ================================================================
  * Pure helpers (exported for tests)

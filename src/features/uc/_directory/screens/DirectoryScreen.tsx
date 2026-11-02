@@ -2,9 +2,11 @@
  * ------------------------------------------------------------------
  * DirectoryScreen — the Directory hub
  * ------------------------------------------------------------------
- * Single screen with four top tabs: Customers / Vendors / UC Staff /
- * Drivers. Replaces the four scattered More-sheet entries with one
- * "Directory" entry that lands here.
+ * Single screen with four top tabs: Customers / Vendors / Drivers /
+ * UC (staff). The Tab.Screen order below sets the order on screen and
+ * must match DIRECTORY_TABS in ../types.ts. Replaces the four
+ * scattered More-sheet entries with one "Directory" entry that lands
+ * here.
  *
  * WHY MATERIAL TOP TABS:
  *   - Swipe-between-tabs is the CRM convention (HubSpot, Zoho).
@@ -73,8 +75,8 @@ const tabOptions: MaterialTopTabNavigationOptions = {
 const ROUTE_TO_TAB: Record<keyof DirectoryTabParamList, DirectoryTab> = {
   DirectoryCustomers: 'customers',
   DirectoryVendors: 'vendors',
-  DirectoryStaff: 'staff',
   DirectoryDrivers: 'drivers',
+  DirectoryStaff: 'staff',
 };
 
 const DirectoryScreen: React.FC = () => {
@@ -99,7 +101,7 @@ const DirectoryScreen: React.FC = () => {
       <View style={styles.headerWrap}>
         <ScreenHeader
           title={DIRECTORY_TAB_LABEL[activeTab]}
-          subtitle="Customers, vendors, uc, and drivers — all in one place."
+          subtitle="Customers, vendors, drivers, and UC staff — all in one place."
           onBack={() => navigation.goBack()}
         />
       </View>
@@ -121,14 +123,14 @@ const DirectoryScreen: React.FC = () => {
           options={{ tabBarLabel: DIRECTORY_TAB_LABEL.vendors }}
         />
         <Tab.Screen
-          name="DirectoryStaff"
-          component={StaffTabScreen}
-          options={{ tabBarLabel: DIRECTORY_TAB_LABEL.staff }}
-        />
-        <Tab.Screen
           name="DirectoryDrivers"
           component={DriversTabScreen}
           options={{ tabBarLabel: DIRECTORY_TAB_LABEL.drivers }}
+        />
+        <Tab.Screen
+          name="DirectoryStaff"
+          component={StaffTabScreen}
+          options={{ tabBarLabel: DIRECTORY_TAB_LABEL.staff }}
         />
       </Tab.Navigator>
     </SafeScreen>

@@ -16,17 +16,66 @@
  *     when a screen places it straight into a flex column.
  *   - Counts are optional. When the parent hasn't computed them yet
  *     (still loading), the chip shows just the label — no "42" flicker.
- *   - Only the selected chip carries a tint; unselected chips are
- *     neutral outline. Follows the same pattern as CustomerFilterSheet.
+ *   - Every chip has its own colour (FilterChipPalette): the selected
+ *     chip is filled with its solid colour and white text; unselected
+ *     chips show their solid colour as text on a light tint.
+ *   - Colours come from the screen's own status colours so the chips
+ *     match the cards below them. Default palette = Trip History card
+ *     colours (used by Trip History and the UC Bookings tab); the UC
+ *     Trips tab passes UC_TRIP_CHIP_PALETTE to match its cards.
  *   - Chip height ≈ 32px so this row barely eats scroll space.
  * ------------------------------------------------------------------ */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Spacing, Typography } from '@theme';
 
-import { HISTORY_STATUS_LABEL, type HistoryStatusFilter } from '../types';
+import {
+  HISTORY_STATUS_LABEL,
+  TRIP_STATUS_TONE,
+  type HistoryStatusFilter,
+} from '../types';
+
+/* ---------------- Palette ---------------- */
+
+/** Colours for one chip. */
+export type FilterChipTone = {
+  /** Selected fill; also the text/badge colour when unselected. */
+  solid: string;
+  /** Unselected background and border. */
+  tint: string;
+};
+
+export type FilterChipPalette = Readonly<
+  Record<HistoryStatusFilter, FilterChipTone>
+>;
+
+/**
+ * Default palette: the Trip History card colours. Status `solid`s are
+ * read from TRIP_STATUS_TONE (the cards' source) so chips and cards
+ * can't drift apart. "All" has no card, so it uses the brand's royal
+ * purple — a fifth colour none of the statuses use.
+ */
+export const TRIP_HISTORY_CHIP_PALETTE: FilterChipPalette = Object.freeze({
+  all: { solid: Colors.royal, tint: Colors.royalTint },
+  upcoming: {
+    solid: TRIP_STATUS_TONE.upcoming.solid,
+    tint: Colors.completedTint,
+  },
+  ongoing: {
+    solid: TRIP_STATUS_TONE.in_progress.solid,
+    tint: Colors.accentTint,
+  },
+  completed: {
+    solid: TRIP_STATUS_TONE.completed.solid,
+    tint: Colors.primaryTint,
+  },
+  cancelled: {
+    solid: TRIP_STATUS_TONE.cancelled.solid,
+    tint: Colors.errorTint,
+  },
+});
 
 type Props = {
   value: HistoryStatusFilter;
@@ -37,6 +86,11 @@ type Props = {
    * — the parent may not have the counts on first render.
    */
   counts?: Partial<Record<HistoryStatusFilter, number>>;
+  /**
+   * Colour per chip. Pass the palette that matches the cards on the
+   * screen. Defaults to the Trip History colours.
+   */
+  palette?: FilterChipPalette;
 };
 
 /** Display order of the chips (left → right). */
@@ -52,6 +106,7 @@ export const HistoryFilterChips: React.FC<Props> = ({
   value,
   onChange,
   counts,
+  palette = TRIP_HISTORY_CHIP_PALETTE,
 }) => {
   return (
     <ScrollView
@@ -67,6 +122,7 @@ export const HistoryFilterChips: React.FC<Props> = ({
           status={status}
           selected={value === status}
           count={counts?.[status]}
+          tone={palette[status]}
           onPress={onChange}
         />
       ))}
@@ -77,15 +133,29 @@ export const HistoryFilterChips: React.FC<Props> = ({
 /* ---------------- Chip ---------------- */
 
 /* Individual chip is memo'd so scrolling / re-selecting one chip
- * doesn't re-render the other three. Cheap here but a habit worth
- * keeping since we'll reuse this pattern elsewhere. */
+ * doesn't re-render the others. `tone` comes from a frozen palette
+ * constant, so its reference is stable and doesn't break the memo. */
 const FilterChipImpl: React.FC<{
   status: HistoryStatusFilter;
   selected: boolean;
   count: number | undefined;
+  tone: FilterChipTone;
   onPress: (next: HistoryStatusFilter) => void;
-}> = ({ status, selected, count, onPress }) => {
+}> = ({ status, selected, count, tone, onPress }) => {
   const handlePress = useCallback(() => onPress(status), [status, onPress]);
+
+  // Selected: solid fill + white text. Unselected: tint fill + solid text.
+  const chipColors = useMemo(
+    () =>
+      selected
+        ? { backgroundColor: tone.solid, borderColor: tone.solid }
+        : { backgroundColor: tone.tint, borderColor: tone.tint },
+    [selected, tone],
+  );
+  const textColor = useMemo(
+    () => ({ color: selected ? Colors.textInverse : tone.solid }),
+    [selected, tone],
+  );
 
   return (
     <Pressable
@@ -97,17 +167,11 @@ const FilterChipImpl: React.FC<{
       }`}
       style={({ pressed }) => [
         styles.chip,
-        selected ? styles.chipSelected : styles.chipDefault,
+        chipColors,
         pressed && styles.chipPressed,
       ]}
     >
-      <Text
-        style={[
-          styles.label,
-          selected ? styles.labelSelected : styles.labelDefault,
-        ]}
-        numberOfLines={1}
-      >
+      <Text style={[styles.label, textColor]} numberOfLines={1}>
         {HISTORY_STATUS_LABEL[status]}
       </Text>
       {typeof count === 'number' ? (
@@ -117,14 +181,7 @@ const FilterChipImpl: React.FC<{
             selected ? styles.badgeSelected : styles.badgeDefault,
           ]}
         >
-          <Text
-            style={[
-              styles.badgeText,
-              selected ? styles.badgeTextSelected : styles.badgeTextDefault,
-            ]}
-          >
-            {count}
-          </Text>
+          <Text style={[styles.badgeText, textColor]}>{count}</Text>
         </View>
       ) : null}
     </Pressable>
@@ -159,14 +216,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  chipDefault: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-  },
-  chipSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
   chipPressed: {
     opacity: 0.75,
   },
@@ -174,12 +223,6 @@ const styles = StyleSheet.create({
   label: {
     ...Typography.bodySmall,
     fontWeight: '600',
-  },
-  labelDefault: {
-    color: Colors.textPrimary,
-  },
-  labelSelected: {
-    color: Colors.textInverse,
   },
 
   /* Small pill inside the chip carrying the count. */
@@ -192,7 +235,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeDefault: {
-    backgroundColor: Colors.backgroundTertiary,
+    backgroundColor: Colors.surface,
   },
   badgeSelected: {
     backgroundColor: 'rgba(255,255,255,0.25)',
@@ -201,11 +244,5 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontSize: 11,
     fontWeight: '700',
-  },
-  badgeTextDefault: {
-    color: Colors.textSecondary,
-  },
-  badgeTextSelected: {
-    color: Colors.textInverse,
   },
 });

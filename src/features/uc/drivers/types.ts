@@ -36,6 +36,14 @@ export type Driver = {
   vendorId: string;
   /** Denormalised — server sends the joined name for rendering. */
   vendorName: string;
+  /**
+   * Denormalised, like vendorName: locality of the vendor's garage in
+   * this driver's city (the first matching garage in vendor.garages).
+   * The server joins it so the app needn't load every vendor to draw a
+   * card. Missing when the vendor has no garage in the driver's city;
+   * the card then shows the city alone.
+   */
+  garageLocality?: string;
   /** License number (partial redaction later — full for UC role). */
   licenseNo: string;
   verification: DriverVerification;
