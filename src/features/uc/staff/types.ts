@@ -32,6 +32,15 @@ export type Staff = {
    * Free text from the server; optional — the contact sheet hides the
    * row when it is not set. */
   subDepartment?: string;
+  /**
+   * The staff member's reporting manager — another UC staff member.
+   * Optional: missing for people with no manager (e.g. department heads);
+   * the contact sheet then hides the row.
+   */
+  reportingManagerId?: string;
+  /** Denormalised, like Driver.vendorName: the manager's name, joined by
+   *  the server so the sheet needn't load all staff. Shown when set. */
+  reportingManagerName?: string;
   /** Work phone. */
   phone: string;
   /** Personal / alternate phone. Optional. */

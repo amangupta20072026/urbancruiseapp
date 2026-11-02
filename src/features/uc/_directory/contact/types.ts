@@ -47,7 +47,8 @@ export type ContactFieldKind =
   | 'license'
   | 'date'
   | 'department'
-  | 'subDepartment';
+  | 'subDepartment'
+  | 'manager';
 
 export type ContactField = {
   /** Stable React key, unique within one profile. */

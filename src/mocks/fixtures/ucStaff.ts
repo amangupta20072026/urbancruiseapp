@@ -85,7 +85,7 @@ const SUB_DEPARTMENTS: Record<string, string> = {
   SEO: 'Content',
 };
 
-export const fixtureUcStaffAll: Staff[] = NAMES.map((name, i) => ({
+const baseStaff: Staff[] = NAMES.map((name, i) => ({
   id: `s_${i + 1}`,
   name,
   department: DEPARTMENTS[i % DEPARTMENTS.length],
@@ -101,3 +101,18 @@ export const fixtureUcStaffAll: Staff[] = NAMES.map((name, i) => ({
   active: i % 9 !== 0, // roughly ~1 inactive per 9
   joinedAt: daysAgo(i * 11 + 20),
 }));
+
+/**
+ * Reporting managers (mock): the first person in each department is its
+ * head and has no manager (exercises the hidden row); everyone else in
+ * that department reports to the head.
+ */
+export const fixtureUcStaffAll: Staff[] = baseStaff.map((s, i) => {
+  if (i < DEPARTMENTS.length) return s;
+  const head = baseStaff[i % DEPARTMENTS.length];
+  return {
+    ...s,
+    reportingManagerId: head.id,
+    reportingManagerName: head.name,
+  };
+});

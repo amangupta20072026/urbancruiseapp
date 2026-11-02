@@ -70,6 +70,7 @@ import {
   Network,
   Phone,
   User,
+  UserCheck,
   UsersRound,
   Warehouse,
   type LucideIcon,
@@ -132,6 +133,7 @@ const FIELD_STYLE: Record<
   // Neutral defaults; staff rows pass their department colour instead.
   department: { Icon: UsersRound, bg: '#F1F3F5', fg: Colors.textSecondary },
   subDepartment: { Icon: Network, bg: '#F1F3F5', fg: Colors.textSecondary },
+  manager: { Icon: UserCheck, bg: '#EEF2FF', fg: '#4F46E5' },
 };
 
 const META_ICON: Record<ContactMetaIcon, LucideIcon> = {

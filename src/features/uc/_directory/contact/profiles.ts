@@ -404,6 +404,14 @@ function staffProfile(s: Staff): ListContactProfile {
         value: s.subDepartment,
         colors: deptColors,
       }),
+      // After the department rows. Name only; hidden when the person
+      // has no manager (e.g. a department head).
+      ...optionalField({
+        key: 'reportingManager',
+        kind: 'manager',
+        label: 'Reporting Manager',
+        value: s.reportingManagerName,
+      }),
       requiredField({
         key: 'phone',
         kind: 'phone',
