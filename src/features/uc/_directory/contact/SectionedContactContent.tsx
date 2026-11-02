@@ -35,6 +35,7 @@ import {
   Phone,
   ShieldCheck,
   Store,
+  Warehouse,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -85,6 +86,8 @@ const ROW_STYLE: Record<
   phone: { Icon: Phone, bg: Colors.primaryTint, fg: Colors.success },
   email: { Icon: Mail, bg: '#FFF1E0', fg: '#FB8C00' },
   city: { Icon: MapPin, bg: '#EDF2FF', fg: '#3B82F6' },
+  // Warehouse icon, as on the directory cards; same blue as City.
+  garage: { Icon: Warehouse, bg: '#EDF2FF', fg: '#3B82F6' },
   address: { Icon: MapIcon, bg: '#EDF2FF', fg: '#3B82F6' },
   verification: {
     Icon: ShieldCheck,

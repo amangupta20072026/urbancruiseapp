@@ -41,6 +41,7 @@ export type ContactFieldKind =
   | 'phone'
   | 'email'
   | 'location'
+  | 'garage'
   | 'taxId'
   | 'trips'
   | 'license'
@@ -94,6 +95,7 @@ export type ContactRowKind =
   | 'phone'
   | 'email'
   | 'city'
+  | 'garage'
   | 'address'
   | 'verification';
 

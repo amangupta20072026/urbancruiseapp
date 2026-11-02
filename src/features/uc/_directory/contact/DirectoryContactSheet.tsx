@@ -71,6 +71,7 @@ import {
   Phone,
   User,
   UsersRound,
+  Warehouse,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -122,6 +123,8 @@ const FIELD_STYLE: Record<
   phone: { Icon: Phone, bg: '#E7F7EC', fg: Colors.primary },
   email: { Icon: Mail, bg: '#FFF1E0', fg: '#FB8C00' },
   location: { Icon: MapPin, bg: '#EDF2FF', fg: '#3B82F6' },
+  // Warehouse icon, as on the directory cards; same blue as City.
+  garage: { Icon: Warehouse, bg: '#EDF2FF', fg: '#3B82F6' },
   taxId: { Icon: BadgeCheck, bg: '#F1F3F5', fg: Colors.textSecondary },
   trips: { Icon: Briefcase, bg: '#E7F7EC', fg: Colors.success },
   license: { Icon: CreditCard, bg: '#EEF2FF', fg: '#4F46E5' },

@@ -214,7 +214,9 @@ function customerProfile(c: Customer): ListContactProfile {
       {
         key: 'trips',
         kind: 'trips',
-        label: 'Total Trips',
+        // The value is the customer's bookings (totalBookings), same as
+        // the "Bookings" count on the customer card.
+        label: 'Total Bookings',
         value: String(c.totalBookings),
         emphasis: true,
       },
@@ -322,14 +324,22 @@ function vendorProfile(v: Vendor): SectionedContactProfile {
             label: 'City',
             value: v.city,
           }),
-          // Area within the city (e.g. 'Andheri East'). Same map-pin icon
-          // as City; hidden when the vendor has no locality.
-          ...optionalRow({
-            key: 'locality',
-            kind: 'city',
-            label: 'Locality',
-            value: v.locality,
-          }),
+          // One row per garage, as '<area>, <city>', in the order the
+          // server sends them (main garage of each city first). Garages
+          // with a blank area are skipped; no garages → no rows.
+          ...(v.garages ?? []).flatMap((g, i) =>
+            optionalRow({
+              // Index keeps keys unique even if two garages share a name.
+              key: `garage-${i}`,
+              kind: 'garage',
+              label: 'Garage Address',
+              value: present(g.locality)
+                ? [present(g.locality), present(g.city)]
+                    .filter(Boolean)
+                    .join(', ')
+                : null,
+            }),
+          ),
           ...optionalRow({
             key: 'address',
             kind: 'address',
@@ -469,6 +479,18 @@ function driverProfile(d: Driver): ListContactProfile {
         kind: 'location',
         label: 'City',
         value: d.city,
+      }),
+      // Vendor's garage in the driver's city, as '<area>, <city>' (same
+      // as the driver card). Hidden when there is no garage there.
+      ...optionalField({
+        key: 'garage',
+        kind: 'garage',
+        label: 'Garage Address',
+        value: present(d.garageLocality)
+          ? [present(d.garageLocality), present(d.city)]
+              .filter(Boolean)
+              .join(', ')
+          : null,
       }),
       requiredField({
         key: 'vendor',
