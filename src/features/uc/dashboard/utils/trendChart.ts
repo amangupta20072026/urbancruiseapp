@@ -8,6 +8,7 @@
  * ------------------------------------------------------------------
  */
 
+import type { Money } from '@app-types/currency';
 import type { TrendPoint } from '../types';
 
 /** `top` leaves room for the latest-day bubble above the highest
@@ -51,7 +52,24 @@ export function niceAxis(max: number): { max: number; step: number } {
   return { max: Math.ceil(max / step) * step, step };
 }
 
-export type ChartPoint = { x: number; y: number; count: number; date: string };
+/**
+ * The y axis the chart draws: niceAxis plus ONE extra step on top, so
+ * the latest-day bubble has room above the line instead of sitting on
+ * it (e.g. 52 → 0, 20, 40, 60, 80). The step still grows with the data.
+ */
+export function chartAxis(max: number): { max: number; step: number } {
+  const axis = niceAxis(max);
+  return { max: axis.max + axis.step, step: axis.step };
+}
+
+export type ChartPoint = {
+  x: number;
+  y: number;
+  count: number;
+  date: string;
+  /** Passed through from TrendPoint for the bubble. */
+  margin: Money | null;
+};
 
 export type ChartGeometry = {
   points: ChartPoint[];
@@ -77,7 +95,7 @@ export function buildChart(
   const { left, right, top, bottom } = CHART_PADDING;
   const innerW = Math.max(1, width - left - right);
   const innerH = Math.max(1, height - top - bottom);
-  const axis = niceAxis(Math.max(...data.map(p => p.count)));
+  const axis = chartAxis(Math.max(...data.map(p => p.count)));
 
   const xAt = (i: number) =>
     data.length === 1 ? left + innerW : left + (innerW * i) / (data.length - 1);
@@ -89,6 +107,7 @@ export function buildChart(
     y: yAt(p.count),
     count: p.count,
     date: p.date,
+    margin: p.margin ?? null,
   }));
 
   const line = points

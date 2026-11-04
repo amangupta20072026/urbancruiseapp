@@ -7,8 +7,9 @@
  * ------------------------------------------------------------------
  */
 
-import type { ISODateTime } from '@app-types/datetime';
 import type { BookingStatus } from '@shared/bookings';
+import type { UcTripListItem } from '@features/uc/trips/types';
+import type { Money } from '@app-types/currency';
 
 export type { BookingStatus };
 
@@ -41,24 +42,19 @@ export type StatMetric = {
   compareLabel: string;
 };
 
-export type RecentBooking = {
-  /** Booking number, e.g. "UC12345" (shown as "#UC12345"). */
-  id: string;
-  customerName: string;
-  /** Pickup date and time. */
-  pickupAt: ISODateTime;
-  pickup: string;
-  drop: string;
-  /** Already formatted, e.g. "₹1,250". */
-  fare: string;
-  status: BookingStatus;
-};
-
 export type DashboardData = {
   greeting: { name: string };
   stats: StatMetric[];
-  recentBookings: RecentBooking[];
+  /**
+   * The next upcoming trips (status 'upcoming'), SOONEST FIRST
+   * (scheduledAt ascending), at most DASHBOARD_UPCOMING_TRIPS_LIMIT.
+   * Same row shape as GET /uc/trips, so the Trips tab helpers apply.
+   */
+  upcomingTrips: UcTripListItem[];
 };
+
+/** How many upcoming trips the dashboard shows. */
+export const DASHBOARD_UPCOMING_TRIPS_LIMIT = 3;
 
 /* ------------------------------------------------------------------ */
 /* Bookings trend                                                     */
@@ -83,6 +79,13 @@ export type TrendPoint = {
   date: string;
   /** Bookings made that day. */
   count: number;
+  /**
+   * Urban Cruise's margin on that day's bookings, in PAISE (Money):
+   * what customers pay (without GST) minus what is paid to vendors.
+   * Can be negative. Optional / null while the backend can't compute it
+   * (vendor cost not available yet) — the chart then shows bookings only.
+   */
+  margin?: Money | null;
 };
 
 export type BookingTrend = {

@@ -570,3 +570,31 @@ if (!process.env.VERBOSE_WARNINGS) {
     originalError(msg, ...rest);
   };
 }
+
+/* -----------------------------------------------------------------
+ * @sbaiahmed1/react-native-biometrics — UC MPIN / fingerprint keys.
+ * Defaults: no sensor, no keys. Tests override per case.
+ * ----------------------------------------------------------------- */
+jest.mock('@sbaiahmed1/react-native-biometrics', () => ({
+  BiometricStrength: { Strong: 'strong', Weak: 'weak' },
+  SignatureAlgorithm: {
+    SHA256withRSA: 'SHA256withRSA',
+    SHA512withRSA: 'SHA512withRSA',
+    SHA256withECDSA: 'SHA256withECDSA',
+    SHA512withECDSA: 'SHA512withECDSA',
+  },
+  isSensorAvailable: jest.fn(async () => ({
+    available: false,
+    isDeviceSecure: true,
+  })),
+  createKeysWithOptions: jest.fn(async () => ({
+    publicKey: 'cHVibGljLWtleQ==',
+  })),
+  keyExists: jest.fn(async () => false),
+  deleteKeys: jest.fn(async () => ({ success: true })),
+  sign: jest.fn(async () => ({ success: true, signature: 'c2lnbmF0dXJl' })),
+  signWithOptions: jest.fn(async () => ({
+    success: true,
+    signature: 'c2lnbmF0dXJl',
+  })),
+}));

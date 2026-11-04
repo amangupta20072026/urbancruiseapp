@@ -4,6 +4,8 @@
  * ------------------------------------------------------------------
  */
 
+import type { Money } from '@app-types/currency';
+
 /** The date card's lines, e.g. { day: '11', monthYear: 'Aug 2025',
  *  weekdayShort: 'Mon', weekday: 'Monday' }. The card shows the short
  *  weekday (to stay compact); screen readers get the full one. */
@@ -22,23 +24,6 @@ export function dateCardParts(now: Date): {
     weekdayShort: now.toLocaleDateString('en-GB', { weekday: 'short' }),
     weekday: now.toLocaleDateString('en-GB', { weekday: 'long' }),
   };
-}
-
-/** '01 Aug 2025 • 10:30 AM'. Invalid input gives '—'. */
-export function formatBookingDateTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  const date = d.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-  const time = d.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-  return `${date} • ${time}`;
 }
 
 /** Parses a local 'YYYY-MM-DD' day without the UTC shift that
@@ -65,6 +50,21 @@ export function trendDayLabel(day: string): string {
 }
 
 /** '1 Booking' / '52 Bookings'. */
+/**
+ * Margin for the trend bubble, in whole rupees with Indian grouping:
+ * 3600000 paise → '₹36,000', 12345678 → '₹1,23,457' (rounded to the
+ * nearest rupee — the bubble has no room for paise). A loss shows as
+ * '−₹1,200'. Not a finite number → '—'.
+ */
+export function formatMarginRupees(m: Money): string {
+  if (!Number.isFinite(m.amount)) return '—';
+  const rupees = Math.round(Math.abs(m.amount) / 100);
+  const text = `₹${rupees.toLocaleString('en-IN', {
+    maximumFractionDigits: 0,
+  })}`;
+  return m.amount < 0 && rupees !== 0 ? `−${text}` : text;
+}
+
 export function bookingsLabel(n: number): string {
   return `${n} ${n === 1 ? 'Booking' : 'Bookings'}`;
 }

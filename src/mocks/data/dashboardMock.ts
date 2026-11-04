@@ -3,7 +3,7 @@
  * endpoints ship. When the backend goes live, this file is deleted.
  */
 
-import { asISODateTime } from '@app-types/datetime';
+import { rupeesToMoney } from '@app-types/currency';
 import { toLocalDay } from '@features/uc/dashboard/utils/format';
 import type {
   BookingTrend,
@@ -11,7 +11,8 @@ import type {
   TrendRange,
 } from '@features/uc/dashboard/types';
 
-export const dashboardMock: DashboardData = {
+/** Upcoming trips come from the shared trip fixture (useDashboard). */
+export const dashboardMock: Omit<DashboardData, 'upcomingTrips'> = {
   greeting: { name: 'Admin' },
   stats: [
     {
@@ -47,53 +48,6 @@ export const dashboardMock: DashboardData = {
       compareLabel: 'vs yesterday',
     },
   ],
-  recentBookings: [
-    {
-      id: 'UC12345',
-      customerName: 'Rahul Sharma',
-      pickupAt: asISODateTime('2025-08-01T10:30:00+05:30'),
-      pickup: 'Connaught Place',
-      drop: 'Gurugram',
-      fare: '₹1,250',
-      status: 'upcoming',
-    },
-    {
-      id: 'UC12346',
-      customerName: 'Priya Mehta',
-      pickupAt: asISODateTime('2025-07-31T09:15:00+05:30'),
-      pickup: 'Indira Gandhi Airport',
-      drop: 'Noida',
-      fare: '₹980',
-      status: 'ongoing',
-    },
-    {
-      id: 'UC12347',
-      customerName: 'Amit Kumar',
-      pickupAt: asISODateTime('2025-07-30T08:40:00+05:30'),
-      pickup: 'Mumbai',
-      drop: 'Pune',
-      fare: '₹3,500',
-      status: 'completed',
-    },
-    {
-      id: 'UC12348',
-      customerName: 'Sneha Patil',
-      pickupAt: asISODateTime('2025-07-29T07:20:00+05:30'),
-      pickup: 'Bangalore',
-      drop: 'Mysuru',
-      fare: '₹2,800',
-      status: 'cancelled',
-    },
-    {
-      id: 'UC12349',
-      customerName: 'Vikram Tiwari',
-      pickupAt: asISODateTime('2025-07-28T06:10:00+05:30'),
-      pickup: 'Delhi',
-      drop: 'Jaipur',
-      fare: '₹1,750',
-      status: 'upcoming',
-    },
-  ],
 };
 
 /** Counts for the last 7 days, oldest first (from the design). */
@@ -119,7 +73,15 @@ export function bookingTrendMock(
       daysAgo < LAST_7.length
         ? LAST_7[LAST_7.length - 1 - daysAgo]
         : 12 + ((daysAgo * 37) % 31);
-    return { date: toLocalDay(date), count };
+    // MOCK margin: count × a per-booking margin of ₹600–₹780 that
+    // varies by day. Sample values only — the real figure comes from
+    // the backend (customer price without GST − vendor cost).
+    const perBookingRupees = 600 + ((daysAgo * 53) % 181);
+    return {
+      date: toLocalDay(date),
+      count,
+      margin: rupeesToMoney(count * perBookingRupees),
+    };
   });
   return { range, points };
 }

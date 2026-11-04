@@ -8,18 +8,19 @@
  *   GreetingBlock        "Good morning, Admin 👋" + today's date card
  *   Stats (2×2)          Trips · Customers · Bookings · Quotations
  *   BookingsTrendChart   daily bookings, Last 7 / 15 / 30 / 90 days
- *   RecentBookings       latest bookings with status pills
+ *   UpcomingTrips        next 3 upcoming trips, soonest first
  *
  * WHERE TAPS GO:
  *   Total Trips        → Trips tab
  *   Total Customers    → Directory (opens on Customers)
  *   Total Bookings     → Bookings tab
  *   Total Quotations   → Quotations tab
- *   View All           → Bookings tab
- *   A booking row      → "Coming soon" toast until the UC booking
- *                        details screen exists (see openBooking)
+ *   View All           → Trips tab, Upcoming chip selected
+ *   A trip card        → same as "View details" on the Trips tab:
+ *                        "Coming soon" toast until the UC trip
+ *                        details screen exists (see openTrip)
  *
- * DATA: stats + recent bookings (useDashboard) and the trend
+ * DATA: stats + upcoming trips (useDashboard) and the trend
  * (useBookingTrend, cached per range) load separately, so changing
  * the range only reloads the chart. Pull to refresh reloads both.
  * ------------------------------------------------------------------
@@ -52,17 +53,19 @@ import type { UcStackParamList, UcTabParamList } from '@navigation/types';
 
 import { BookingsTrendChart } from '../components/BookingsTrendChart';
 import { GreetingBlock } from '../components/GreetingBlock';
-import { RecentBookings } from '../components/RecentBookings';
+import { UpcomingTrips } from '../components/UpcomingTrips';
 import { StatCard } from '../components/StatCard';
 import { useBookingTrend } from '../hooks/useBookingTrend';
 import { useDashboard } from '../hooks/useDashboard';
 import {
+  DASHBOARD_UPCOMING_TRIPS_LIMIT,
   DEFAULT_TREND_RANGE,
   isStatKey,
   type StatKey,
   type StatMetric,
   type TrendRange,
 } from '../types';
+import type { UcTripListItem } from '@features/uc/trips/types';
 
 type Nav = NativeStackNavigationProp<UcStackParamList>;
 
@@ -144,14 +147,21 @@ const UcDashboardScreen: React.FC = () => {
     [navigation, openTab],
   );
 
-  const openBookings = useCallback(() => openTab('Bookings'), [openTab]);
+  const openUpcomingTrips = useCallback(
+    () =>
+      navigation.navigate('UcTabs', {
+        screen: 'Trips',
+        params: { status: 'upcoming' },
+      }),
+    [navigation],
+  );
 
-  /* TODO(nav): when the UC booking details screen lands, register it
-   * in UcNavigator and replace this toast with
-   *   navigation.navigate('<BookingDetailRoute>', { bookingId })
-   * — this callback is the ONE place to change. */
-  const openBooking = useCallback((_bookingId: string) => {
-    notifyComingSoon('uc.bookingDetail');
+  /* TODO(nav): when the UC trip details screen lands, register it in
+   * UcNavigator and replace this toast with
+   *   navigation.navigate('<TripDetailRoute>', { tripId: trip.id })
+   * — same change as openTripDetails in TripsScreen. */
+  const openTrip = useCallback((_trip: UcTripListItem) => {
+    notifyComingSoon('uc.tripDetail');
   }, []);
 
   /* -------- Refresh -------- */
@@ -256,10 +266,18 @@ const UcDashboardScreen: React.FC = () => {
           onRetry={() => trend.refetch()}
         />
 
-        <RecentBookings
-          items={data.recentBookings}
-          onViewAll={openBookings}
-          onPressBooking={openBooking}
+        <UpcomingTrips
+          // Data saved on the phone by an older app version may have no
+          // `upcomingTrips` (it had `recentBookings`) or more than the
+          // limit: show at most DASHBOARD_UPCOMING_TRIPS_LIMIT, and none
+          // instead of crashing until the refetch replaces it.
+          items={
+            Array.isArray(data.upcomingTrips)
+              ? data.upcomingTrips.slice(0, DASHBOARD_UPCOMING_TRIPS_LIMIT)
+              : []
+          }
+          onViewAll={openUpcomingTrips}
+          onPressTrip={openTrip}
         />
       </ScrollView>
     </SafeScreen>

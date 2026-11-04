@@ -53,6 +53,13 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import {
+  useNavigation,
+  useRoute,
+  type NavigationProp,
+  type RouteProp,
+} from '@react-navigation/native';
+import type { UcTabParamList } from '@navigation/types';
 import { Search, X } from 'lucide-react-native';
 
 import { EmptyState, ErrorView, SafeScreen } from '@shared/components';
@@ -109,7 +116,23 @@ const TripsScreen: React.FC = () => {
   const layout: UcTripCardLayout =
     width >= WIDE_CARD_MIN_WINDOW_WIDTH ? 'wide' : 'compact';
 
-  const [status, setStatus] = useState<UcTripStatusFilter>('all');
+  const route = useRoute<RouteProp<UcTabParamList, 'Trips'>>();
+  const navigation = useNavigation<NavigationProp<UcTabParamList, 'Trips'>>();
+  const requestedStatus = route.params?.status;
+
+  const [status, setStatus] = useState<UcTripStatusFilter>(
+    requestedStatus ?? 'all',
+  );
+
+  /* A screen that opens this tab with a status (dashboard › Upcoming
+   * Trips › View All) selects that chip. The param is cleared right
+   * away so the same request works again next time, and so it never
+   * overrides a chip the user picks afterwards. */
+  useEffect(() => {
+    if (!requestedStatus) return;
+    setStatus(requestedStatus);
+    navigation.setParams({ status: undefined });
+  }, [requestedStatus, navigation]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);

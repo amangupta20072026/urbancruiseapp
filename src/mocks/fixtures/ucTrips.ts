@@ -101,3 +101,28 @@ export function getFixtureUcTrips(): readonly UcTripListItem[] {
   cache = rows;
   return cache;
 }
+
+/**
+ * The next `limit` upcoming trips, SOONEST FIRST — what the UC
+ * dashboard's "Upcoming Trips" shows. Trips whose time has already
+ * passed are skipped. The real backend must apply the same rule in
+ * GET /uc/dashboard (status 'upcoming', scheduledAt ASC, limit).
+ */
+export function getFixtureUpcomingTrips(
+  limit: number,
+  now: Date = new Date(),
+): UcTripListItem[] {
+  const nowMs = now.getTime();
+  return getFixtureUcTrips()
+    .filter(
+      t =>
+        t.status === 'upcoming' && new Date(t.scheduledAt).getTime() >= nowMs,
+    )
+    .sort((a, b) => {
+      const byTime =
+        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+      if (byTime !== 0) return byTime;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    })
+    .slice(0, limit);
+}

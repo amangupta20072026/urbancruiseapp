@@ -4,7 +4,8 @@
  * ------------------------------------------------------------------
  *   Bookings Trend                        [Last 7 Days ⌄]
  *   Total bookings for the last 7 days
- *   60 ┤                                   (52 Bookings)
+ *   60 ┤                              ┌ 52 Bookings ──┐
+ *      │                              └ Margin ₹36,000┘
  *   40 ┤        •                     •  •
  *   20 ┤   •          •         •
  *    0 ┼──────────────────────────────────────
@@ -14,6 +15,10 @@
  * so labels keep their real size on every screen. Up to 15 days every
  * point gets a dot; beyond that only the latest day does, and the
  * date labels are thinned to at most 7.
+ *
+ * Bubble (latest day): the booking count, plus that day's margin when
+ * the backend sends one (`TrendPoint.margin`, paise). No margin → the
+ * bubble shows the count only, at the original size.
  * ------------------------------------------------------------------
  */
 
@@ -39,13 +44,20 @@ import Svg, {
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 
 import type { BookingTrend, TrendRange } from '../types';
-import { bookingsLabel, trendDayLabel } from '../utils/format';
+import {
+  bookingsLabel,
+  formatMarginRupees,
+  trendDayLabel,
+} from '../utils/format';
 import { buildChart } from '../utils/trendChart';
 import { TrendRangeMenu } from './TrendRangeMenu';
 
 const CHART_H = 220;
 const BUBBLE_W = 84;
 const BUBBLE_H = 40;
+/** Bubble with the margin line: room for e.g. 'Margin ₹12,34,567'. */
+const BUBBLE_MARGIN_W = 140;
+const BUBBLE_MARGIN_H = 52;
 const LINE = Colors.success;
 
 type Props = {
@@ -74,10 +86,13 @@ export const BookingsTrendChart: React.FC<Props> = ({
   );
 
   const last = chart?.points[chart.points.length - 1];
+  const lastMargin = last?.margin ? formatMarginRupees(last.margin) : null;
+  const bubbleW = lastMargin ? BUBBLE_MARGIN_W : BUBBLE_W;
+  const bubbleH = lastMargin ? BUBBLE_MARGIN_H : BUBBLE_H;
   const bubbleLeft = last
-    ? Math.min(Math.max(last.x - BUBBLE_W / 2, 0), width - BUBBLE_W)
+    ? Math.min(Math.max(last.x - bubbleW / 2, 0), width - bubbleW)
     : 0;
-  const bubbleTop = last ? Math.max(last.y - BUBBLE_H - 10, 0) : 0;
+  const bubbleTop = last ? Math.max(last.y - bubbleH - 10, 0) : 0;
 
   const summary = useMemo(() => {
     if (!trend || trend.points.length === 0) return undefined;
@@ -87,7 +102,9 @@ export const BookingsTrendChart: React.FC<Props> = ({
       ...counts,
     )} to ${Math.max(...counts)}. Latest, ${trendDayLabel(
       latest.date,
-    )}: ${bookingsLabel(latest.count)}.`;
+    )}: ${bookingsLabel(latest.count)}${
+      latest.margin ? `, margin ${formatMarginRupees(latest.margin)}` : ''
+    }.`;
   }, [trend, range]);
 
   return (
@@ -218,14 +235,40 @@ export const BookingsTrendChart: React.FC<Props> = ({
 
             {last ? (
               <View
-                style={[styles.bubble, { left: bubbleLeft, top: bubbleTop }]}
+                style={[
+                  styles.bubble,
+                  {
+                    left: bubbleLeft,
+                    top: bubbleTop,
+                    width: bubbleW,
+                    height: bubbleH,
+                  },
+                ]}
                 importantForAccessibility="no-hide-descendants"
                 accessibilityElementsHidden
               >
-                <Text style={styles.bubbleCount}>{last.count}</Text>
-                <Text style={styles.bubbleLabel}>
-                  {last.count === 1 ? 'Booking' : 'Bookings'}
-                </Text>
+                {lastMargin ? (
+                  <>
+                    <Text style={styles.bubbleCount} numberOfLines={1}>
+                      {bookingsLabel(last.count)}
+                    </Text>
+                    <Text
+                      style={styles.bubbleLabel}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                    >
+                      Margin {lastMargin}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.bubbleCount}>{last.count}</Text>
+                    <Text style={styles.bubbleLabel}>
+                      {last.count === 1 ? 'Booking' : 'Bookings'}
+                    </Text>
+                  </>
+                )}
               </View>
             ) : null}
           </>
@@ -276,8 +319,7 @@ const styles = StyleSheet.create({
   /* White on primaryDark: 5.1:1 contrast. */
   bubble: {
     position: 'absolute',
-    width: BUBBLE_W,
-    height: BUBBLE_H,
+    paddingHorizontal: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.sm,

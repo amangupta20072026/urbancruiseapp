@@ -4,6 +4,7 @@ import type { BookingId, QuotationId } from '@app-types/ids';
 import type { UserRole } from '@rbac/roles';
 import type { SharedScreensFor } from '@rbac/screenAccess';
 import type { VehicleTierKey } from '@features/customer/quotations/vehicleTierOptions';
+import type { UcTripStatusFilter } from '@features/uc/trips/types';
 // Value import (not `import type`) — the tab param list types below use
 // `[MORE_ROUTE_NAME]` as a computed key so that renaming the constant
 // is a single-point-of-truth change caught by TypeScript everywhere.
@@ -239,7 +240,11 @@ export type UcTabParamList = {
   Dashboard: undefined;
   Quotations: undefined;
   Bookings: undefined;
-  Trips: undefined;
+  /**
+   * `status` opens the tab on that chip (e.g. the dashboard's
+   * Upcoming Trips › View All). Applied once, then cleared.
+   */
+  Trips: { status?: UcTripStatusFilter } | undefined;
   [MORE_ROUTE_NAME]: undefined;
 };
 
