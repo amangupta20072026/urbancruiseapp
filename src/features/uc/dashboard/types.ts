@@ -82,7 +82,15 @@ export type OutstandingCollection = {
 };
 
 export type DashboardData = {
-  greeting: { name: string };
+  greeting: {
+    name: string;
+    /**
+     * The devotional greeting TEXT to show (one at a time), set on the
+     * backend, e.g. "Jai Shree Ram". Changeable without an app update.
+     * Missing / blank → "Jai Mata Di" (utils/salutation.ts).
+     */
+    salutation?: string | null;
+  };
   /**
    * Optional: missing (older saved data, or backend not ready) hides
    * the card instead of showing wrong numbers.

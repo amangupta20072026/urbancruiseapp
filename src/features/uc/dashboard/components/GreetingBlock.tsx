@@ -1,17 +1,19 @@
 /**
  * ------------------------------------------------------------------
- * GreetingBlock — "Good morning, Admin 👋" + today's date card
+ * GreetingBlock — "Jai Mata Di, Admin 👋" + today's date card
  * ------------------------------------------------------------------
- *   Good morning, Admin 👋            ┌──────────────┐
+ *   Jai Mata Di, Admin 👋             ┌──────────────┐
  *   Here's what's happening with      │ (📅) 11      │
  *   your business today.              │      Aug 2025│
  *                                     │      Mon     │
  *                                     └──────────────┘
  *
- * Greeting and date come from the device clock (`now`), so they are
- * always today's, in the user's time zone. The greeting text comes
- * from the shared getGreeting (features/shared/utils), the same as
- * Customer home. The date card is display only — not a button.
+ * UC ONLY: the greeting is the devotional salutation TEXT sent by the
+ * backend (utils/salutation.ts) — not "Good morning / evening".
+ * Customer home has its own GreetingBlock and keeps the time-based
+ * greeting. The date comes from the device clock (`now`), so it is
+ * always today's, in the user's time zone. The date card is display
+ * only — not a button.
  *
  * The greeting stays on ONE line: the date card is kept compact,
  * and if the greeting still doesn't fit (a longer greeting or name)
@@ -25,18 +27,20 @@ import { StyleSheet, Text, View } from 'react-native';
 import { CalendarCheck } from 'lucide-react-native';
 
 import { Colors, Radius, Spacing, Typography } from '@theme';
-import { getGreeting } from '@shared/utils';
 
 import { dateCardParts } from '../utils/format';
+import { ucGreetingLine } from '../utils/salutation';
 
 type Props = {
   name: string;
+  /** Text sent by the backend, e.g. 'Jai Shree Ram'. Blank → default. */
+  salutation?: string | null;
   now: Date;
 };
 
-export const GreetingBlock: React.FC<Props> = ({ name, now }) => {
+export const GreetingBlock: React.FC<Props> = ({ name, salutation, now }) => {
   const { day, monthYear, weekdayShort, weekday } = dateCardParts(now);
-  const greeting = `${getGreeting(now)}, ${name}`;
+  const greeting = ucGreetingLine(salutation, name);
 
   return (
     <View style={styles.row}>

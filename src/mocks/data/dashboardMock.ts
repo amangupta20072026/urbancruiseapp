@@ -13,7 +13,9 @@ import type {
 
 /** Upcoming trips come from the shared trip fixture (useDashboard). */
 export const dashboardMock: Omit<DashboardData, 'upcomingTrips'> = {
-  greeting: { name: 'Admin' },
+  // MOCK — the backend sends the salutation TEXT (changeable without an
+  // app update; see features/uc/dashboard/utils/salutation.ts).
+  greeting: { name: 'Admin', salutation: 'Jai Mata Di' },
   // MOCK — sample numbers for the design. The real counts come from
   // GET /uc/dashboard (converted = assigned lead has called the customer).
   conversion: {

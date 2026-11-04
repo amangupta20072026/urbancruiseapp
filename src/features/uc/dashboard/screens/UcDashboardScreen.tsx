@@ -5,7 +5,8 @@
  * LAYOUT (top → bottom):
  *   AppHeader            logo · notifications · profile (shared by
  *                        every role; opens NotificationCentre/Profile)
- *   GreetingBlock        "Good morning, Admin 👋" + today's date card
+ *   GreetingBlock        "Jai Mata Di, Admin 👋" (salutation text sent
+ *                        by the backend) + today's date card
  *   ConversionCard       Quotations vs Converted (full width)
  *   Stats (2×3)          Quotations · Bookings · Margin · Trips ·
  *                        Outstanding · Customers (STAT_KEYS order)
@@ -270,7 +271,11 @@ const UcDashboardScreen: React.FC = () => {
           />
         }
       >
-        <GreetingBlock name={data.greeting.name} now={now} />
+        <GreetingBlock
+          name={data.greeting.name}
+          salutation={data.greeting.salutation}
+          now={now}
+        />
 
         <View style={styles.stats}>
           {conversion && conversionPct !== null ? (
