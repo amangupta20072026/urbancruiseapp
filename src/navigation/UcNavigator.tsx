@@ -29,6 +29,7 @@ import { PaymentsScreen } from '@features/uc/payments';
 import { DriversListScreen } from '@features/uc/drivers';
 import { PerformanceScreen } from '@features/uc/performance';
 import DirectoryScreen from '@features/uc/_directory/screens/DirectoryScreen';
+import { UcChangeMpinScreen } from '@features/uc/security';
 import { renderSharedScreens } from './sharedScreens';
 import type { UcStackParamList } from './types';
 
@@ -59,6 +60,8 @@ const UcNavigator: React.FC = () => {
 
       {/* Directory hub — Customers / Vendors / UC Staff / Drivers */}
       <Stack.Screen name="Directory" component={DirectoryScreen} />
+      {/* Settings › Security */}
+      <Stack.Screen name="UcChangeMpin" component={UcChangeMpinScreen} />
     </Stack.Navigator>
   );
 };

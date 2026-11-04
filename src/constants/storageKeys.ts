@@ -26,6 +26,11 @@ export const StorageKeys = {
   customerBookingListFilters: 'customer.bookingListFilters',
   vendorFleetFilters: 'vendor.fleetFilters',
   ucCustomerSearchFilters: 'uc.customerSearchFilters',
+  /**
+   * UC fingerprint preference on this phone: 'auto' | 'off'. Not a
+   * secret (the keys live in the Keystore). See services/ucSecurity.
+   */
+  ucBiometricPreference: 'uc.biometricPreference',
 } as const;
 
 export type StorageKey = (typeof StorageKeys)[keyof typeof StorageKeys];

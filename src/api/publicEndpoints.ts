@@ -22,6 +22,17 @@ const PUBLIC_AUTH_PATHS: ReadonlySet<string> = new Set([
   endpoints.auth.verifyOtp(),
   endpoints.auth.customerOnboard(),
   endpoints.auth.refresh(),
+  // UC device security: authenticated by the refresh token in the body.
+  // Their 401s (wrong MPIN, expired challenge, …) are answers for the
+  // unlock screens, never a reason to refresh or force a logout.
+  endpoints.auth.uc.challenge(),
+  endpoints.auth.uc.securityStatus(),
+  endpoints.auth.uc.registerDevice(),
+  endpoints.auth.uc.enableBiometric(),
+  endpoints.auth.uc.disableBiometric(),
+  endpoints.auth.uc.unlockMpin(),
+  endpoints.auth.uc.unlockBiometric(),
+  endpoints.auth.uc.changeMpin(),
 ]);
 
 /** True when `url` (an axios request url, relative to baseURL) is a public auth endpoint. */

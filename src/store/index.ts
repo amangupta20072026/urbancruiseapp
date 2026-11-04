@@ -67,6 +67,7 @@ const SESSION_DEFAULTS = {
   isAuthenticated: false,
   appConfig: null,
   pendingWelcome: false, // session-only — the welcome never replays
+  ucGate: 'none' as const, // session-only — every UC cold start must unlock
 };
 
 const appSliceTransform = createTransform<AppState, PersistedAppSubset>(

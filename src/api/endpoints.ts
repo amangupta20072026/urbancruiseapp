@@ -33,6 +33,21 @@ export const endpoints = {
     logout: () => '/auth/logout',
     me: () => '/auth/me',
     customerOnboard: () => '/auth/customer/onboard',
+    /**
+     * UC staff device security (MPIN + fingerprint). Every call sends
+     * the refresh token in the body, never a bearer token, so all are
+     * listed in publicEndpoints.ts.
+     */
+    uc: {
+      challenge: () => '/auth/uc/challenge',
+      securityStatus: () => '/auth/uc/security-status',
+      registerDevice: () => '/auth/uc/device',
+      enableBiometric: () => '/auth/uc/biometric/enable',
+      disableBiometric: () => '/auth/uc/biometric/disable',
+      unlockMpin: () => '/auth/uc/unlock/mpin',
+      unlockBiometric: () => '/auth/uc/unlock/biometric',
+      changeMpin: () => '/auth/uc/mpin/change',
+    },
   },
 
   customer: {

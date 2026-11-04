@@ -33,6 +33,17 @@ export type { UserRole } from '@rbac/roles';
 import type { AppConfig } from '@app/bootstrap/steps/appConfig';
 import type { AuthResolution } from '@app/bootstrap/steps/auth';
 
+/**
+ * UC staff device-security gate. SESSION-ONLY (never persisted):
+ *   'none'     — not a UC session.
+ *   'setup'    — just logged in with OTP: must set an MPIN (and
+ *                fingerprint if the phone has one) before the app opens.
+ *   'locked'   — fresh app open (or 24 h since the last unlock): must
+ *                unlock with fingerprint or MPIN.
+ *   'unlocked' — UC screens may show.
+ */
+export type UcGate = 'none' | 'setup' | 'locked' | 'unlocked';
+
 export type AuthStatus =
   | 'unauthenticated'
   | 'provisional' // has token, /me not yet confirmed
@@ -66,6 +77,8 @@ export type AppState = {
    * appear twice or to an existing customer.
    */
   pendingWelcome: boolean;
+  /** UC device-security gate. Session-only. See UcGate. */
+  ucGate: UcGate;
 };
 
 const initialState: AppState = {
@@ -79,6 +92,7 @@ const initialState: AppState = {
   entityId: null,
   appConfig: null,
   pendingWelcome: false,
+  ucGate: 'none',
 };
 
 const appSlice = createSlice({
@@ -111,6 +125,13 @@ const appSlice = createSlice({
         state.userId = auth.userId;
         state.userRole = auth.role;
         state.entityId = auth.entityId;
+      } else if (auth.status === 'uc_locked') {
+        // UC staff with a saved session: no /me yet (its refresh needs
+        // an unlock). The MPIN / fingerprint unlock gives fresh tokens.
+        state.authStatus = 'provisional';
+        state.isAuthenticated = true;
+        state.userRole = 'uc';
+        state.ucGate = 'locked';
       } else if (auth.status === 'provisional') {
         // We trust the local token for now. A background /me refetch
         // will confirm or reject later.
@@ -161,6 +182,23 @@ const appSlice = createSlice({
       state.userId = action.payload.userId;
       state.userRole = action.payload.role;
       state.entityId = action.payload.entityId;
+      // Every UC OTP login sets a new MPIN: the backend removes a
+      // phone's registration on logout / lockout (session.ts).
+      state.ucGate = action.payload.role === 'uc' ? 'setup' : 'none';
+    },
+    /** UC: this phone must set up its MPIN (after OTP login). */
+    ucSetupRequired: state => {
+      if (state.userRole === 'uc') state.ucGate = 'setup';
+    },
+    /** UC: unlock needed (fresh open, or the server said unlock_required). */
+    ucLocked: state => {
+      if (state.userRole === 'uc' && state.isAuthenticated) {
+        state.ucGate = 'locked';
+      }
+    },
+    /** UC: MPIN set up, or unlocked with MPIN / fingerprint. */
+    ucUnlocked: state => {
+      if (state.userRole === 'uc') state.ucGate = 'unlocked';
     },
 
     /**
@@ -202,6 +240,7 @@ const appSlice = createSlice({
       state.entityId = null;
       state.selectedRole = null;
       state.pendingWelcome = false;
+      state.ucGate = 'none';
     },
   },
 });
@@ -216,6 +255,9 @@ export const {
   welcomeQueued,
   welcomeDismissed,
   logout,
+  ucSetupRequired,
+  ucLocked,
+  ucUnlocked,
 } = appSlice.actions;
 
 export default appSlice.reducer;

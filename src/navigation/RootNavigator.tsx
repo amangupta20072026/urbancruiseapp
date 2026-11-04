@@ -17,6 +17,8 @@
  *   userRole === 'customer'          → CustomerFlow  (lazy)
  *   userRole === 'vendor'            → VendorFlow    (lazy)
  *   userRole === 'driver'            → DriverFlow    (lazy)
+ *   uc + ucGate 'setup'              → UcSetupFlow   (set MPIN after OTP)
+ *   uc + ucGate not 'unlocked'       → UcLock        (unlock sheet)
  *   userRole === 'uc'                → UcFlow        (lazy)
  *   (fallback — auth glitch)         → AuthFlow
  *
@@ -64,6 +66,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import SplashIntroScreen from '../features/auth/SplashIntroScreen';
 import OnboardingNavigator from './OnboardingNavigator';
 import AuthNavigator from './AuthNavigator';
+import { UcLockScreen, UcSetupMpinScreen } from '@features/uc/security';
 
 import { Colors } from '@theme';
 import { useAppSelector } from '../store/hooks';
@@ -144,6 +147,7 @@ const RootNavigator: React.FC = () => {
   );
   const isAuthenticated = useAppSelector(s => s.app.isAuthenticated);
   const userRole = useAppSelector(s => s.app.userRole);
+  const ucGate = useAppSelector(s => s.app.ucGate);
 
   return (
     <Stack.Navigator
@@ -165,6 +169,12 @@ const RootNavigator: React.FC = () => {
         <Stack.Screen name="VendorFlow" component={VendorFlow} />
       ) : userRole === 'driver' ? (
         <Stack.Screen name="DriverFlow" component={DriverFlow} />
+      ) : userRole === 'uc' && ucGate === 'setup' ? (
+        <Stack.Screen name="UcSetupFlow" component={UcSetupMpinScreen} />
+      ) : userRole === 'uc' && ucGate !== 'unlocked' ? (
+        // Fresh opens unlock from Onboarding's sheet; this covers a lock
+        // that happens later (server said unlock_required).
+        <Stack.Screen name="UcLock" component={UcLockScreen} />
       ) : userRole === 'uc' ? (
         <Stack.Screen name="UcFlow" component={UcFlow} />
       ) : (

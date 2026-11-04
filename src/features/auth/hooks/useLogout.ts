@@ -39,6 +39,7 @@ import { logEvent } from '@services/telemetry/logEvent';
 import { resetIdentity } from '@services/telemetry/identify';
 import { resetScreenTracker } from '@services/telemetry/screenTracker';
 import { unregisterFcmToken } from '@services/notifications/fcmToken';
+import { deleteAllUcKeys } from '@services/ucSecurity/keys';
 
 /* ------------------------------------------------------------------ */
 /* Fetcher                                                            */
@@ -92,6 +93,9 @@ export function useLogout() {
       resetScreenTracker();
 
       await clearTokens();
+      // UC: the server removed this phone's MPIN registration on
+      // logout; its keys are useless now. No-op for other roles.
+      await deleteAllUcKeys();
       dispatch(logoutAction());
       queryClient.clear();
     },

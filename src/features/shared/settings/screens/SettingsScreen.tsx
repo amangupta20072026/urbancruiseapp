@@ -48,6 +48,10 @@
  *     Contact Support        → Support                    [uc]
  *     Delete Account         → toast, not built yet       [customer,
  *                                                          vendor, driver]
+ *     Change MPIN            → UcChangeMpin               [uc]
+ *     Fingerprint unlock     → switch; on = phone popup,  [uc, Android
+ *                              off = MPIN check first      with strong
+ *                                                          fingerprint]
  *     Logout                 → useLogout() with confirm   [all]
  *
  * DESIGN INVARIANTS:
@@ -64,16 +68,18 @@
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Linking,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import DeviceInfo from 'react-native-device-info';
@@ -84,7 +90,19 @@ import { Colors, Radius, Spacing, Typography } from '@theme';
 import { toast } from '@services/toast';
 import { useAppSelector } from '@store/hooks';
 import { useLogout } from '@features/auth/hooks';
-import { navigateOrComingSoon } from '@navigation/NavigationService';
+import { navigate, navigateOrComingSoon } from '@navigation/NavigationService';
+import { queryKeys } from '@constants/queryKeys';
+import {
+  disableBiometric,
+  enableBiometric,
+  setBiometricPreference,
+} from '@services/ucSecurity';
+import {
+  MpinConfirmSheet,
+  useLocalSignOut,
+  useUcSecuritySettings,
+  type MpinConfirmSheetRef,
+} from '@features/uc/security';
 import { notifyComingSoon } from '@services/comingSoon';
 
 import {
@@ -117,9 +135,60 @@ const SettingsScreen: React.FC = () => {
    * ../settingsMenu.ts (access comes from SCREEN_ACCESS). The role
    * comes from the server-issued session, never from user input. */
   const role = useAppSelector(s => s.app.userRole);
+
+  /* -------- UC: Security (MPIN + fingerprint on this phone) -------- */
+  const isUc = role === 'uc';
+  const queryClient = useQueryClient();
+  const security = useUcSecuritySettings(isUc);
+  const biometricSupported = security.data?.biometricSupported ?? false;
+  const biometricOn = security.data?.biometricOn ?? false;
+  const [fingerprintBusy, setFingerprintBusy] = useState(false);
+  const mpinSheetRef = useRef<MpinConfirmSheetRef>(null);
+  const signOut = useLocalSignOut();
+
+  const refreshSecurity = useCallback(
+    () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.uc.security.status(),
+      }),
+    [queryClient],
+  );
+
+  const toggleFingerprint = useCallback(async () => {
+    if (fingerprintBusy) return;
+    if (biometricOn) {
+      // Turning off needs the MPIN first (product decision).
+      mpinSheetRef.current?.present();
+      return;
+    }
+    setFingerprintBusy(true);
+    setBiometricPreference('auto');
+    const result = await enableBiometric();
+    setFingerprintBusy(false);
+    void refreshSecurity();
+    if (result === 'enabled') {
+      toast.success('Fingerprint unlock turned on');
+    } else if (result === 'failed') {
+      toast.error("Couldn't turn on fingerprint", {
+        description: 'Please try again.',
+      });
+    }
+    // 'cancelled': the user closed the popup — nothing to say.
+  }, [biometricOn, fingerprintBusy, refreshSecurity]);
+
+  const handleFingerprintOffConfirmed = useCallback(async () => {
+    await disableBiometric();
+    void refreshSecurity();
+    toast.success('Fingerprint unlock turned off');
+  }, [refreshSecurity]);
+
   const sections = useMemo(
-    () => buildSettingsSections(role, { appVersion: DeviceInfo.getVersion() }),
-    [role],
+    () =>
+      buildSettingsSections(role, {
+        appVersion: DeviceInfo.getVersion(),
+        biometricSupported,
+      }),
+    [role, biometricSupported],
   );
 
   /* -------- Handlers -------- */
@@ -208,6 +277,14 @@ const SettingsScreen: React.FC = () => {
           );
           return;
 
+        case 'changeMpin':
+          navigate('UcChangeMpin');
+          return;
+
+        case 'fingerprintUnlock':
+          void toggleFingerprint();
+          return;
+
         case 'savedPayments':
         case 'language':
         case 'appearance':
@@ -223,7 +300,7 @@ const SettingsScreen: React.FC = () => {
         }
       }
     },
-    [termsUrl],
+    [termsUrl, toggleFingerprint],
   );
 
   const handleLogout = useCallback(() => {
@@ -273,7 +350,16 @@ const SettingsScreen: React.FC = () => {
             <View style={styles.card}>
               {section.rows.map((row, idx) => (
                 <React.Fragment key={row.id}>
-                  <RowItem row={row} onPress={() => handleRow(row.id)} />
+                  <RowItem
+                    row={row}
+                    onPress={() => handleRow(row.id)}
+                    toggleValue={
+                      row.id === 'fingerprintUnlock' ? biometricOn : undefined
+                    }
+                    toggleBusy={
+                      row.id === 'fingerprintUnlock' ? fingerprintBusy : false
+                    }
+                  />
                   {idx < section.rows.length - 1 ? (
                     <View style={styles.rowDivider} />
                   ) : null}
@@ -304,6 +390,16 @@ const SettingsScreen: React.FC = () => {
           </Text>
         </Pressable>
       </ScrollView>
+
+      {isUc ? (
+        <MpinConfirmSheet
+          ref={mpinSheetRef}
+          title="Enter your MPIN"
+          subtitle="To turn off fingerprint unlock"
+          onConfirmed={handleFingerprintOffConfirmed}
+          onSignedOut={message => void signOut(message)}
+        />
+      ) : null}
     </SafeScreen>
   );
 };
@@ -314,11 +410,39 @@ export default SettingsScreen;
  * Local subcomponents
  * ================================================================= */
 
-const RowItem: React.FC<{ row: SettingsRow; onPress: () => void }> = ({
-  row,
-  onPress,
-}) => {
+const RowItem: React.FC<{
+  row: SettingsRow;
+  onPress: () => void;
+  /** Switch value, for rows with `toggle`. */
+  toggleValue?: boolean;
+  toggleBusy?: boolean;
+}> = ({ row, onPress, toggleValue = false, toggleBusy = false }) => {
   const Icon = row.Icon;
+  if (row.toggle) {
+    return (
+      <View style={styles.row}>
+        <View style={[styles.rowIconTile, { backgroundColor: row.iconBg }]}>
+          <Icon size={20} color={row.iconFg} strokeWidth={2.25} />
+        </View>
+        <View style={styles.rowTextCol}>
+          <Text style={styles.rowTitle} numberOfLines={1}>
+            {row.title}
+          </Text>
+          <Text style={styles.rowSubtitle} numberOfLines={2}>
+            {row.subtitle}
+          </Text>
+        </View>
+        <Switch
+          value={toggleValue}
+          onValueChange={onPress}
+          disabled={toggleBusy}
+          trackColor={{ false: Colors.border, true: Colors.primary }}
+          thumbColor={Colors.white}
+          accessibilityLabel={row.title}
+        />
+      </View>
+    );
+  }
   return (
     <Pressable
       onPress={onPress}

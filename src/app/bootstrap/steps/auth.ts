@@ -39,7 +39,13 @@ export type AuthResolution =
       status: 'provisional';
       // No identity yet — background refetch will fill it in.
     }
-  | { status: 'unauthenticated' };
+  | { status: 'unauthenticated' }
+  /**
+   * UC staff with a saved session and this phone's device key. /me is
+   * NOT called: for UC, a token refresh needs an unlock first. The app
+   * opens on the unlock sheet; the unlock returns fresh tokens.
+   */
+  | { status: 'uc_locked' };
 
 type MeResponse = {
   userId: string;

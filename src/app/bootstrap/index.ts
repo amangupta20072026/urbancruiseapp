@@ -71,6 +71,9 @@ import {
 } from './steps/appConfig';
 import { validateAuth, type AuthResolution } from './steps/auth';
 import { identifyUser } from '@services/telemetry/identify';
+import { clearTokens } from '@services/storage/secureStorage';
+import { hasDeviceKey } from '@services/ucSecurity/keys';
+import { readPersistedRole } from './steps/persistedRole';
 
 // Tunables — keep here so ops can adjust without hunting through code.
 const AUTH_VALIDATE_TIMEOUT_MS = 3_000;
@@ -109,6 +112,20 @@ export async function resolveBootstrap(): Promise<BootstrapResult> {
     // ── Phase 2: Keychain (fast, but async) ─────────────────────
     const tokens = await readKeychainTokens();
 
+    // ── Phase 2b: UC staff never validate with /me at cold start ─
+    // Their refresh needs an MPIN / fingerprint unlock first. With
+    // the phone's device key they open on the unlock sheet; without
+    // it (app reinstalled, keys wiped) they must log in with OTP.
+    let ucAuth: AuthResolution | null = null;
+    if (tokens && (await readPersistedRole()) === 'uc') {
+      if (await hasDeviceKey()) {
+        ucAuth = { status: 'uc_locked' };
+      } else {
+        await clearTokens();
+        ucAuth = { status: 'unauthenticated' };
+      }
+    }
+
     // ── Phase 3: parallel network work ──────────────────────────
     // Both calls guarded by timeout + safe fallback. No hangs.
     const [configResult, authResult] = await Promise.all([
@@ -117,7 +134,9 @@ export async function resolveBootstrap(): Promise<BootstrapResult> {
         APP_CONFIG_TIMEOUT_MS,
         cachedConfig,
       ),
-      tokens
+      ucAuth
+        ? Promise.resolve({ ok: true as const, value: ucAuth })
+        : tokens
         ? withTimeout<AuthResolution>(
             validateAuth(),
             AUTH_VALIDATE_TIMEOUT_MS,

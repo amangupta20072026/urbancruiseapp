@@ -39,7 +39,9 @@ import {
   CreditCard,
   FileText,
   HelpCircle,
+  FingerprintPattern,
   IdCard,
+  KeyRound,
   Info,
   Landmark,
   Languages,
@@ -83,9 +85,15 @@ export type SettingsRowId =
   | 'aboutApp'
   | 'helpSupport'
   | 'contactSupport'
-  | 'deleteAccount';
+  | 'deleteAccount'
+  | 'changeMpin'
+  | 'fingerprintUnlock';
 
-export type SettingsGroup = 'account' | 'preferences' | 'supportLegal';
+export type SettingsGroup =
+  | 'account'
+  | 'security'
+  | 'preferences'
+  | 'supportLegal';
 
 /** Exactly one access rule per card — see file header. */
 type Access =
@@ -105,6 +113,10 @@ type RowDefinition = Access & {
   readonly iconBg: string;
   /** Renders the title in error red (Delete Account). */
   readonly destructive?: boolean;
+  /** A switch instead of a chevron (SettingsScreen supplies its value). */
+  readonly toggle?: boolean;
+  /** Extra runtime condition (e.g. the phone has a fingerprint sensor). */
+  readonly visibleWhen?: (ctx: SettingsContext) => boolean;
 };
 
 /** A card ready to render. */
@@ -116,6 +128,7 @@ export type SettingsRow = {
   readonly iconFg: string;
   readonly iconBg: string;
   readonly destructive?: boolean;
+  readonly toggle?: boolean;
 };
 
 export type SettingsSection = {
@@ -127,6 +140,8 @@ export type SettingsSection = {
 /** Runtime values some subtitles need. */
 export type SettingsContext = {
   readonly appVersion: string;
+  /** UC: this phone can use fingerprint unlock (Android, strong biometric). */
+  readonly biometricSupported?: boolean;
 };
 
 /* -----------------------------------------------------------------
@@ -135,12 +150,14 @@ export type SettingsContext = {
 
 const GROUP_ORDER: readonly SettingsGroup[] = [
   'account',
+  'security',
   'preferences',
   'supportLegal',
 ];
 
 const GROUP_LABEL: Readonly<Record<SettingsGroup, string>> = {
   account: 'Account Settings',
+  security: 'Security',
   preferences: 'App Preferences',
   supportLegal: 'Support & Legal',
 };
@@ -213,6 +230,32 @@ const ROWS: readonly RowDefinition[] = [
     Icon: IdCard,
     iconFg: Colors.secondaryOnTint,
     iconBg: Colors.secondaryTint,
+  },
+
+  // ── Security (UC staff: MPIN + fingerprint on this phone) ──────
+  {
+    id: 'changeMpin',
+    group: 'security',
+    roles: ['uc'],
+    title: 'Change MPIN',
+    subtitle: 'Update the 4-digit MPIN for this phone',
+    Icon: KeyRound,
+    iconFg: Colors.primaryDark,
+    iconBg: Colors.primaryTint,
+  },
+  {
+    id: 'fingerprintUnlock',
+    group: 'security',
+    roles: ['uc'],
+    title: 'Fingerprint unlock',
+    subtitle: 'Open the app with your fingerprint',
+    Icon: FingerprintPattern,
+    iconFg: Colors.primaryDark,
+    iconBg: Colors.primaryTint,
+    toggle: true,
+    // Hidden on iPhone (product decision) and on phones without a
+    // strong fingerprint.
+    visibleWhen: ctx => ctx.biometricSupported === true,
   },
 
   // ── Preferences ────────────────────────────────────────────────
@@ -332,8 +375,13 @@ const ROWS: readonly RowDefinition[] = [
  * Builder
  * ----------------------------------------------------------------- */
 
-function isVisible(row: RowDefinition, role: UserRole | null): boolean {
+function isVisible(
+  row: RowDefinition,
+  role: UserRole | null,
+  ctx: SettingsContext,
+): boolean {
   if (!role) return false; // fail closed
+  if (row.visibleWhen && !row.visibleWhen(ctx)) return false;
   if (row.screen !== undefined) return canAccess(role, row.screen);
   return row.roles.includes(role);
 }
@@ -357,7 +405,7 @@ export function buildSettingsSections(
   ctx: SettingsContext,
 ): SettingsSection[] {
   if (!role) return []; // fail closed
-  const visible = ROWS.filter(row => isVisible(row, role));
+  const visible = ROWS.filter(row => isVisible(row, role, ctx));
 
   return GROUP_ORDER.map(group => ({
     key: group,
@@ -373,6 +421,7 @@ export function buildSettingsSections(
           iconFg: row.iconFg,
           iconBg: row.iconBg,
           destructive: row.destructive,
+          toggle: row.toggle,
         }),
       ),
   })).filter(section => section.rows.length > 0);

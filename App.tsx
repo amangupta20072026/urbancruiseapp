@@ -66,8 +66,14 @@ import {
   registerFcmToken,
   startFcmTokenRefreshListener,
 } from '@services/notifications/fcmToken';
-import { useAppSelector } from '@store/hooks';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { trackScreenChange } from '@services/telemetry/screenTracker';
+import { ucLocked } from '@store/slices/appSlice';
+import {
+  onSessionEvent,
+  registerSessionRoleGetter,
+} from '@services/auth/sessionEvents';
+import { teardownLocalSession } from '@features/auth/session/teardownSession';
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -172,6 +178,7 @@ const App: React.FC = () => {
                 <StatusBar barStyle="dark-content" />
                 <NotificationPermissionGate />
                 <FcmTokenGate />
+                <SessionEventsBridge />
                 {/*
                   App-level ErrorBoundary sits ABOVE NavigationContainer
                   so a crash in any screen shows a graceful fallback
@@ -281,7 +288,13 @@ const NotificationPermissionGate: React.FC = () => {
  * -------------------------------------------------------------------
  */
 const FcmTokenGate: React.FC = () => {
-  const isAuthenticated = useAppSelector(s => s.app.isAuthenticated);
+  // UC staff register only after the MPIN / fingerprint unlock: before
+  // it, their access token may be expired and a refresh needs the unlock.
+  const isAuthenticated = useAppSelector(
+    s =>
+      s.app.isAuthenticated &&
+      (s.app.userRole !== 'uc' || s.app.ucGate === 'unlocked'),
+  );
 
   React.useEffect(() => {
     if (!isAuthenticated) return;
@@ -289,6 +302,32 @@ const FcmTokenGate: React.FC = () => {
     return startFcmTokenRefreshListener();
   }, [isAuthenticated]);
 
+  return null;
+};
+
+/**
+ * SessionEventsBridge
+ * -------------------------------------------------------------------
+ * Connects the axios layer (which can't import Redux: import cycle) to
+ * the app, through services/auth/sessionEvents:
+ *   - gives the refresh interceptor the current role (UC refreshes need
+ *     a device signature);
+ *   - 'ucUnlockRequired' → lock the UC app (unlock sheet);
+ *   - 'sessionEnded'     → full local logout (Redux, cache, UC keys).
+ * -------------------------------------------------------------------
+ */
+const SessionEventsBridge: React.FC = () => {
+  const dispatch = useAppDispatch();
+  React.useEffect(() => {
+    registerSessionRoleGetter(() => store.getState().app.userRole);
+    return onSessionEvent(event => {
+      if (event === 'ucUnlockRequired') {
+        dispatch(ucLocked());
+      } else {
+        void teardownLocalSession(dispatch);
+      }
+    });
+  }, [dispatch]);
   return null;
 };
 

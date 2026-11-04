@@ -143,6 +143,10 @@ export const queryKeys = {
 
   uc: {
     all: ['uc'] as const,
+    /** Settings › Security (this phone's MPIN / fingerprint state). */
+    security: {
+      status: () => ['uc', 'security', 'status'] as const,
+    },
     customers: {
       all: () => ['uc', 'customers'] as const,
       list: (filters: Record<string, unknown>) =>

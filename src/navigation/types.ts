@@ -18,6 +18,10 @@ export type RootStackParamList = {
   VendorFlow: NavigatorScreenParams<VendorStackParamList>;
   DriverFlow: NavigatorScreenParams<DriverStackParamList>;
   UcFlow: NavigatorScreenParams<UcStackParamList>;
+  /** UC staff: set the MPIN right after an OTP login. */
+  UcSetupFlow: undefined;
+  /** UC staff: unlock needed while the app is open (24 h rule). */
+  UcLock: undefined;
 };
 
 /* -------------------- Onboarding -------------------- */
@@ -226,6 +230,9 @@ export type UcStackParamList = {
    * top tabs. Replaces the four separate More-sheet entries.
    */
   Directory: undefined;
+
+  /** Settings › Security › Change MPIN. UC only. */
+  UcChangeMpin: undefined;
 } & SharedParamsFor<'uc'>;
 
 export type UcTabParamList = {

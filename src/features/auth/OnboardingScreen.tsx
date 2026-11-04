@@ -1,3 +1,4 @@
+/* eslint-disable no-void */
 /**
  * ------------------------------------------------------------------
  * Urban Cruise — Onboarding
@@ -53,8 +54,17 @@ import {
   Spacing,
   Typography,
 } from '../../theme';
-import { useAppDispatch } from '../../store/hooks';
-import { completeOnboarding } from '../../store/slices/appSlice';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import {
+  completeOnboarding,
+  ucSetupRequired,
+} from '../../store/slices/appSlice';
+import {
+  completeUcUnlock,
+  UcUnlockSheet,
+  useLocalSignOut,
+  type UcUnlockSheetRef,
+} from '@features/uc/security';
 
 /* -----------------------------------------------------------------
  * Types
@@ -538,6 +548,14 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
 
   const isLastPage = page === SLIDE_COUNT - 1;
 
+  // UC staff with a saved session: Skip / Get Started opens the
+  // fingerprint / MPIN sheet over this screen instead of leaving it.
+  const ucLocked = useAppSelector(
+    s => s.app.userRole === 'uc' && s.app.ucGate === 'locked',
+  );
+  const unlockSheetRef = useRef<UcUnlockSheetRef>(null);
+  const signOut = useLocalSignOut();
+
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userInteractedRef = useRef(false);
   const pageRef = useRef(0);
@@ -607,8 +625,22 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
     // Session-only flip. `hasSeenOnboardingThisSession` resets on next
     // cold start — onboarding shows again per Behavior 2 requirement.
     // RootNavigator swaps this stack out to AuthFlow or role home stack.
+    if (ucLocked) {
+      unlockSheetRef.current?.present();
+      return;
+    }
     dispatch(completeOnboarding());
-  }, [clearTimer, dispatch]);
+  }, [clearTimer, dispatch, ucLocked]);
+
+  const handleUcUnlocked = useCallback(() => {
+    completeUcUnlock(dispatch);
+    dispatch(completeOnboarding());
+  }, [dispatch]);
+
+  const handleUcSetupRequired = useCallback(() => {
+    dispatch(ucSetupRequired());
+    dispatch(completeOnboarding());
+  }, [dispatch]);
 
   // Tap on "Swipe to continue". Counts as user interaction, like a
   // manual drag, so auto-advance stops for the rest of this visit.
@@ -688,6 +720,15 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
           />
         )}
       </View>
+
+      {ucLocked ? (
+        <UcUnlockSheet
+          ref={unlockSheetRef}
+          onUnlocked={handleUcUnlocked}
+          onSetupRequired={handleUcSetupRequired}
+          onSignedOut={message => void signOut(message)}
+        />
+      ) : null}
     </View>
   );
 };
