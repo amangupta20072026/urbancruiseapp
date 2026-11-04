@@ -7,7 +7,9 @@
  *   ↗ 12.5%  |  vs yesterday
  *
  * The whole card is one button that opens the stat's list. The
- * delta is green with ↗ when up, red with ↘ when down.
+ * arrow follows the direction (↗ up, ↘ down); the COLOUR says whether
+ * that is good: green when good, red when bad. For most stats up is
+ * good; for Outstanding (unpaid money) up is bad — `upIsGood={false}`.
  * ------------------------------------------------------------------
  */
 
@@ -32,6 +34,8 @@ type Props = {
   onPress: () => void;
   /** Read by screen readers, e.g. 'Opens Trips'. */
   accessibilityHint: string;
+  /** False when a rise is bad news (e.g. Outstanding). Default true. */
+  upIsGood?: boolean;
 };
 
 export const StatCard: React.FC<Props> = ({
@@ -40,10 +44,11 @@ export const StatCard: React.FC<Props> = ({
   tint,
   onPress,
   accessibilityHint,
+  upIsGood = true,
 }) => {
   const up = metric.trend === 'up';
   const TrendIcon = up ? TrendingUp : TrendingDown;
-  const trendColor = up ? Colors.success : Colors.error;
+  const trendColor = up === upIsGood ? Colors.success : Colors.error;
   const delta = `${Math.abs(metric.deltaPct)}%`;
 
   return (

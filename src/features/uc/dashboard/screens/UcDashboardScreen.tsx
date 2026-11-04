@@ -6,7 +6,12 @@
  *   AppHeader            logo · notifications · profile (shared by
  *                        every role; opens NotificationCentre/Profile)
  *   GreetingBlock        "Good morning, Admin 👋" + today's date card
- *   Stats (2×2)          Trips · Customers · Bookings · Quotations
+ *   ConversionCard       Quotations vs Converted (full width)
+ *   Stats (2×3)          Quotations · Bookings · Margin · Trips ·
+ *                        Outstanding · Customers (STAT_KEYS order)
+ *                        Outstanding shows this month's collection
+ *                        target vs collected when the backend sends it
+ *                        (OutstandingCard), else the plain StatCard.
  *   BookingsTrendChart   daily bookings, Last 7 / 15 / 30 / 90 days
  *   UpcomingTrips        next 3 upcoming trips, soonest first
  *
@@ -15,6 +20,11 @@
  *   Total Customers    → Directory (opens on Customers)
  *   Total Bookings     → Bookings tab
  *   Total Quotations   → Quotations tab
+ *   Quotations vs Converted → Quotations tab
+ *   Total Margin       → Payments
+ *   Total Outstanding  → Payments
+ *     (Payments is the UC money screen today; change `target` in
+ *      STAT_VISUAL if a dedicated screen is added)
  *   View All           → Trips tab, Upcoming chip selected
  *   A trip card        → same as "View details" on the Trips tab:
  *                        "Coming soon" toast until the UC trip
@@ -42,7 +52,9 @@ import {
   CalendarCheck,
   ClipboardList,
   FileText,
+  IndianRupee,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -52,15 +64,17 @@ import { Colors, Spacing, Typography } from '@theme';
 import type { UcStackParamList, UcTabParamList } from '@navigation/types';
 
 import { BookingsTrendChart } from '../components/BookingsTrendChart';
+import { ConversionCard } from '../components/ConversionCard';
+import { OutstandingCard } from '../components/OutstandingCard';
 import { GreetingBlock } from '../components/GreetingBlock';
 import { UpcomingTrips } from '../components/UpcomingTrips';
 import { StatCard } from '../components/StatCard';
 import { useBookingTrend } from '../hooks/useBookingTrend';
+import { collectionRate, conversionRate, orderStats } from '../utils/stats';
 import { useDashboard } from '../hooks/useDashboard';
 import {
   DASHBOARD_UPCOMING_TRIPS_LIMIT,
   DEFAULT_TREND_RANGE,
-  isStatKey,
   type StatKey,
   type StatMetric,
   type TrendRange,
@@ -77,8 +91,10 @@ const STAT_VISUAL: Readonly<
       Icon: LucideIcon;
       tint: { fg: string; bg: string };
       hint: string;
-      /** A UC tab, or the Directory stack screen. */
-      target: keyof UcTabParamList | 'Directory';
+      /** A UC tab, or a UC stack screen. */
+      target: keyof UcTabParamList | 'Directory' | 'Payments';
+      /** False when a rise is bad news (StatCard colours it red). */
+      upIsGood?: boolean;
     }
   >
 > = {
@@ -105,6 +121,20 @@ const STAT_VISUAL: Readonly<
     tint: { fg: Colors.accent, bg: Colors.accentTint },
     hint: 'Opens Quotations',
     target: 'Quotations',
+  },
+  margin: {
+    Icon: IndianRupee,
+    tint: { fg: Colors.primaryDark, bg: Colors.primaryTint },
+    hint: 'Opens Payments',
+    target: 'Payments',
+  },
+  outstanding: {
+    Icon: Wallet,
+    tint: { fg: Colors.error, bg: Colors.errorTint },
+    hint: 'Opens Payments',
+    target: 'Payments',
+    // More unpaid money is bad news.
+    upIsGood: false,
   },
 };
 
@@ -142,6 +172,7 @@ const UcDashboardScreen: React.FC = () => {
     (key: StatKey) => {
       const { target } = STAT_VISUAL[key];
       if (target === 'Directory') navigation.navigate('Directory');
+      else if (target === 'Payments') navigation.navigate('Payments');
       else openTab(target);
     },
     [navigation, openTab],
@@ -177,15 +208,20 @@ const UcDashboardScreen: React.FC = () => {
     }
   }, [dashboard, trend]);
 
-  /* Stats this app version doesn't know (e.g. added by a newer
-   * backend) are skipped rather than crashing the screen. */
+  /* Known stats in STAT_KEYS order; stats this app version doesn't
+   * know (e.g. added by a newer backend) are skipped rather than
+   * crashing the screen. */
   const statRows = useMemo(
-    () =>
-      pairs<StatMetric>(
-        (dashboard.data?.stats ?? []).filter(m => isStatKey(m.key)),
-      ),
+    () => pairs<StatMetric>(orderStats(dashboard.data?.stats)),
     [dashboard.data?.stats],
   );
+
+  /* null (missing / inconsistent counts, or old saved data) hides the
+   * conversion card instead of showing a wrong rate. */
+  const conversion = dashboard.data?.conversion ?? null;
+  const conversionPct = conversionRate(conversion);
+  const collection = dashboard.data?.collection ?? null;
+  const collectionPct = collectionRate(collection);
 
   /* -------- Render -------- */
 
@@ -237,10 +273,35 @@ const UcDashboardScreen: React.FC = () => {
         <GreetingBlock name={data.greeting.name} now={now} />
 
         <View style={styles.stats}>
+          {conversion && conversionPct !== null ? (
+            <ConversionCard
+              data={conversion}
+              ratePct={conversionPct}
+              onPress={() => openTab('Quotations')}
+            />
+          ) : null}
           {statRows.map(row => (
             <View key={row.map(m => m.key).join('-')} style={styles.statsRow}>
               {row.map(m => {
                 const v = STAT_VISUAL[m.key];
+                if (
+                  m.key === 'outstanding' &&
+                  collection &&
+                  collectionPct !== null
+                ) {
+                  return (
+                    <OutstandingCard
+                      key={m.key}
+                      metric={m}
+                      collection={collection}
+                      ratePct={collectionPct}
+                      Icon={v.Icon}
+                      tint={v.tint}
+                      onPress={() => openStat(m.key)}
+                      accessibilityHint={v.hint}
+                    />
+                  );
+                }
                 return (
                   <StatCard
                     key={m.key}
@@ -249,6 +310,7 @@ const UcDashboardScreen: React.FC = () => {
                     tint={v.tint}
                     onPress={() => openStat(m.key)}
                     accessibilityHint={v.hint}
+                    upIsGood={v.upIsGood ?? true}
                   />
                 );
               })}

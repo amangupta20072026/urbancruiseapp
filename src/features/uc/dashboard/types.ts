@@ -15,11 +15,19 @@ export type { BookingStatus };
 
 export type Trend = 'up' | 'down';
 
+/**
+ * Stat cards, IN DISPLAY ORDER (the dashboard sorts by this list, so
+ * the server's order never changes the layout). The "Quotations vs
+ * Converted" card is separate (DashboardData.conversion) and always
+ * shows first, full width.
+ */
 export const STAT_KEYS = [
-  'trips',
-  'customers',
-  'bookings',
   'quotations',
+  'bookings',
+  'margin',
+  'trips',
+  'outstanding',
+  'customers',
 ] as const;
 
 export type StatKey = (typeof STAT_KEYS)[number];
@@ -42,8 +50,55 @@ export type StatMetric = {
   compareLabel: string;
 };
 
+/**
+ * "Quotations vs Converted". A quotation counts as converted once the
+ * assigned lead — tele-sales or travel advisor — has called the
+ * customer (product rule). The app has no call data, so the BACKEND
+ * counts it; the app only shows the numbers and works out the %.
+ */
+export type QuotationConversion = {
+  /** Quotations whose customer the assigned lead has called. ≥ 0. */
+  converted: number;
+  /** All quotations in the same period. ≥ converted. */
+  total: number;
+  /** Change of the conversion rate; always ≥ 0, `trend` gives the direction. */
+  deltaPct: number;
+  trend: Trend;
+  /** e.g. "vs yesterday". */
+  compareLabel: string;
+};
+
+/**
+ * Total Outstanding card — collection TARGET vs ACHIEVED for THIS
+ * MONTH (product rule). Target = amount to collect this month;
+ * collected = amount actually collected so far this month. Money in
+ * paise. Sent by the backend; the app works out the %.
+ */
+export type OutstandingCollection = {
+  target: Money;
+  collected: Money;
+  /** e.g. "This month" or "Nov 2026". Shown next to the target. */
+  periodLabel: string;
+};
+
 export type DashboardData = {
   greeting: { name: string };
+  /**
+   * Optional: missing (older saved data, or backend not ready) hides
+   * the card instead of showing wrong numbers.
+   */
+  conversion?: QuotationConversion | null;
+  /**
+   * Optional: missing / inconsistent → the Outstanding card falls back
+   * to the plain stat card (value + vs yesterday).
+   */
+  collection?: OutstandingCollection | null;
+  /**
+   * Values are already formatted by the backend, e.g. "356" or, for
+   * margin / outstanding, "₹1,84,300" (Indian grouping).
+   *   margin      — customer price without GST − vendor cost
+   *   outstanding — sum of unpaid booking balances
+   */
   stats: StatMetric[];
   /**
    * The next upcoming trips (status 'upcoming'), SOONEST FIRST

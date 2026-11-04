@@ -44,11 +44,7 @@ import Svg, {
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 
 import type { BookingTrend, TrendRange } from '../types';
-import {
-  bookingsLabel,
-  formatMarginRupees,
-  trendDayLabel,
-} from '../utils/format';
+import { bookingsLabel, formatRupees, trendDayLabel } from '../utils/format';
 import { buildChart } from '../utils/trendChart';
 import { TrendRangeMenu } from './TrendRangeMenu';
 
@@ -86,7 +82,7 @@ export const BookingsTrendChart: React.FC<Props> = ({
   );
 
   const last = chart?.points[chart.points.length - 1];
-  const lastMargin = last?.margin ? formatMarginRupees(last.margin) : null;
+  const lastMargin = last?.margin ? formatRupees(last.margin) : null;
   const bubbleW = lastMargin ? BUBBLE_MARGIN_W : BUBBLE_W;
   const bubbleH = lastMargin ? BUBBLE_MARGIN_H : BUBBLE_H;
   const bubbleLeft = last
@@ -103,7 +99,7 @@ export const BookingsTrendChart: React.FC<Props> = ({
     )} to ${Math.max(...counts)}. Latest, ${trendDayLabel(
       latest.date,
     )}: ${bookingsLabel(latest.count)}${
-      latest.margin ? `, margin ${formatMarginRupees(latest.margin)}` : ''
+      latest.margin ? `, margin ${formatRupees(latest.margin)}` : ''
     }.`;
   }, [trend, range]);
 

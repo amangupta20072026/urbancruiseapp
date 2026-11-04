@@ -51,12 +51,13 @@ export function trendDayLabel(day: string): string {
 
 /** '1 Booking' / '52 Bookings'. */
 /**
- * Margin for the trend bubble, in whole rupees with Indian grouping:
+ * Money in whole rupees with Indian grouping (trend bubble margin,
+ * outstanding collection card):
  * 3600000 paise → '₹36,000', 12345678 → '₹1,23,457' (rounded to the
  * nearest rupee — the bubble has no room for paise). A loss shows as
  * '−₹1,200'. Not a finite number → '—'.
  */
-export function formatMarginRupees(m: Money): string {
+export function formatRupees(m: Money): string {
   if (!Number.isFinite(m.amount)) return '—';
   const rupees = Math.round(Math.abs(m.amount) / 100);
   const text = `₹${rupees.toLocaleString('en-IN', {

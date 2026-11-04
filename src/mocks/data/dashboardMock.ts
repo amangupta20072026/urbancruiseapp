@@ -14,6 +14,22 @@ import type {
 /** Upcoming trips come from the shared trip fixture (useDashboard). */
 export const dashboardMock: Omit<DashboardData, 'upcomingTrips'> = {
   greeting: { name: 'Admin' },
+  // MOCK — sample numbers for the design. The real counts come from
+  // GET /uc/dashboard (converted = assigned lead has called the customer).
+  conversion: {
+    converted: 89,
+    total: 214,
+    deltaPct: 3.1,
+    trend: 'up',
+    compareLabel: 'vs yesterday',
+  },
+  // MOCK — sample numbers. The real target and collected amounts (this
+  // month, paise) come from GET /uc/dashboard.
+  collection: {
+    target: rupeesToMoney(342_500),
+    collected: rupeesToMoney(208_900),
+    periodLabel: 'This month',
+  },
   stats: [
     {
       key: 'trips',
@@ -44,6 +60,24 @@ export const dashboardMock: Omit<DashboardData, 'upcomingTrips'> = {
       label: 'Total Quotations',
       value: '214',
       deltaPct: 10.6,
+      trend: 'up',
+      compareLabel: 'vs yesterday',
+    },
+    // MOCK — sample values (Indian grouping, formatted like the backend
+    // must send them). Margin needs vendor cost from the backend.
+    {
+      key: 'margin',
+      label: 'Total Margin',
+      value: '₹1,84,300',
+      deltaPct: 12.0,
+      trend: 'up',
+      compareLabel: 'vs yesterday',
+    },
+    {
+      key: 'outstanding',
+      label: 'Total Outstanding',
+      value: '₹3,42,500',
+      deltaPct: 4.2,
       trend: 'up',
       compareLabel: 'vs yesterday',
     },
