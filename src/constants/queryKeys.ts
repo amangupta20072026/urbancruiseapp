@@ -108,6 +108,12 @@ export const queryKeys = {
 
   vendor: {
     all: ['vendor'] as const,
+    dashboard: {
+      all: () => ['vendor', 'dashboard'] as const,
+      summary: () => ['vendor', 'dashboard', 'summary'] as const,
+      bookingTrend: (range: number) =>
+        ['vendor', 'dashboard', 'bookingTrend', range] as const,
+    },
     assignments: {
       all: () => ['vendor', 'assignments'] as const,
       list: () => ['vendor', 'assignments', 'list'] as const,

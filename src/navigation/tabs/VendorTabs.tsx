@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import VendorHomeScreen from '../../features/vendor/VendorHomeScreen';
+import { VendorDashboardScreen } from '@features/vendor/dashboard';
 
 import type { VendorTabParamList } from '../types';
 import { MORE_ROUTE_NAME, useMoreTabController } from './shared';
@@ -31,7 +31,7 @@ const VendorTabs: React.FC = () => {
         screenListeners={screenListeners}
         tabBar={renderTabBar}
       >
-        <Tab.Screen name="Dashboard" component={VendorHomeScreen} />
+        <Tab.Screen name="Dashboard" component={VendorDashboardScreen} />
         <Tab.Screen name="Bookings" component={PlaceholderScreen} />
         <Tab.Screen name="Fleet" component={PlaceholderScreen} />
         <Tab.Screen name="Drivers" component={PlaceholderScreen} />

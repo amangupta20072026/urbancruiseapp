@@ -24,12 +24,11 @@
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { CalendarCheck } from 'lucide-react-native';
 
-import { Colors, Radius, Spacing, Typography } from '@theme';
+import { Colors, Spacing, Typography } from '@theme';
 
-import { dateCardParts } from '../utils/format';
 import { ucGreetingLine } from '../utils/salutation';
+import { DateCard } from './DateCard';
 
 type Props = {
   name: string;
@@ -39,7 +38,6 @@ type Props = {
 };
 
 export const GreetingBlock: React.FC<Props> = ({ name, salutation, now }) => {
-  const { day, monthYear, weekdayShort, weekday } = dateCardParts(now);
   const greeting = ucGreetingLine(salutation, name);
 
   return (
@@ -60,20 +58,7 @@ export const GreetingBlock: React.FC<Props> = ({ name, salutation, now }) => {
         </Text>
       </View>
 
-      <View
-        style={styles.dateCard}
-        accessible
-        accessibilityLabel={`Today, ${weekday} ${day} ${monthYear}`}
-      >
-        <View style={styles.dateIcon}>
-          <CalendarCheck size={16} color={Colors.success} strokeWidth={2.2} />
-        </View>
-        <View>
-          <Text style={styles.dateDay}>{day}</Text>
-          <Text style={styles.dateMonth}>{monthYear}</Text>
-          <Text style={styles.dateWeekday}>{weekdayShort}</Text>
-        </View>
-      </View>
+      <DateCard now={now} />
     </View>
   );
 };
@@ -92,42 +77,6 @@ const styles = StyleSheet.create({
   },
   sub: {
     ...Typography.body,
-    color: Colors.textSecondary,
-  },
-
-  /* Compact on purpose: every point it gives up goes to the greeting. */
-  dateCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs + 2,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs + 2,
-    backgroundColor: Colors.primaryWash,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.primaryTint,
-  },
-  dateIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dateDay: {
-    ...Typography.title,
-    lineHeight: 22,
-    color: Colors.success,
-    fontWeight: '800',
-  },
-  dateMonth: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '700',
-  },
-  dateWeekday: {
-    ...Typography.bodySmall,
     color: Colors.textSecondary,
   },
 });

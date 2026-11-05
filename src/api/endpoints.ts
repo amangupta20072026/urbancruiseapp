@@ -104,6 +104,12 @@ export const endpoints = {
   },
 
   vendor: {
+    dashboard: {
+      /** VendorDashboardData: greeting, stats, vehicle status, recent bookings. */
+      summary: () => '/vendor/dashboard',
+      /** BookingTrend, params { days }. Booking counts only, no money. */
+      trend: () => '/vendor/dashboard/trend',
+    },
     assignments: {
       list: () => '/vendor/assignments',
       accept: (id: BookingId) => `/vendor/assignments/${id}/accept`,

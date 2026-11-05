@@ -15,11 +15,17 @@
  *   ┃└──────────────────────────────────────────────┘
  *    ↑ left edge in the "upcoming" colour (primaryDark)
  *
+ * Shared: the UC dashboard passes UcTripListItem, the Vendor
+ * dashboard passes VendorUpcomingTrip. Both fit UpcomingTripItem.
+ *
  * Rules:
  *   - No status badge: every row is an upcoming trip, and the
  *     Booked / Confirmed step is not shown here (product decision).
  *   - Driver: the name, or "Driver not assigned" in amber — the same
  *     rule and colour as UcTripCard for upcoming trips.
+ *   - Vehicle: "Name · N Seater", or "Vehicle not assigned" in amber
+ *     when the name is missing (vendor trips can be unassigned; UC
+ *     trips always carry a vehicle name).
  *   - Vehicle text, date and time use the Trips tab helpers, so both
  *     screens always print them the same way.
  *   - Tapping a card does what "View details" does on the Trips tab.
@@ -27,7 +33,7 @@
  *
  * Colours (all from @theme; text pairs pass WCAG AA for small text):
  *   Trip type  textSecondary #6B7280 on backgroundTertiary #F2F4F7
- *   No driver  pendingDark #B45309 on white
+ *   Not assigned (driver / vehicle)  pendingDark #B45309 on white
  * ------------------------------------------------------------------
  */
 
@@ -42,22 +48,39 @@ import {
   formatTripDate,
   formatTripTime,
 } from '@features/uc/trips/utils/format';
-import type { UcTripListItem } from '@features/uc/trips/types';
+import type { TripType } from '@features/customer/quotations/types';
 
-type Props = {
-  items: readonly UcTripListItem[];
+/** What one row needs. UcTripListItem and VendorUpcomingTrip fit it. */
+export type UpcomingTripItem = {
+  id: string;
+  tripRef: string;
+  tripType: TripType;
+  fromCity: string;
+  toCity: string;
+  /** Pickup date-time (UTC ISO); must be a valid date. */
+  scheduledAt: string;
+  /** Missing / null / blank → "Vehicle not assigned". */
+  vehicleName?: string | null;
+  /** Missing / null → the vehicle name only. */
+  seatingCapacity?: number | null;
+  /** Missing / null / blank → "Driver not assigned". */
+  driverName?: string | null;
+};
+
+type Props<T extends UpcomingTripItem> = {
+  items: readonly T[];
   onViewAll: () => void;
-  onPressTrip: (trip: UcTripListItem) => void;
+  onPressTrip: (trip: T) => void;
 };
 
 /** Dash count per side of the car; the row clips any overflow. */
 const DASHES = 14;
 
-export const UpcomingTrips: React.FC<Props> = ({
+export const UpcomingTrips = <T extends UpcomingTripItem>({
   items,
   onViewAll,
   onPressTrip,
-}) => (
+}: Props<T>): React.ReactElement => (
   <View style={styles.card}>
     <View style={styles.header}>
       <Text style={styles.title} accessibilityRole="header">
@@ -93,13 +116,16 @@ export const UpcomingTrips: React.FC<Props> = ({
 
 /* ---------------- One trip ---------------- */
 
-const TripRow: React.FC<{ item: UcTripListItem; onPress: () => void }> =
+const TripRow: React.FC<{ item: UpcomingTripItem; onPress: () => void }> =
   React.memo(({ item, onPress }) => {
     const tripType = getTripTypeOption(item.tripType);
     const TripTypeIcon = tripType.Icon;
     const date = formatTripDate(item.scheduledAt);
     const time = formatTripTime(item.scheduledAt);
-    const vehicle = vehicleLine(item.vehicleName, item.seatingCapacity);
+    const vehicleName = item.vehicleName?.trim() || null;
+    const vehicle = vehicleName
+      ? vehicleLine(vehicleName, item.seatingCapacity)
+      : null;
     const driver = item.driverName?.trim() || null;
 
     return (
@@ -110,7 +136,8 @@ const TripRow: React.FC<{ item: UcTripListItem; onPress: () => void }> =
         accessibilityLabel={
           `${tripType.label} trip ${item.tripRef}, ` +
           `${item.fromCity} to ${item.toCity}, ${date} at ${time}, ` +
-          `${vehicle}, ${driver ? `driver ${driver}` : 'driver not assigned'}`
+          `${vehicle ?? 'vehicle not assigned'}, ` +
+          `${driver ? `driver ${driver}` : 'driver not assigned'}`
         }
         accessibilityHint="Opens trip details"
       >
@@ -154,11 +181,14 @@ const TripRow: React.FC<{ item: UcTripListItem; onPress: () => void }> =
         </View>
 
         <View style={styles.foot}>
-          <Text style={styles.vehicle} numberOfLines={1}>
-            {vehicle}
+          <Text
+            style={[styles.vehicle, !vehicle && styles.notAssigned]}
+            numberOfLines={1}
+          >
+            {vehicle ?? 'Vehicle not assigned'}
           </Text>
           <Text
-            style={[styles.driver, !driver && styles.noDriver]}
+            style={[styles.driver, !driver && styles.notAssigned]}
             numberOfLines={1}
           >
             {driver ?? 'Driver not assigned'}
@@ -313,5 +343,5 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: 'right',
   },
-  noDriver: { color: Colors.pendingDark, fontWeight: '600' },
+  notAssigned: { color: Colors.pendingDark, fontWeight: '600' },
 });

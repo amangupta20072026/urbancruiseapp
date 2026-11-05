@@ -51,6 +51,8 @@ export type ComingSoonFeature =
 
   // ── Vendor ────────────────────────────────────────────────────
   | 'vendor.assignments'
+  | 'vendor.bookings'
+  | 'vendor.tripList'
   | 'vendor.trips'
   | 'vendor.fleet'
   | 'vendor.drivers'
@@ -99,6 +101,8 @@ export const COMING_SOON_LABELS: Readonly<Record<ComingSoonFeature, string>> =
     'customer.modifyBooking': 'Booking changes',
 
     'vendor.assignments': 'Booking assignments',
+    'vendor.bookings': 'Bookings',
+    'vendor.tripList': 'Trips',
     'vendor.trips': 'Trip details',
     'vendor.fleet': 'Fleet management',
     'vendor.drivers': 'Driver management',

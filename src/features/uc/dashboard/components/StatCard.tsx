@@ -1,6 +1,6 @@
 /**
  * ------------------------------------------------------------------
- * StatCard — one tile of the 2×2 stats grid
+ * StatCard — one tile of a dashboard stats grid (UC and Vendor)
  * ------------------------------------------------------------------
  *   (icon)  Total Trips                 >
  *           128
@@ -26,8 +26,14 @@ import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 
 import type { StatMetric } from '../types';
 
+/**
+ * What the card shows. Any dashboard's metric fits (UC StatMetric,
+ * Vendor VendorStatMetric): the `key` is not used by the card.
+ */
+export type StatCardMetric = Omit<StatMetric, 'key'>;
+
 type Props = {
-  metric: StatMetric;
+  metric: StatCardMetric;
   Icon: LucideIcon;
   /** Icon colour on its tinted circle. */
   tint: { fg: string; bg: string };
