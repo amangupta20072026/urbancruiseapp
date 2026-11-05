@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.borderSubtle,
     ...Shadows.xs,
   },
   pressed: { opacity: 0.85 },

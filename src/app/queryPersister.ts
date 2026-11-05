@@ -41,8 +41,11 @@ const queryStore = createMMKV({ id: 'urbancruise-query-cache' });
  *         booking statuses (lower-case), recent bookings `pickupAt`.
  *   '3' — UC customer trip history: Trip gains `progressStep`,
  *         `tripType`, `passengers`.
+ *   '4' — UC quotations list: `travelDate` → `travelDateStart` +
+ *         `travelDateEnd`; `vehicleLabel` → `vehicleName` +
+ *         `seatingCapacity`; `amountPaise` removed.
  */
-export const QUERY_CACHE_BUSTER = '3';
+export const QUERY_CACHE_BUSTER = '4';
 
 /**
  * AsyncStorage-shaped adapter over the sync MMKV instance.

@@ -129,10 +129,9 @@ function sortQuotations(
     case 'oldest':
       return copy.sort((a, b) => time(a.createdAt) - time(b.createdAt));
     case 'travelSoonest':
-      return copy.sort((a, b) => time(a.travelDate) - time(b.travelDate));
-    case 'amountHigh':
-      // Unpriced drafts sink to the bottom.
-      return copy.sort((a, b) => (b.amountPaise ?? -1) - (a.amountPaise ?? -1));
+      return copy.sort(
+        (a, b) => time(a.travelDateStart) - time(b.travelDateStart),
+      );
   }
 }
 

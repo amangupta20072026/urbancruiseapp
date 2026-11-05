@@ -7,9 +7,12 @@
  * return per row, so swapping the fixture for the real endpoint is a
  * one-line change in `useUcQuotationList`.
  *
- * Money is carried as `amountPaise` (integer paise) — the same unit
- * as `@app-types/currency` — so no floating-point rupees ever reach
- * a total. `null` means "not priced yet" (typical for drafts).
+ * The list row carries no price: the card does not show one and the
+ * list has no amount sort. Pricing belongs to the quotation detail.
+ *
+ * Travel dates come from the server as a start AND an end. The app
+ * never derives the end date from `days`; the server is the single
+ * source of truth for both.
  * ------------------------------------------------------------------
  */
 
@@ -91,21 +94,31 @@ export type UcQuotationListItem = {
    */
   customerEmail?: string | null;
 
+  /** Used by the service-type filter and search; not shown on the card. */
   serviceType: UcServiceType;
-  /** Vehicle class / variant, e.g. "Sedan", "12 Seater", "Executive". */
-  vehicleLabel: string;
+  /** Vehicle model, e.g. "Force Traveller", "Toyota Innova Crysta". */
+  vehicleName: string;
+  /**
+   * Seats in the vehicle, e.g. 13. null when the server doesn't know;
+   * the card then shows the vehicle name only. Same contract as
+   * UC bookings / trips (`seatingCapacity`).
+   */
+  seatingCapacity: number | null;
 
   tripType: UcTripType;
   /** Ordered cities. One entry for local trips. */
   stops: readonly string[];
 
-  /** Travel start (local calendar date at 00:00 IST, ISO). */
-  travelDate: ISODateTime;
+  /** First day of travel (local calendar date at 00:00 IST, ISO). */
+  travelDateStart: ISODateTime;
+  /**
+   * Last day of travel (local calendar date at 00:00 IST, ISO).
+   * Equal to `travelDateStart` for a one-day trip; never before it.
+   * Same naming as the customer quotations feature.
+   */
+  travelDateEnd: ISODateTime;
   /** Trip length in days, >= 1. */
   days: number;
-
-  /** Quoted total in paise; null until the quotation is priced. */
-  amountPaise: number | null;
 
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
@@ -115,11 +128,7 @@ export type UcQuotationListItem = {
  * Filters (filter sheet) — status lives on the chip strip, not here
  * ================================================================ */
 
-export type UcQuotationSort =
-  | 'newest'
-  | 'oldest'
-  | 'travelSoonest'
-  | 'amountHigh';
+export type UcQuotationSort = 'newest' | 'oldest' | 'travelSoonest';
 
 export const UC_QUOTATION_SORT_LABEL: Readonly<
   Record<UcQuotationSort, string>
@@ -127,7 +136,6 @@ export const UC_QUOTATION_SORT_LABEL: Readonly<
   newest: 'Newest first',
   oldest: 'Oldest first',
   travelSoonest: 'Travel date (soonest)',
-  amountHigh: 'Amount (high to low)',
 };
 
 export type UcQuotationFilters = {

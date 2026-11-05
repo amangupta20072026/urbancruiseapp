@@ -30,14 +30,15 @@ type Seed = {
   customerEmail: string | null;
   status: UcQuotationStatus;
   serviceType: UcServiceType;
-  vehicleLabel: string;
+  /** Sample model names only, not the real fleet. */
+  vehicleName: string;
+  /** null = seats unknown (exercises the name-only vehicle line). */
+  seatingCapacity: number | null;
   tripType: UcTripType;
   stops: readonly string[];
   /** Days from today until travel. */
   travelInDays: number;
   days: number;
-  /** Rupees; null = not priced yet. */
-  amountRupees: number | null;
 };
 
 const SEEDS: readonly Seed[] = [
@@ -47,12 +48,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: 'rahul.sharma@example.com',
     status: 'accepted',
     serviceType: 'car_rental',
-    vehicleLabel: 'Sedan',
+    vehicleName: 'Maruti Dzire',
+    seatingCapacity: 4,
     tripType: 'one_way',
     stops: ['Delhi', 'Agra'],
     travelInDays: 3,
     days: 1,
-    amountRupees: 12500,
   },
   {
     customerName: 'Priya Mehta',
@@ -60,12 +61,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: null,
     status: 'sent',
     serviceType: 'car_rental',
-    vehicleLabel: 'Hatchback',
+    vehicleName: 'Maruti Swift',
+    seatingCapacity: 4,
     tripType: 'round_trip',
     stops: ['Delhi', 'Jaipur'],
     travelInDays: 9,
     days: 2,
-    amountRupees: 9800,
   },
   {
     customerName: 'Amit Kumar',
@@ -73,12 +74,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: 'amit.kumar@example.com',
     status: 'draft',
     serviceType: 'tempo_traveller',
-    vehicleLabel: '12 Seater',
+    vehicleName: 'Force Traveller',
+    seatingCapacity: 12,
     tripType: 'local',
     stops: ['Delhi'],
     travelInDays: 11,
     days: 1,
-    amountRupees: null,
   },
   {
     customerName: 'Sneha Gupta',
@@ -86,12 +87,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: null,
     status: 'rejected',
     serviceType: 'bus_rental',
-    vehicleLabel: 'Coach',
+    vehicleName: 'Luxury Coach',
+    seatingCapacity: 45,
     tripType: 'one_way',
     stops: ['Delhi', 'Chandigarh'],
     travelInDays: 19,
     days: 3,
-    amountRupees: 15200,
   },
   {
     customerName: 'Vikram Singh',
@@ -99,12 +100,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: 'vikram.singh@example.com',
     status: 'sent',
     serviceType: 'rail_rental',
-    vehicleLabel: 'Executive',
+    vehicleName: 'Executive Coach',
+    seatingCapacity: null,
     tripType: 'one_way',
     stops: ['Delhi', 'Varanasi'],
     travelInDays: 36,
     days: 1,
-    amountRupees: 18450,
   },
   {
     customerName: 'Neha Iyer',
@@ -112,12 +113,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: null,
     status: 'accepted',
     serviceType: 'tempo_traveller',
-    vehicleLabel: '17 Seater',
+    vehicleName: 'Force Traveller',
+    seatingCapacity: 17,
     tripType: 'round_trip',
     stops: ['Delhi', 'Rishikesh', 'Haridwar'],
     travelInDays: 14,
     days: 3,
-    amountRupees: 42600,
   },
   {
     customerName: 'Karan Mehta',
@@ -125,12 +126,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: 'karan.mehta@example.com',
     status: 'draft',
     serviceType: 'car_rental',
-    vehicleLabel: 'SUV',
+    vehicleName: 'Mahindra XUV700',
+    seatingCapacity: 7,
     tripType: 'one_way',
     stops: ['Gurugram', 'Jaipur'],
     travelInDays: 6,
     days: 1,
-    amountRupees: 8900,
   },
   {
     customerName: 'Divya Nair',
@@ -138,12 +139,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: null,
     status: 'sent',
     serviceType: 'car_rental',
-    vehicleLabel: 'Innova Crysta',
+    vehicleName: 'Toyota Innova Crysta',
+    seatingCapacity: 7,
     tripType: 'round_trip',
     stops: ['Noida', 'Mathura', 'Vrindavan'],
     travelInDays: 8,
     days: 2,
-    amountRupees: 13750,
   },
   {
     customerName: 'Suresh Rao',
@@ -151,12 +152,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: 'suresh.rao@example.com',
     status: 'accepted',
     serviceType: 'bus_rental',
-    vehicleLabel: '35 Seater',
+    vehicleName: 'Mini Bus',
+    seatingCapacity: 35,
     tripType: 'round_trip',
     stops: ['Delhi', 'Shimla'],
     travelInDays: 22,
     days: 4,
-    amountRupees: 96000,
   },
   {
     customerName: 'Anita Deshmukh',
@@ -164,12 +165,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: null,
     status: 'rejected',
     serviceType: 'car_rental',
-    vehicleLabel: 'Sedan',
+    vehicleName: 'Honda City',
+    seatingCapacity: 4,
     tripType: 'local',
     stops: ['Delhi'],
     travelInDays: 2,
     days: 1,
-    amountRupees: 3200,
   },
   {
     customerName: 'Kavya Menon',
@@ -177,12 +178,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: 'kavya.menon@example.com',
     status: 'sent',
     serviceType: 'tempo_traveller',
-    vehicleLabel: '26 Seater',
+    vehicleName: 'Force Traveller',
+    seatingCapacity: 26,
     tripType: 'one_way',
     stops: ['Delhi', 'Dehradun'],
     travelInDays: 15,
     days: 1,
-    amountRupees: 21800,
   },
   {
     customerName: 'Rohit Bansal',
@@ -190,12 +191,12 @@ const SEEDS: readonly Seed[] = [
     customerEmail: null,
     status: 'draft',
     serviceType: 'rail_rental',
-    vehicleLabel: 'Saloon',
+    vehicleName: 'Saloon Car',
+    seatingCapacity: null,
     tripType: 'round_trip',
     stops: ['Delhi', 'Udaipur'],
     travelInDays: 45,
     days: 5,
-    amountRupees: null,
   },
 ];
 
@@ -243,6 +244,11 @@ function buildFixture(): UcQuotationListItem[] {
     const travel = new Date(
       today.getTime() + (seed.travelInDays + pass * 7) * DAY,
     );
+    // Mock only: the real end date comes from the server. Here the
+    // last day of travel is start + (days − 1), so a one-day trip
+    // starts and ends on the same date.
+    const travelEnd = new Date(travel);
+    travelEnd.setDate(travelEnd.getDate() + seed.days - 1);
 
     rows.push({
       id: asQuotationId(`uc-q-${serial}`),
@@ -253,15 +259,13 @@ function buildFixture(): UcQuotationListItem[] {
       customerPhone: seed.customerPhone,
       customerEmail: seed.customerEmail,
       serviceType: seed.serviceType,
-      vehicleLabel: seed.vehicleLabel,
+      vehicleName: seed.vehicleName,
+      seatingCapacity: seed.seatingCapacity,
       tripType: seed.tripType,
       stops: seed.stops,
-      travelDate: asISODateTime(travel.toISOString()),
+      travelDateStart: asISODateTime(travel.toISOString()),
+      travelDateEnd: asISODateTime(travelEnd.toISOString()),
       days: seed.days,
-      amountPaise:
-        seed.amountRupees === null
-          ? null
-          : Math.round((seed.amountRupees + pass * 250) * 100),
       createdAt: asISODateTime(createdAt.toISOString()),
       updatedAt: asISODateTime(createdAt.toISOString()),
     });

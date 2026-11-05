@@ -58,6 +58,8 @@ export const Colors = {
    */
   border: '#E5E7EB',
   borderLight: '#F1F3F5',
+  /** Softest card edge, lighter than borderLight (UC dashboard stat cards). */
+  borderSubtle: '#F8F9FA',
   divider: '#ECEFF3',
 
   /**

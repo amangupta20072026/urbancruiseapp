@@ -10,8 +10,9 @@
  *   ┃┌─────────────────────────────────────────────────────┐
  *   ┃│ [✓ Accepted] [✈ One Way]               Quotation ID │
  *   ┃│                                   QU-2026-563698 📋 │
- *   ┃│ Delhi → Agra                               ₹12,500  │
- *   ┃│ 📅 04 Nov 2026   🕒 1 Day   🚗 Car Rental · Sedan    │
+ *   ┃│ Delhi → Agra                                        │
+ *   ┃│ 📅 08 Nov 2026 - 08 Nov 2026   🕒 1 Day             │
+ *   ┃│ 🚌 Force Traveller · 13 Seater                      │
  *   ┃│ ─────────────────────────────────────────────────── │
  *   ┃│ (RS) Rahul Sharma                 ⋮ [View details ›]│
  *   ┃│      +91 98765 43210                                │
@@ -30,8 +31,16 @@
  * STATUS_TONE (tinted pills) is left unchanged for the actions sheet.
  *
  * Nothing is truncated except the customer name (one line): the
- * route wraps, the meta line wraps, the ID and amount never shrink.
- * Unpriced quotations show "Not priced" instead of the amount.
+ * route wraps, the meta line wraps, the ID never shrinks.
+ *
+ * Meta line:
+ *   - Dates: server start → server end ("08 Nov 2026 - 09 Nov 2026");
+ *     a one-day trip repeats the date. Nothing is derived from `days`.
+ *   - Days: kept as its own item ("1 Day", "2 Days").
+ *   - Vehicle: "Force Traveller · 13 Seater", or the name only when
+ *     the seat count is unknown. The icon still follows serviceType;
+ *     the service-type label is not shown.
+ * No price is shown on the card.
  *
  * Touch targets (each stops the tap reaching the card):
  *   - Card / "View details" → onPress
@@ -86,7 +95,6 @@ import { avatarColorFor, initials } from '@shared/utils';
 
 import {
   UC_QUOTATION_STATUS_LABEL,
-  UC_SERVICE_TYPE_LABEL,
   type UcQuotationListItem,
   type UcQuotationStatus,
   type UcServiceType,
@@ -95,9 +103,10 @@ import {
 import {
   formatDayMonthYear,
   formatDays,
-  formatQuoteAmount,
   formatRoute,
+  formatTravelDateRange,
   formatTripType,
+  formatVehicle,
 } from '../utils/format';
 
 type Props = {
@@ -148,13 +157,13 @@ const UcQuotationCardBase: React.FC<Props> = ({ item, onPress, onMore }) => {
 
   const statusLabel = UC_QUOTATION_STATUS_LABEL[item.status];
   const tripTypeLabel = formatTripType(item);
-  const amount = formatQuoteAmount(item.amountPaise);
   const route = formatRoute(item);
-  const dateText = formatDayMonthYear(item.travelDate);
+  const dateText = formatTravelDateRange(item);
+  const dateA11y = `${formatDayMonthYear(
+    item.travelDateStart,
+  )} to ${formatDayMonthYear(item.travelDateEnd)}`;
   const daysText = formatDays(item.days);
-  const serviceText = `${UC_SERVICE_TYPE_LABEL[item.serviceType]} · ${
-    item.vehicleLabel
-  }`;
+  const vehicleText = formatVehicle(item);
   const avatar = avatarColorFor(item.customerId);
 
   /* -------- Copy quotation number -------- */
@@ -213,11 +222,7 @@ const UcQuotationCardBase: React.FC<Props> = ({ item, onPress, onMore }) => {
         pressed && styles.pressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Quotation ${
-        item.quotationNumber
-      }, ${statusLabel}, ${tripTypeLabel}, ${route}, ${dateText}, ${daysText}, ${serviceText}, ${
-        amount ?? 'not priced'
-      }, customer ${item.customerName}`}
+      accessibilityLabel={`Quotation ${item.quotationNumber}, ${statusLabel}, ${tripTypeLabel}, ${route}, ${dateA11y}, ${daysText}, ${vehicleText}, customer ${item.customerName}`}
     >
       {/* Row 1 — status + trip type (left), quotation id (right) */}
       <View style={styles.headerRow}>
@@ -270,21 +275,14 @@ const UcQuotationCardBase: React.FC<Props> = ({ item, onPress, onMore }) => {
         </View>
       </View>
 
-      {/* Row 2 — route (left, wraps), amount (right, never shrinks) */}
-      <View style={styles.routeRow}>
-        <Text style={styles.route}>{route}</Text>
-        {amount ? (
-          <Text style={styles.amount}>{amount}</Text>
-        ) : (
-          <Text style={styles.notPriced}>Not priced</Text>
-        )}
-      </View>
+      {/* Row 2 — route (wraps) */}
+      <Text style={styles.route}>{route}</Text>
 
-      {/* Row 3 — date · days · service (wraps on narrow phones) */}
+      {/* Row 3 — date range · days · vehicle (wraps on narrow phones) */}
       <View style={styles.metaRow}>
         <MetaItem Icon={Calendar} text={dateText} />
         <MetaItem Icon={Clock} text={daysText} />
-        <MetaItem Icon={ServiceIcon} text={serviceText} />
+        <MetaItem Icon={ServiceIcon} text={vehicleText} />
       </View>
 
       <View style={styles.divider} />
@@ -456,35 +454,13 @@ const styles = StyleSheet.create({
     padding: Spacing.xxs,
   },
 
-  /* Row 2 — route + amount */
-  routeRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
+  /* Row 2 — route */
   route: {
     ...Typography.title,
     fontSize: FontSize.xl,
     lineHeight: LineHeight.lg,
     fontWeight: FontWeight.extraBold,
     color: Colors.textPrimary,
-    flex: 1,
-  },
-  amount: {
-    ...Typography.title,
-    fontSize: FontSize.xl,
-    lineHeight: LineHeight.lg,
-    fontWeight: FontWeight.extraBold,
-    color: Colors.textPrimary,
-    flexShrink: 0,
-  },
-  notPriced: {
-    ...Typography.bodySmall,
-    lineHeight: LineHeight.lg,
-    color: Colors.textSecondary,
-    fontWeight: FontWeight.semiBold,
-    flexShrink: 0,
   },
 
   /* Row 3 — meta */

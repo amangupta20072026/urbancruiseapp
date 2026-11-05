@@ -16,17 +16,6 @@ import {
 } from '../types';
 
 /* ================================================================
- * Money
- * ================================================================ */
-
-/** "₹12,500" (no paise shown on list cards); null → null. */
-export function formatQuoteAmount(amountPaise: number | null): string | null {
-  if (amountPaise === null) return null;
-  const rupees = Math.round(amountPaise / 100);
-  return `₹${rupees.toLocaleString('en-IN')}`;
-}
-
-/* ================================================================
  * Dates
  * ================================================================ */
 
@@ -69,9 +58,40 @@ export function formatCreatedStamp(
   return formatDayMonthYear(iso);
 }
 
+/**
+ * "08 Nov 2026 - 09 Nov 2026". A one-day trip shows the same date on
+ * both sides ("08 Nov 2026 - 08 Nov 2026"); both dates come from the
+ * server, nothing is derived from `days`.
+ */
+export function formatTravelDateRange(
+  q: Pick<UcQuotationListItem, 'travelDateStart' | 'travelDateEnd'>,
+): string {
+  return `${formatDayMonthYear(q.travelDateStart)} - ${formatDayMonthYear(
+    q.travelDateEnd,
+  )}`;
+}
+
 /** "1 Day" / "3 Days" */
 export function formatDays(days: number): string {
   return `${days} ${days === 1 ? 'Day' : 'Days'}`;
+}
+
+/* ================================================================
+ * Vehicle
+ * ================================================================ */
+
+/**
+ * "Force Traveller · 13 Seater", or just "Force Traveller" when the
+ * seat count is unknown (null) or not a positive whole number. Same
+ * wording as the UC Bookings card.
+ */
+export function formatVehicle(
+  q: Pick<UcQuotationListItem, 'vehicleName' | 'seatingCapacity'>,
+): string {
+  const seats = q.seatingCapacity;
+  return seats !== null && Number.isInteger(seats) && seats > 0
+    ? `${q.vehicleName} · ${seats} Seater`
+    : q.vehicleName;
 }
 
 /* ================================================================
