@@ -2,15 +2,19 @@
  * ------------------------------------------------------------------
  * Driver (UC directory) — entity + filter types
  * ------------------------------------------------------------------
- * A Driver belongs to exactly one Vendor. The Drivers directory tab
- * is flat (not grouped by vendor), but supports a "Vendor" filter
- * chip so UC ops can narrow the list to a specific fleet.
+ * One driver as GET /uc/drivers returns it: the `drivers` table, joined
+ * to `vendors` for the vendor name. Empty values come as null.
  *
- * The vendor relation is stored as a `vendorId` foreign key. The
- * `vendorName` is denormalised into the row for rendering — the
- * backend will send it joined so the card doesn't need a second
- * lookup. If the backend sends only IDs, we join it client-side
- * via useVendorList's cache; not needed today.
+ * Column mapping:
+ *   name         ← drivers.first_name + last_name
+ *   city         ← drivers.current_city
+ *   vendorId     ← drivers.vendor_id (null = not linked to a vendor)
+ *   vendorName   ← the linked vendor's company_name (or name)
+ *   licenseNo    ← drivers.license_number
+ *   verification ← drivers.status
+ *
+ * The Drivers tab is flat (not grouped by vendor), but supports a
+ * vendor filter (vendorId) so UC ops can narrow the list to one fleet.
  * ------------------------------------------------------------------
  */
 
@@ -26,30 +30,17 @@ export const DRIVER_VERIFICATION_LABEL: Record<DriverVerification, string> = {
 
 export type Driver = {
   id: string;
+  /** '' when not set. */
   name: string;
-  phone: string;
-  phoneAlt?: string;
-  /** Optional — many drivers don't have email. */
-  email?: string;
-  city: string;
-  /** Foreign key into vendors. */
-  vendorId: string;
-  /** Denormalised — server sends the joined name for rendering. */
-  vendorName: string;
-  /**
-   * Denormalised, like vendorName: locality of the vendor's garage in
-   * this driver's city (the first matching garage in vendor.garages).
-   * The server joins it so the app needn't load every vendor to draw a
-   * card. Missing when the vendor has no garage in the driver's city;
-   * the card then shows the city alone.
-   */
-  garageLocality?: string;
-  /** License number (partial redaction later — full for UC role). */
-  licenseNo: string;
+  phone: string | null;
+  email: string | null;
+  city: string | null;
+  vendorId: string | null;
+  vendorName: string | null;
+  licenseNo: string | null;
   verification: DriverVerification;
-  /** Total completed trips — proxy for driver seniority. */
-  completedTrips: number;
-  createdAt: ISODateTime;
+  /** null when the row has no created date. */
+  createdAt: ISODateTime | null;
 };
 
 /* ------------------------------------------------------------------ */
@@ -58,7 +49,7 @@ export type Driver = {
 
 export type DriverVerificationFilter = 'all' | DriverVerification;
 
-export type DriverSortBy = 'newest' | 'oldest' | 'nameAsc' | 'mostTrips';
+export type DriverSortBy = 'newest' | 'oldest' | 'nameAsc';
 
 export type DriverFilters = {
   verification: DriverVerificationFilter;

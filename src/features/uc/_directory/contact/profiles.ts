@@ -22,7 +22,6 @@ import {
 import {
   VENDOR_STATUS_LABEL,
   VENDOR_VERIFICATION_LABEL,
-  vendorDesignationLabel,
   type Vendor,
   type VendorStatus,
   type VendorVerification,
@@ -86,7 +85,10 @@ export function formatDate(iso: string | null | undefined): string {
  * '+919810000000' never produce a pointless two-row picker.
  */
 export function distinctPhones(
-  candidates: ReadonlyArray<{ label: string; value: string | undefined }>,
+  candidates: ReadonlyArray<{
+    label: string;
+    value: string | null | undefined;
+  }>,
 ): ContactPhone[] {
   const seen = new Set<string>();
   const out: ContactPhone[] = [];
@@ -145,11 +147,16 @@ const VENDOR_VERIFICATION_TONE: Record<VendorVerification, ContactTone> = {
 /* ------------------------------------------------------------------ */
 
 function customerProfile(c: Customer): ListContactProfile {
-  const category = CUSTOMER_CATEGORY_LABEL[c.category];
-  const subType = CUSTOMER_SUBTYPE_LABEL[c.customerType];
-  // 'Personal • Personal' carries no information — show it once.
+  const category = c.category ? CUSTOMER_CATEGORY_LABEL[c.category] : null;
+  const subType = c.customerType
+    ? CUSTOMER_SUBTYPE_LABEL[c.customerType]
+    : null;
+  // 'Personal • Personal' carries no information — show it once. A
+  // missing part is left out; nothing set → '—'.
   const typeLabel =
-    category === subType ? category : `${category} • ${subType}`;
+    category && subType && category !== subType
+      ? `${category} • ${subType}`
+      : category ?? subType;
 
   return {
     layout: 'list',
@@ -205,21 +212,8 @@ function customerProfile(c: Customer): ListContactProfile {
         label: 'City',
         value: c.city,
       }),
-      ...optionalField({
-        key: 'gstin',
-        kind: 'taxId',
-        label: 'GSTIN',
-        value: c.gstin,
-      }),
-      {
-        key: 'trips',
-        kind: 'trips',
-        // The value is the customer's bookings (totalBookings), same as
-        // the "Bookings" count on the customer card.
-        label: 'Total Bookings',
-        value: String(c.totalBookings),
-        emphasis: true,
-      },
+      // No GSTIN or bookings count: the Directory reads only the
+      // customers table, which has neither (product decision).
       {
         key: 'registered',
         kind: 'date',
@@ -239,10 +233,13 @@ function vendorProfile(v: Vendor): SectionedContactProfile {
     // Owner name first, company below: same order as the directory card.
     title: trimmed(v.ownerName) || EMPTY_VALUE,
     subtitle: present(v.companyName),
-    status: {
-      label: VENDOR_STATUS_LABEL[v.status],
-      tone: VENDOR_STATUS_TONE[v.status],
-    },
+    // No status pill for a status this app version doesn't know.
+    status: v.status
+      ? {
+          label: VENDOR_STATUS_LABEL[v.status],
+          tone: VENDOR_STATUS_TONE[v.status],
+        }
+      : null,
     phones: distinctPhones([
       { label: 'Primary', value: v.phone },
       { label: 'Secondary', value: v.phoneAlt },
@@ -265,13 +262,6 @@ function vendorProfile(v: Vendor): SectionedContactProfile {
             kind: 'company',
             label: 'Company Name',
             value: v.companyName,
-          }),
-          // Hidden until the vendor has a designation.
-          ...optionalRow({
-            key: 'designation',
-            kind: 'designation',
-            label: 'Designation',
-            value: vendorDesignationLabel(v.designation),
           }),
           ...optionalRow({
             key: 'gstin',
@@ -324,22 +314,6 @@ function vendorProfile(v: Vendor): SectionedContactProfile {
             label: 'City',
             value: v.city,
           }),
-          // One row per garage, as '<area>, <city>', in the order the
-          // server sends them (main garage of each city first). Garages
-          // with a blank area are skipped; no garages → no rows.
-          ...(v.garages ?? []).flatMap((g, i) =>
-            optionalRow({
-              // Index keeps keys unique even if two garages share a name.
-              key: `garage-${i}`,
-              kind: 'garage',
-              label: 'Garage Address',
-              value: present(g.locality)
-                ? [present(g.locality), present(g.city)]
-                    .filter(Boolean)
-                    .join(', ')
-                : null,
-            }),
-          ),
           ...optionalRow({
             key: 'address',
             kind: 'address',
@@ -455,10 +429,7 @@ function driverProfile(d: Driver): ListContactProfile {
     // Name only in the header (product decision). The vendor is still
     // the Vendor row below; verification shows on the list card badge.
     meta: [],
-    phones: distinctPhones([
-      { label: 'Primary', value: d.phone },
-      { label: 'Alternate', value: d.phoneAlt },
-    ]),
+    phones: distinctPhones([{ label: 'Primary', value: d.phone }]),
     email: present(d.email),
     whatsAppMessage: `${salutation(d.name)}, this is Urban Cruise.`,
     emailSubject: 'Urban Cruise — Driver follow up',
@@ -471,12 +442,6 @@ function driverProfile(d: Driver): ListContactProfile {
         value: maskPhone(d.phone),
       }),
       ...optionalField({
-        key: 'phoneAlt',
-        kind: 'phone',
-        label: 'Alternate Phone',
-        value: maskPhone(d.phoneAlt),
-      }),
-      ...optionalField({
         key: 'email',
         kind: 'email',
         label: 'Email',
@@ -487,18 +452,6 @@ function driverProfile(d: Driver): ListContactProfile {
         kind: 'location',
         label: 'City',
         value: d.city,
-      }),
-      // Vendor's garage in the driver's city, as '<area>, <city>' (same
-      // as the driver card). Hidden when there is no garage there.
-      ...optionalField({
-        key: 'garage',
-        kind: 'garage',
-        label: 'Garage Address',
-        value: present(d.garageLocality)
-          ? [present(d.garageLocality), present(d.city)]
-              .filter(Boolean)
-              .join(', ')
-          : null,
       }),
       requiredField({
         key: 'vendor',

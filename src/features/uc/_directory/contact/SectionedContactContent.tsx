@@ -135,9 +135,11 @@ export const SectionedContactContent: React.FC<Props> = ({
               {profile.subtitle}
             </Text>
           ) : null}
-          <View style={styles.statusRow}>
-            <StatusPill pill={profile.status} />
-          </View>
+          {profile.status ? (
+            <View style={styles.statusRow}>
+              <StatusPill pill={profile.status} />
+            </View>
+          ) : null}
         </View>
       </View>
 

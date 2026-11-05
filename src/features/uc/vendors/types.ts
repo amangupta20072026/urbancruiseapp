@@ -2,10 +2,21 @@
  * ------------------------------------------------------------------
  * Vendor (UC directory) — entity + filter types
  * ------------------------------------------------------------------
- * A Vendor is a fleet operator onboarded onto Urban Cruise. Unlike
- * a Customer (which is often a person with a single contact number),
- * a Vendor is a business — company name is the primary identifier,
- * the "contact person" is the owner/manager we call.
+ * A Vendor is a fleet operator onboarded onto Urban Cruise, as
+ * GET /uc/vendors returns it. Read only from the `vendors` table.
+ * Empty values come as null.
+ *
+ * Column mapping (product decisions):
+ *   ownerName    ← vendors.name          (card title)
+ *   companyName  ← vendors.company_name  (below the title)
+ *   phone        ← vendors.phone         (main)
+ *   phoneAlt     ← vendors.owner_phone   (second)
+ *   email        ← vendors.email
+ *   city         ← vendors.company_city
+ *   address      ← vendors.address
+ *   gstin / pan  ← vendors.gst_number / company_pan_number
+ *   status       ← vendors.status — empty counts as Active
+ *   verification ← vendors.verification (KYC)
  *
  * Approval status matters here: unlike customers, vendors need
  * verification before they can accept assignments. The list shows
@@ -34,103 +45,33 @@ export const VENDOR_VERIFICATION_LABEL: Record<VendorVerification, string> = {
   rejected: 'Rejected',
 };
 
-/** One garage of a vendor: where its vehicles are kept and its
- *  drivers pick them up. A vendor may have garages in many cities. */
-export type VendorGarage = {
-  /** Area within the city, e.g. 'Sakinaka'. */
-  locality: string;
-  city: string;
-};
-
 export type Vendor = {
   id: string;
-  /** Contact person / owner. The directory card's title. */
+  /** vendors.name — the directory card's title. '' when not set. */
   ownerName: string;
-  /** Business name. Shown on the directory card below the owner name. */
-  companyName: string;
-  /** Primary business phone (with country code). */
-  phone: string;
-  /** Secondary line — optional. Some vendors only have one line. */
-  phoneAlt?: string;
-  email: string;
-  city: string;
-  /** Full postal address as one text (DB: single full-address column).
-   * Shown on the contact sheet. Empty string when not set. */
-  address: string;
-  /**
-   * Area / locality within the city (e.g. 'Andheri East'). Shown on the
-   * directory card as '<locality>, <city>'. Optional: when missing or
-   * blank, the card shows the city alone.
-   */
-  locality?: string;
-  /**
-   * The vendor's garages, shared by all its drivers. Optional and may be
-   * empty. When the vendor has more than one garage in a city, the FIRST
-   * one in this list is that city's main garage (shown on driver cards),
-   * so the server must send the main garage first.
-   */
-  garages?: readonly VendorGarage[];
+  /** Business name, shown below the title. */
+  companyName: string | null;
+  /** Main phone (as stored). */
+  phone: string | null;
+  /** Second phone (as stored). */
+  phoneAlt: string | null;
+  email: string | null;
+  city: string | null;
+  /** Full postal address as one text. Shown on the contact sheet. */
+  address: string | null;
   /** GST number, when registered. Displayed on the sheet. */
-  gstin?: string;
-  /** PAN (Permanent Account Number), when on file. Displayed on the sheet. */
-  pan?: string;
-  /** Free text from the server (e.g. 'Transport Services'), when set.
-   *  Not shown on the contact sheet (product decision). */
-  businessType?: string;
-  /**
-   * The contact person's role in the vendor company, as a key from the
-   * server (e.g. 'operations_manager'). Optional: vendors without one
-   * show no Designation row. Label via vendorDesignationLabel().
-   */
-  designation?: string;
-  status: VendorStatus;
+  gstin: string | null;
+  /** PAN, when on file. Displayed on the sheet. */
+  pan: string | null;
+  /** Free text from the server (e.g. 'Transport Services'). Not shown
+   *  on the contact sheet (product decision). */
+  businessType: string | null;
+  /** null = a status this app version doesn't know → no badge. */
+  status: VendorStatus | null;
   verification: VendorVerification;
-  /** Number of vehicles onboarded — proxy for vendor size. */
-  vehicleCount: number;
-  /** Number of active drivers. Used by the Drivers tab's vendor filter. */
-  driverCount: number;
-  createdAt: ISODateTime;
+  /** null when the row has no created date. */
+  createdAt: ISODateTime | null;
 };
-
-/* ------------------------------------------------------------------ */
-/* Designation                                                        */
-/* ------------------------------------------------------------------ */
-
-/**
- * Designations known to the app today. The full list will come from
- * the backend; until then these three keys get fixed labels.
- */
-export type VendorDesignation =
-  | 'admin'
-  | 'operations_manager'
-  | 'booking_manager';
-
-export const VENDOR_DESIGNATION_LABEL: Record<VendorDesignation, string> = {
-  admin: 'Admin',
-  operations_manager: 'Operations Manager',
-  booking_manager: 'Booking Manager',
-};
-
-const isKnownDesignation = (key: string): key is VendorDesignation =>
-  Object.prototype.hasOwnProperty.call(VENDOR_DESIGNATION_LABEL, key);
-
-/**
- * Display label for a designation key, or null when there is none.
- * A key the app doesn't know yet (added on the backend first) is
- * shown readable instead of hidden: 'fleet_manager' → 'Fleet Manager'.
- */
-export function vendorDesignationLabel(
-  raw: string | null | undefined,
-): string | null {
-  const key = (raw ?? '').trim();
-  if (!key) return null;
-  if (isKnownDesignation(key)) return VENDOR_DESIGNATION_LABEL[key];
-  return key
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ');
-}
 
 /* ------------------------------------------------------------------ */
 /* Filters                                                            */
@@ -138,7 +79,8 @@ export function vendorDesignationLabel(
 
 export type VendorStatusFilter = 'all' | VendorStatus;
 
-export type VendorSortBy = 'newest' | 'oldest' | 'nameAsc' | 'largestFleet';
+/** 'nameAsc' sorts by the card title (vendors.name). */
+export type VendorSortBy = 'newest' | 'oldest' | 'nameAsc';
 
 export type VendorFilters = {
   status: VendorStatusFilter;

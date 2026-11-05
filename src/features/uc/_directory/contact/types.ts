@@ -156,8 +156,8 @@ export type ListContactProfile = ContactProfileBase & {
 /** Left-aligned header and titled sections of rows (vendors). */
 export type SectionedContactProfile = ContactProfileBase & {
   layout: 'sections';
-  /** Pill in the header (e.g. 'Active'). */
-  status: ContactPill;
+  /** Pill in the header (e.g. 'Active'); null = no pill. */
+  status: ContactPill | null;
   sections: ContactSection[];
 };
 

@@ -8,8 +8,10 @@
  * Sections:
  *   - Customer Type         (All / Personal / Corporate / Agent — 2×2 radio pills)
  *   - Registration Date     (From / To — date pickers)
- *   - Sort By               (Newest / Oldest / Name A–Z / Most Trips)
- *   - Trips (Total)         (All / No Trips / 1–10 / 10+)
+ *   - Sort By               (Newest / Oldest / Name A–Z)
+ *
+ * No trips / bookings filter or sort: the Directory reads only the
+ * customers table (product decision).
  *
  * The sheet keeps a LOCAL DRAFT of the filters while open. The parent
  * only sees the values when the user taps "Apply Filters". Tapping
@@ -21,7 +23,7 @@
  *   - Header (Filters + Reset + divider) sits OUTSIDE the ScrollView
  *     so it stays pinned when content scrolls.
  *   - Sort dropdown menu is absolutely positioned so opening it does
- *     NOT push Trips + buttons down.
+ *     NOT push the buttons down.
  *   - Customer Type pills use a 2×2 grid — 4 pills in a single row
  *     forced "Corporate"/"Personal" to wrap mid-word.
  * ------------------------------------------------------------------
@@ -60,7 +62,6 @@ import {
   type CustomerFilter,
   type CustomerFilters,
   type CustomerSortBy,
-  type CustomerTripsBucket,
 } from '../types';
 
 /* ------------------------------------------------------------------ */
@@ -87,14 +88,6 @@ const SORT_OPTIONS: { value: CustomerSortBy; label: string }[] = [
   { value: 'newest', label: 'Newest First' },
   { value: 'oldest', label: 'Oldest First' },
   { value: 'nameAsc', label: 'Name (A–Z)' },
-  { value: 'mostTrips', label: 'Most Trips' },
-];
-
-const TRIPS_OPTIONS: { value: CustomerTripsBucket; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'none', label: 'No Trips' },
-  { value: '1to10', label: '1 – 10' },
-  { value: '10plus', label: '10+' },
 ];
 
 const SNAP_POINTS = ['70%'];
@@ -346,38 +339,6 @@ export const CustomerFilterSheet = forwardRef<BottomSheetModal, Props>(
             ) : null}
           </View>
 
-          {/* Trips */}
-          <Text style={styles.sectionLabel}>Trips (Total Completed)</Text>
-          <View style={styles.tripsRow}>
-            {TRIPS_OPTIONS.map(opt => {
-              const selected = draft.tripsBucket === opt.value;
-              return (
-                <Pressable
-                  key={opt.value}
-                  style={styles.tripsOption}
-                  onPress={() =>
-                    setDraft(d => ({ ...d, tripsBucket: opt.value }))
-                  }
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                >
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      styles.radioSm,
-                      selected && styles.radioOuterOn,
-                    ]}
-                  >
-                    {selected ? (
-                      <View style={[styles.radioInner, styles.radioInnerSm]} />
-                    ) : null}
-                  </View>
-                  <Text style={styles.tripsLabel}>{opt.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
           {/* Actions */}
           <Pressable style={styles.applyBtn} onPress={handleApply}>
             <Text style={styles.applyText}>Apply Filters</Text>
@@ -552,16 +513,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: Colors.primary,
   },
-  radioSm: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-  },
-  radioInnerSm: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-  },
 
   /* Date row */
   dateRow: {
@@ -653,24 +604,6 @@ const styles = StyleSheet.create({
   sortItemTextSelected: {
     color: Colors.primary,
     fontWeight: '700',
-  },
-
-  /* Trips */
-  tripsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  tripsOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs + 2,
-    paddingVertical: Spacing.xs,
-  },
-  tripsLabel: {
-    ...Typography.body,
-    color: Colors.textPrimary,
   },
 
   /* Actions */

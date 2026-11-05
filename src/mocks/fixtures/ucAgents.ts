@@ -1,9 +1,9 @@
 import { asISODateTime } from '@app-types/datetime';
-import type { Customer } from '@features/uc/customers/types';
+import type { MockUcCustomer } from './ucCustomers';
 
 /** Agent fixtures — the third customer category. Small hand-crafted
  * set covering all five agent sub-types. */
-export const fixtureUcAgents: Customer[] = [
+export const fixtureUcAgents: MockUcCustomer[] = [
   {
     id: 'CUST-AGT-0001',
     category: 'agent',

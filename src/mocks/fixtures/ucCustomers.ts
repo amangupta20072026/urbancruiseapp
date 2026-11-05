@@ -1,21 +1,46 @@
 /**
  * Fixture transform: adapts legacy mock rows (from mocks/data/customers.ts)
- * to the new Customer schema (category / customerType / phoneIndia /
- * phoneGlobal / companyName). This lets us evolve the
- * schema without hand-editing the 2600-line raw file.
+ * to sample customers (category / customerType / phoneIndia /
+ * phoneGlobal / companyName).
  *
- * When the backend goes live, this whole module is deleted.
+ * NOT used by the UC Directory any more: the Customers tab reads the real
+ * GET /uc/customers. These samples only feed the mock trip history
+ * (mocks/data/customerHistory.ts) and the mock UC Bookings list, until
+ * those are connected to the backend. Delete this module then.
  */
 
+import type { ISODateTime } from '@app-types/datetime';
 import {
   mockCustomers as legacy,
   type LegacyCustomerRow,
 } from '@mocks/data/customers';
 import type {
-  Customer,
   CorporateCustomerType,
+  CustomerCategory,
+  CustomerSubType,
 } from '@features/uc/customers/types';
 import { fixtureUcAgents } from './ucAgents';
+
+/**
+ * A sample customer, in the shape the mock history / bookings need
+ * (always-present values plus booking counts). Separate from the real
+ * Directory `Customer`, which comes from the backend.
+ */
+export type MockUcCustomer = {
+  id: string;
+  category: CustomerCategory;
+  customerType: CustomerSubType;
+  name: string;
+  phoneIndia: string;
+  phoneGlobal: string;
+  email: string;
+  city: string;
+  companyName?: string;
+  gstin?: string;
+  createdAt: ISODateTime;
+  totalBookings: number;
+  lastBookingAt: ISODateTime | null;
+};
 
 /* Rotating pools so corporate rows get plausible person names +
  * sub-types without us having to hand-tag 80 entries. Deterministic
@@ -44,7 +69,7 @@ const CORP_SUBTYPES: CorporateCustomerType[] = [
   'government',
 ];
 
-function migrate(entry: LegacyCustomerRow, index: number): Customer {
+function migrate(entry: LegacyCustomerRow, index: number): MockUcCustomer {
   const base = {
     id: entry.id,
     phoneIndia: entry.phone,
@@ -55,9 +80,9 @@ function migrate(entry: LegacyCustomerRow, index: number): Customer {
     email: entry.email,
     city: entry.city,
     gstin: entry.gstin,
-    createdAt: entry.createdAt as Customer['createdAt'],
+    createdAt: entry.createdAt as MockUcCustomer['createdAt'],
     totalBookings: entry.totalBookings,
-    lastBookingAt: entry.lastBookingAt as Customer['lastBookingAt'],
+    lastBookingAt: entry.lastBookingAt as MockUcCustomer['lastBookingAt'],
   };
 
   if (entry.type === 'personal') {
@@ -80,20 +105,20 @@ function migrate(entry: LegacyCustomerRow, index: number): Customer {
   };
 }
 
-const migrated: Customer[] = legacy.map(migrate);
+const migrated: MockUcCustomer[] = legacy.map(migrate);
 
-export const fixtureUcCustomersAll: Customer[] = [
+export const fixtureUcCustomersAll: MockUcCustomer[] = [
   ...migrated,
   ...fixtureUcAgents,
 ];
 
-export const fixtureUcCustomersEmpty: Customer[] = [];
+export const fixtureUcCustomersEmpty: MockUcCustomer[] = [];
 
-export const fixtureUcCustomersPersonalOnly: Customer[] =
+export const fixtureUcCustomersPersonalOnly: MockUcCustomer[] =
   fixtureUcCustomersAll.filter(c => c.category === 'personal');
 
-export const fixtureUcCustomersCorporateOnly: Customer[] =
+export const fixtureUcCustomersCorporateOnly: MockUcCustomer[] =
   fixtureUcCustomersAll.filter(c => c.category === 'corporate');
 
-export const fixtureUcCustomersAgentOnly: Customer[] =
+export const fixtureUcCustomersAgentOnly: MockUcCustomer[] =
   fixtureUcCustomersAll.filter(c => c.category === 'agent');

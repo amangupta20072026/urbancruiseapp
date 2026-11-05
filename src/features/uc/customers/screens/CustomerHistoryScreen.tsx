@@ -30,9 +30,10 @@
  *   whichever screen opened it, with no contact sheet reopened.
  *
  * Customer lookup:
- *   Cheap synchronous read from the mock fixture. Swaps to
- *   `useCustomer(customerId)` when backend lands — trivially
- *   swappable, no structural change to this file.
+ *   The real customer, read from the Directory list already in memory
+ *   (findCachedCustomer). The trips themselves are still sample data
+ *   until the booking history is connected to the backend, so a real
+ *   customer shows an empty list ("No trips yet") — product decision.
  *
  * States handled:
  *   - unknown customerId → error card, back button still works
@@ -54,6 +55,7 @@ import {
   View,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useNavigation,
   useRoute,
@@ -67,8 +69,6 @@ import { Colors, Spacing, Typography } from '@theme';
 
 import type { UcStackParamList } from '@navigation/types';
 
-import { fixtureUcCustomersAll } from '@mocks/fixtures/ucCustomers';
-
 import {
   useCustomerHistory,
   useCustomerHistoryCounts,
@@ -77,6 +77,7 @@ import { CustomerSummaryCard } from '../components/CustomerSummaryCard';
 import { HistoryFilterChips } from '../components/HistoryFilterChips';
 import { HistoryTripCard } from '../components/HistoryTripCard';
 import { ListFooterLoader } from '../components/ListFooterLoader';
+import { findCachedCustomer } from '../utils/findCachedCustomer';
 import type { HistoryStatusFilter } from '../types';
 
 /* ------------------------------------------------------------------ */
@@ -93,11 +94,11 @@ const CustomerHistoryScreen: React.FC = () => {
 
   const [filter, setFilter] = useState<HistoryStatusFilter>('all');
 
-  /* Customer lookup — cheap synchronous read from the mock fixture.
-   * Swaps to `useCustomer(customerId)` when backend lands. */
+  /* Customer from the Directory list in memory (see findCachedCustomer). */
+  const queryClient = useQueryClient();
   const customer = useMemo(
-    () => fixtureUcCustomersAll.find(c => c.id === customerId) ?? null,
-    [customerId],
+    () => findCachedCustomer(queryClient, customerId),
+    [queryClient, customerId],
   );
 
   const {

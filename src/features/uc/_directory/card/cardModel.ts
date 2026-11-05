@@ -90,7 +90,7 @@ export type DirectoryCardModel = {
 const GREY = { bg: Colors.borderLight, fg: Colors.textSecondary };
 
 const VENDOR_STATUS_COLOUR: Record<
-  Vendor['status'],
+  NonNullable<Vendor['status']>,
   { bg: string; fg: string }
 > = {
   active: { bg: '#E7F7EC', fg: '#049856' },
@@ -116,10 +116,6 @@ const text = (v: string | null | undefined): string => (v ?? '').trim();
 
 const orEmpty = (v: string | null | undefined): string =>
   text(v) || EMPTY_VALUE;
-
-/** '1 booking' / '3 trips' — `one` and `many` keep each role's casing. */
-export const countLabel = (n: number, one: string, many: string): string =>
-  `${n} ${n === 1 ? one : many}`;
 
 const optionalLine = (
   key: string,
@@ -149,56 +145,43 @@ const companyLine = (
 const phoneLine = (value: string | null | undefined): CardLine[] =>
   optionalLine('phone', 'phone', maskPhone(value));
 
-/** City-style footer item that may shorten when space runs out. */
-const shrinkable = (icon: CardIcon, value: string): CardFooterItem => ({
-  icon,
-  text: value,
-  emphasis: false,
-  shrink: true,
-});
-
-/** Green count (trips / vehicles) that always shows in full. */
-const count = (icon: CardIcon, value: string): CardFooterItem => ({
-  icon,
-  text: value,
-  emphasis: true,
-  shrink: false,
-});
-
 /* ------------------------------------------------------------------ */
 /* Per-role mappers                                                   */
 /* ------------------------------------------------------------------ */
 
 function customerCard(c: Customer): DirectoryCardModel {
-  const categoryLabel = CUSTOMER_CATEGORY_LABEL[c.category];
-  const joined = formatDate(c.createdAt);
+  // No badge when the customer type is not set in the database.
+  const categoryLabel = c.category ? CUSTOMER_CATEGORY_LABEL[c.category] : '';
+  const joined = c.createdAt ? formatDate(c.createdAt) : '';
+  // Company chip for corporate + agent; also for a customer with no type
+  // but a company name, so that name isn't lost.
   const hasCompany = c.category !== 'personal';
   // City rides in the company chip, so personal customers show none.
   const city = hasCompany ? text(c.city) : '';
   return {
     id: c.id,
     title: orEmpty(c.name),
-    badge: { label: categoryLabel, ...CUSTOMER_CATEGORY_COLOR[c.category] },
+    badge: c.category
+      ? { label: categoryLabel, ...CUSTOMER_CATEGORY_COLOR[c.category] }
+      : null,
     lines: [
-      // Company chip under the title, corporate + agent only, with the
-      // city after a map pin (same as the vendor card). Dropped when the
-      // company name is blank.
+      // Company chip under the title, with the city after a map pin
+      // (same as the vendor card). Dropped when the company is blank.
       ...(hasCompany ? companyLine('company', c.companyName, city) : []),
       ...phoneLine(c.phoneIndia),
       ...optionalLine('email', 'mail', c.email),
+      // Joined date. No bookings count: the Directory reads only the
+      // customers table (product decision).
+      ...optionalLine('joined', 'calendar', joined),
     ],
-    footer: {
-      left: shrinkable('calendar', joined),
-      // The count is the customer's bookings (totalBookings), so it is
-      // labelled "Bookings", not "Trips".
-      right: count('trips', countLabel(c.totalBookings, 'Booking', 'Bookings')),
-    },
+    footer: null,
     accessibilityLabel: [
-      `${orEmpty(c.name)}, ${categoryLabel} customer`,
+      categoryLabel
+        ? `${orEmpty(c.name)}, ${categoryLabel} customer`
+        : `${orEmpty(c.name)}, customer`,
       hasCompany ? text(c.companyName) : '',
       city,
-      countLabel(c.totalBookings, 'booking', 'bookings'),
-      `joined ${joined}`,
+      joined ? `joined ${joined}` : '',
     ]
       .filter(Boolean)
       .join(', '),
@@ -207,57 +190,27 @@ function customerCard(c: Customer): DirectoryCardModel {
 }
 
 function vendorCard(v: Vendor): DirectoryCardModel {
-  const status = VENDOR_STATUS_LABEL[v.status];
-  const city = text(v.city);
-  // Main garage in the vendor's own city: the first matching garage in
-  // v.garages (the server sends the main garage first). Matched ignoring
-  // case and spaces. Shown as warehouse icon + '<garage area>, <city>'.
-  const mainGarage = city
-    ? v.garages?.find(
-        g =>
-          text(g.city).toLowerCase() === city.toLowerCase() &&
-          text(g.locality) !== '',
-      )
-    : undefined;
-  // No garage in its city: fall back to the office area with a map pin,
-  // '<locality>, <city>' (either part may be missing; blanks left out).
-  // The full address is not on the card (it's on the contact sheet).
-  const locationLine: CardLine | null = mainGarage
-    ? {
-        key: 'location',
-        icon: 'garage',
-        text: `${text(mainGarage.locality)}, ${city}`,
-        wrap: true,
-      }
-    : (() => {
-        const office = [text(v.locality), city].filter(Boolean).join(', ');
-        return office
-          ? { key: 'location', icon: 'location', text: office, wrap: true }
-          : null;
-      })();
+  // No badge for a status this app version doesn't know.
+  const status = v.status ? VENDOR_STATUS_LABEL[v.status] : '';
   return {
     id: v.id,
-    // Owner name is the title; the company name is the first line below it.
+    // vendors.name is the title; the company name is the first line below.
     title: orEmpty(v.ownerName),
-    badge: { label: status, ...VENDOR_STATUS_COLOUR[v.status] },
+    badge: v.status
+      ? { label: status, ...VENDOR_STATUS_COLOUR[v.status] }
+      : null,
     lines: [
-      // Company name only; the city is on the location line below.
       ...companyLine('company', v.companyName),
       ...phoneLine(v.phone),
       ...optionalLine('email', 'mail', v.email),
-      ...(locationLine ? [locationLine] : []),
+      // City with a map pin. The full address is on the contact sheet.
+      ...optionalLine('location', 'location', v.city),
     ],
-    // No footer: vehicle count removed; city is on the location line.
     footer: null,
     accessibilityLabel: [
       `Vendor ${orEmpty(v.ownerName)}`,
-      orEmpty(v.companyName),
-      // The icon alone tells sighted users it's a garage; say it in words.
-      locationLine
-        ? mainGarage
-          ? `garage ${locationLine.text}`
-          : locationLine.text
-        : '',
+      text(v.companyName),
+      text(v.city),
       status,
     ]
       .filter(Boolean)
@@ -292,13 +245,6 @@ function staffCard(s: Staff): DirectoryCardModel {
 
 function driverCard(d: Driver): DirectoryCardModel {
   const verification = DRIVER_VERIFICATION_LABEL[d.verification];
-  const city = text(d.city);
-  const garage = text(d.garageLocality);
-  // Garage in the driver's city: warehouse icon + 'Sakinaka, Mumbai'.
-  // No garage there: map pin + city, as before.
-  const place = garage
-    ? shrinkable('garage', [garage, city].filter(Boolean).join(', '))
-    : shrinkable('location', orEmpty(d.city));
   return {
     id: d.id,
     title: orEmpty(d.name),
@@ -307,23 +253,21 @@ function driverCard(d: Driver): DirectoryCardModel {
       ...DRIVER_VERIFICATION_COLOUR[d.verification],
     },
     // Vendor company chip first (right under the name, like the customer
-    // and vendor cards), then phone, then email. A missing or blank
-    // email gets no line at all. No city in the chip: the driver's city
-    // stays in the footer.
+    // and vendor cards), then phone, email and city. Blank values get no
+    // line. No trips count: the Directory reads only the drivers and
+    // vendors tables (product decision).
     lines: [
       ...companyLine('vendor', d.vendorName),
       ...phoneLine(d.phone),
       ...optionalLine('email', 'mail', d.email),
+      ...optionalLine('city', 'location', d.city),
     ],
-    footer: {
-      left: place,
-      right: count('trips', countLabel(d.completedTrips, 'trip', 'trips')),
-    },
-    // The icon alone tells sighted users it's a garage; say it in words.
+    footer: null,
     accessibilityLabel: [
       `Driver ${orEmpty(d.name)}`,
       verification,
-      garage ? `garage ${place.text}` : city,
+      text(d.vendorName),
+      text(d.city),
     ]
       .filter(Boolean)
       .join(', '),

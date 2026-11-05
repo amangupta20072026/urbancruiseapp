@@ -44,8 +44,11 @@ const queryStore = createMMKV({ id: 'urbancruise-query-cache' });
  *   '4' — UC quotations list: `travelDate` → `travelDateStart` +
  *         `travelDateEnd`; `vehicleLabel` → `vehicleName` +
  *         `seatingCapacity`; `amountPaise` removed.
+ *   '5' — UC Directory (customers / vendors / drivers) now real API
+ *         data: new shapes, no booking / trip counts. The customers
+ *         list was saved to disk before; it no longer is (PII).
  */
-export const QUERY_CACHE_BUSTER = '4';
+export const QUERY_CACHE_BUSTER = '5';
 
 /**
  * AsyncStorage-shaped adapter over the sync MMKV instance.

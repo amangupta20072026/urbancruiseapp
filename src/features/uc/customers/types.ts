@@ -86,25 +86,30 @@ export const CUSTOMER_SUBTYPE_LABEL: Record<CustomerSubType, string> = {
   dmc: 'DMC',
 };
 
+/**
+ * One customer in the UC Directory, as GET /uc/customers returns it.
+ * Read only from the `customers` table (no bookings / trips data), so
+ * there is no bookings count. Empty values come as null.
+ */
 export type Customer = {
   id: string;
-  category: CustomerCategory;
-  customerType: CustomerSubType;
-  /** Person's name — displayed on card and sheet, always. */
+  /** From customers.customerType. null = not set → no badge. */
+  category: CustomerCategory | null;
+  /** From customers.customerCategoryType. null = not set, not known,
+   *  or not valid for the category. */
+  customerType: CustomerSubType | null;
+  /** Person's name (first + middle + last). '' when not set. */
   name: string;
-  /** Primary Indian phone (with country code). */
-  /** Primary Indian phone (with country code). */
-  phoneIndia: string;
-  /** Secondary international phone (with country code). Always present. */
-  phoneGlobal: string;
-  email: string;
-  city: string;
-  /** Only meaningful for corporate + agent. */
-  companyName?: string;
-  gstin?: string;
-  createdAt: ISODateTime;
-  totalBookings: number;
-  lastBookingAt: ISODateTime | null;
+  /** customers.customerPhone, as stored. */
+  phoneIndia: string | null;
+  /** customers.alternatePhone, as stored. */
+  phoneGlobal: string | null;
+  email: string | null;
+  city: string | null;
+  /** Company name; shown for corporate + agent. */
+  companyName: string | null;
+  /** null when the row has no created date. */
+  createdAt: ISODateTime | null;
 };
 
 /* ------------------------------------------------------------------
@@ -113,16 +118,15 @@ export type Customer = {
 
 export type CustomerFilter = 'all' | CustomerCategory;
 
-export type CustomerSortBy = 'newest' | 'oldest' | 'nameAsc' | 'mostTrips';
-
-export type CustomerTripsBucket = 'all' | 'none' | '1to10' | '10plus';
+export type CustomerSortBy = 'newest' | 'oldest' | 'nameAsc';
 
 export type CustomerFilters = {
   type: CustomerFilter;
+  /** 'YYYY-MM-DD' (India time), inclusive. */
   dateFrom: string | null;
+  /** 'YYYY-MM-DD' (India time), inclusive. */
   dateTo: string | null;
   sortBy: CustomerSortBy;
-  tripsBucket: CustomerTripsBucket;
 };
 
 export const DEFAULT_CUSTOMER_FILTERS: CustomerFilters = {
@@ -130,7 +134,6 @@ export const DEFAULT_CUSTOMER_FILTERS: CustomerFilters = {
   dateFrom: null,
   dateTo: null,
   sortBy: 'newest',
-  tripsBucket: 'all',
 };
 
 export function countActiveFilters(f: CustomerFilters): number {
@@ -138,7 +141,6 @@ export function countActiveFilters(f: CustomerFilters): number {
   if (f.type !== DEFAULT_CUSTOMER_FILTERS.type) n += 1;
   if (f.dateFrom || f.dateTo) n += 1;
   if (f.sortBy !== DEFAULT_CUSTOMER_FILTERS.sortBy) n += 1;
-  if (f.tripsBucket !== DEFAULT_CUSTOMER_FILTERS.tripsBucket) n += 1;
   return n;
 }
 

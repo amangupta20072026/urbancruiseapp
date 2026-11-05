@@ -17,10 +17,14 @@
  * Behaviour:
  *   - The phone is shown masked (maskPhone); Call / WhatsApp still
  *     use the raw number.
- *   - Tap Call / WhatsApp → opens PhoneNumberPickerSheet if the two
- *     phones differ, otherwise dials the shared number directly.
- *     (Same picker as the shared DirectoryContactSheet.)
+ *   - Tap Call / WhatsApp → opens PhoneNumberPickerSheet when the
+ *     customer has two different numbers, otherwise uses the one number.
+ *     (Same picker as the shared DirectoryContactSheet.) No number →
+ *     no Call / WhatsApp buttons.
  *   - Tap Email → opens the mail composer with a pre-filled subject.
+ *     No email → no Email button.
+ *   - Missing name / type (real data can have them empty) → '—' for the
+ *     name, no type line.
  *   - No "View history" button here — this component IS on the
  *     history screen already.
  *
@@ -37,6 +41,11 @@ import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { makePhoneCall, openWhatsApp, sendEmail } from '@services/contact';
 import { maskPhone } from '@shared/utils';
 
+import {
+  distinctPhones,
+  EMPTY_VALUE,
+  firstName,
+} from '../../_directory/contact/profiles';
 import { CUSTOMER_CATEGORY_LABEL, type Customer } from '../types';
 import { avatarColorFor, initials } from '../utils/avatar';
 import {
@@ -75,13 +84,24 @@ export const CustomerSummaryCard: React.FC<Props> = ({ customer }) => {
 
   /* -------- Phone-number picker (same pattern as DirectoryContactSheet) ----- */
 
+  /* Distinct, non-empty numbers only (same rule as the contact sheet). */
   const pickerOptions = useMemo(
-    () => [
-      { label: 'India', value: customer.phoneIndia },
-      { label: 'Global', value: customer.phoneGlobal },
-    ],
+    () =>
+      distinctPhones([
+        { label: 'India', value: customer.phoneIndia },
+        { label: 'Global', value: customer.phoneGlobal },
+      ]),
     [customer.phoneIndia, customer.phoneGlobal],
   );
+  const hasPhone = pickerOptions.length > 0;
+  const email = customer.email?.trim() || null;
+  const displayName = customer.name.trim() || EMPTY_VALUE;
+  const first = firstName(customer.name);
+  const greeting = first ? `Hi ${first}` : 'Hi';
+  const maskedPhone = maskPhone(customer.phoneIndia);
+  const categoryLabel = customer.category
+    ? CUSTOMER_CATEGORY_LABEL[customer.category]
+    : null;
 
   const [phoneAction, setPhoneAction] = useState<'call' | 'whatsapp' | null>(
     null,
@@ -94,40 +114,41 @@ export const CustomerSummaryCard: React.FC<Props> = ({ customer }) => {
 
   const whatsappNumber = useCallback(
     async (phone: string) => {
-      const r = await openWhatsApp(
-        phone,
-        `Hi ${customer.name.split(' ')[0]}, this is Urban Cruise.`,
-      );
+      const r = await openWhatsApp(phone, `${greeting}, this is Urban Cruise.`);
       if (!r.ok)
         Alert.alert('WhatsApp unavailable', 'Could not open WhatsApp.');
     },
-    [customer.name],
+    [greeting],
   );
 
+  /* One number → use it; two → let the user pick. */
   const handleCall = useCallback(() => {
-    if (customer.phoneIndia === customer.phoneGlobal) {
-      dialNumber(customer.phoneIndia);
+    const only = pickerOptions.length === 1 ? pickerOptions[0] : undefined;
+    if (only) {
+      dialNumber(only.value);
       return;
     }
-    setPhoneAction('call');
-  }, [customer, dialNumber]);
+    if (pickerOptions.length > 1) setPhoneAction('call');
+  }, [pickerOptions, dialNumber]);
 
   const handleWhatsApp = useCallback(() => {
-    if (customer.phoneIndia === customer.phoneGlobal) {
-      whatsappNumber(customer.phoneIndia);
+    const only = pickerOptions.length === 1 ? pickerOptions[0] : undefined;
+    if (only) {
+      whatsappNumber(only.value);
       return;
     }
-    setPhoneAction('whatsapp');
-  }, [customer, whatsappNumber]);
+    if (pickerOptions.length > 1) setPhoneAction('whatsapp');
+  }, [pickerOptions, whatsappNumber]);
 
   const handleEmail = useCallback(async () => {
+    if (!email) return;
     const r = await sendEmail({
-      to: customer.email,
+      to: email,
       subject: 'Urban Cruise — Follow up',
-      body: `Hi ${customer.name.split(' ')[0]},\n\n`,
+      body: `${greeting},\n\n`,
     });
     if (!r.ok) Alert.alert('Email unavailable', 'No email app configured.');
-  }, [customer]);
+  }, [email, greeting]);
 
   const handlePickerSelect = useCallback(
     (phone: string) => {
@@ -154,38 +175,48 @@ export const CustomerSummaryCard: React.FC<Props> = ({ customer }) => {
 
         <View style={styles.body}>
           <Text style={styles.name} numberOfLines={1}>
-            {customer.name}
+            {displayName}
           </Text>
-          <Text style={styles.phone} numberOfLines={1}>
-            {maskPhone(customer.phoneIndia)}
-          </Text>
-          <Text style={styles.meta} numberOfLines={1}>
-            {CUSTOMER_CATEGORY_LABEL[customer.category]}
-          </Text>
+          {maskedPhone ? (
+            <Text style={styles.phone} numberOfLines={1}>
+              {maskedPhone}
+            </Text>
+          ) : null}
+          {categoryLabel ? (
+            <Text style={styles.meta} numberOfLines={1}>
+              {categoryLabel}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.actions}>
-          <QuickAction
-            label="Call"
-            bg={CALL_TINT_BG}
-            fg={CALL_TINT_FG}
-            onPress={handleCall}
-            icon={<Phone size={16} color={CALL_TINT_FG} strokeWidth={2.2} />}
-          />
-          <QuickAction
-            label="WhatsApp"
-            bg={WHATSAPP_TINT_BG}
-            fg={WHATSAPP_TINT_FG}
-            onPress={handleWhatsApp}
-            icon={<WhatsAppIcon size={16} color={WHATSAPP_TINT_FG} />}
-          />
-          <QuickAction
-            label="Email"
-            bg={EMAIL_TINT_BG}
-            fg={EMAIL_TINT_FG}
-            onPress={handleEmail}
-            icon={<Mail size={16} color={EMAIL_TINT_FG} strokeWidth={2.2} />}
-          />
+          {hasPhone ? (
+            <QuickAction
+              label="Call"
+              bg={CALL_TINT_BG}
+              fg={CALL_TINT_FG}
+              onPress={handleCall}
+              icon={<Phone size={16} color={CALL_TINT_FG} strokeWidth={2.2} />}
+            />
+          ) : null}
+          {hasPhone ? (
+            <QuickAction
+              label="WhatsApp"
+              bg={WHATSAPP_TINT_BG}
+              fg={WHATSAPP_TINT_FG}
+              onPress={handleWhatsApp}
+              icon={<WhatsAppIcon size={16} color={WHATSAPP_TINT_FG} />}
+            />
+          ) : null}
+          {email ? (
+            <QuickAction
+              label="Email"
+              bg={EMAIL_TINT_BG}
+              fg={EMAIL_TINT_FG}
+              onPress={handleEmail}
+              icon={<Mail size={16} color={EMAIL_TINT_FG} strokeWidth={2.2} />}
+            />
+          ) : null}
         </View>
       </View>
 
@@ -193,9 +224,9 @@ export const CustomerSummaryCard: React.FC<Props> = ({ customer }) => {
         visible={phoneAction !== null}
         title={
           phoneAction === 'call'
-            ? `Call ${customer.name}`
+            ? `Call ${displayName}`
             : phoneAction === 'whatsapp'
-            ? `WhatsApp ${customer.name}`
+            ? `WhatsApp ${displayName}`
             : ''
         }
         options={pickerOptions}
