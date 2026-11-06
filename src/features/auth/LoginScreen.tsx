@@ -333,6 +333,13 @@ const LoginScreen: React.FC = () => {
                   'This account has been suspended. Please contact support.',
                 );
                 return;
+              case 'account_ambiguous':
+                // Backend found this number on more than one active
+                // account of this role (e.g. a shared office number).
+                setServerError(
+                  'This number is linked to more than one account. Please contact your Urban Cruise administrator.',
+                );
+                return;
               case 'account_locked': {
                 const mins = err.retryAfter
                   ? Math.max(1, Math.round(err.retryAfter / 60))

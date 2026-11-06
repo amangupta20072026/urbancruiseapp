@@ -554,6 +554,14 @@ const OtpVerifyScreen: React.FC = () => {
               'This account has been suspended. Please contact support.',
             );
             return;
+          case 'account_ambiguous':
+            // The OTP was already used up; a retry can't succeed until
+            // an admin fixes the duplicate number.
+            markCodeDead(true);
+            setError(
+              'This number is linked to more than one account. Please contact your Urban Cruise administrator.',
+            );
+            return;
         }
         switch (err.kind) {
           case 'unauthorized':
