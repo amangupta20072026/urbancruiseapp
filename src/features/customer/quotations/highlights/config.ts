@@ -7,6 +7,9 @@
  *
  *   - Shown EVERY time, for 5 seconds per image.
  *   - No Skip button; progress bars only.
+ *   - Hold 0.3 s = pause, release = continue from the same point.
+ *   - Tap left 1/3 = previous image (nothing on the first);
+ *     tap right 2/3 = next image (on the last image: details).
  *   - Android back and iOS swipe-back do nothing while showing.
  *   - Whole image always visible (resizeMode 'contain', nothing cut).
  *   - Only for quotations in ELIGIBLE_STATUSES (Pending, Accepted).
@@ -36,6 +39,20 @@ export const HIGHLIGHT_SLIDE_DURATION_MS = 5000;
  * stuck image must never trap them on this screen.
  */
 export const HIGHLIGHT_LOAD_TIMEOUT_MS = 2000;
+
+/**
+ * How long a finger must stay down before the progress bar pauses.
+ * A shorter touch counts as a tap.
+ */
+export const HIGHLIGHT_HOLD_TO_PAUSE_MS = 200;
+
+/**
+ * Left part of the image (as a fraction of its width) where a tap
+ * goes back. The rest goes forward. 1/3 matches the story pattern
+ * customers know from Instagram / WhatsApp Status, and keeps the more
+ * common action (next) on the larger, centre-including area.
+ */
+export const HIGHLIGHT_BACK_ZONE_RATIO = 1 / 3;
 
 /** Statuses that show the highlights before the details screen. */
 export const HIGHLIGHT_ELIGIBLE_STATUSES: ReadonlySet<QuotationStatus> =

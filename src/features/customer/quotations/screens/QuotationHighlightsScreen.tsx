@@ -8,13 +8,14 @@
  * details screen returns to where the customer came from, never to
  * these images.
  *
- *   [ ███████ ▓▓▓░░░░ ░░░░░░░ ]   ← progress bars (no Skip, by design)
- *   ┌───────────────────────────┐
- *   │                           │
- *   │   image, resizeMode       │   whole image always visible
- *   │   'contain' (nothing cut) │
- *   │                           │
- *   └───────────────────────────┘
+ *   [ ███████ ▓▓▓░░░░ ░░░░░░░ ]   ← progress bars (no Skip button)
+ *   ┌────────┬──────────────────┐
+ *   │        │                  │
+ *   │  tap = │   tap = next     │   whole image always visible
+ *   │  back  │   (last image →  │   (resizeMode 'contain')
+ *   │ (1/3)  │   details) (2/3) │
+ *   │        │                  │   hold 0.2 s anywhere = pause,
+ *   └────────┴──────────────────┘   release = continue same point
  *
  * TIMING — one source of truth:
  *   The progress-bar animation (Reanimated, UI thread) IS the timer.
@@ -23,11 +24,21 @@
  *
  * PAUSE / RESUME:
  *   The timer runs only while the app is in the foreground AND this
- *   screen is focused AND the current image is ready. If the customer
- *   leaves the app, the image keeps its remaining time and continues
- *   on return — same behaviour as OnboardingScreen's auto-advance.
+ *   screen is focused AND the current image is ready AND the customer
+ *   is not holding the screen. Every pause keeps the image's remaining
+ *   time, so it continues from the same point — same behaviour as
+ *   OnboardingScreen's auto-advance.
  *
- * NO WAY OUT (product decision):
+ * TOUCH (product decisions):
+ *   - Hold for HIGHLIGHT_HOLD_TO_PAUSE_MS (0.2 s) anywhere → pause;
+ *     lift the finger → continue from the same point.
+ *   - Quick tap on the left HIGHLIGHT_BACK_ZONE_RATIO (1/3) → previous
+ *     image (starts again from 0); nothing on the first image.
+ *   - Quick tap on the right 2/3 → next image; on the last image it
+ *     opens the details screen.
+ *   - Screen readers: swipe up / down (adjustable) = next / previous.
+ *
+ * NAVIGATION (product decision):
  *   No Skip button, Android back is consumed (BackHandler), iOS
  *   swipe-back is off (gestureEnabled: false in CustomerNavigator).
  *   Because of that, the screen must never get stuck:
@@ -55,9 +66,13 @@ import {
   AppState,
   BackHandler,
   Image,
+  Pressable,
   StyleSheet,
   View,
+  type AccessibilityActionEvent,
   type AppStateStatus,
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
 } from 'react-native';
 import {
   useFocusEffect,
@@ -82,6 +97,8 @@ import { Colors, Radius, Spacing } from '@theme';
 import type { CustomerStackParamList } from '@navigation/types';
 
 import {
+  HIGHLIGHT_BACK_ZONE_RATIO,
+  HIGHLIGHT_HOLD_TO_PAUSE_MS,
   HIGHLIGHT_LOAD_TIMEOUT_MS,
   HIGHLIGHT_SLIDE_DURATION_MS,
   HIGHLIGHT_SLIDES,
@@ -124,12 +141,15 @@ const QuotationHighlightsScreen: React.FC = () => {
   const [appActive, setAppActive] = useState(() =>
     isForeground(AppState.currentState),
   );
+  // True while the customer holds a finger on the image (long press).
+  const [held, setHeld] = useState(false);
 
   const progress = useSharedValue(0);
   const indexRef = useRef(0);
   const remainingMsRef = useRef(HIGHLIGHT_SLIDE_DURATION_MS);
   const finishedRef = useRef(false);
   const mountedRef = useRef(true);
+  const stageWidthRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -167,6 +187,23 @@ const QuotationHighlightsScreen: React.FC = () => {
     setIndex(next);
   }, [finish, progress]);
 
+  /* ---------------- Go back (left-side tap) ---------------- */
+
+  const failedRef = useRef<ReadonlySet<number>>(new Set());
+
+  const goBack = useCallback(() => {
+    if (finishedRef.current || !mountedRef.current) return;
+    // Nearest earlier image that loaded. Failed images are skipped, or
+    // the "skip failed image" rule would bounce the customer forward.
+    let prev = indexRef.current - 1;
+    while (prev >= 0 && failedRef.current.has(prev)) prev -= 1;
+    if (prev < 0) return; // First image: do nothing (product decision).
+    indexRef.current = prev;
+    remainingMsRef.current = HIGHLIGHT_SLIDE_DURATION_MS;
+    progress.value = 0;
+    setIndex(prev);
+  }, [progress]);
+
   /* ---------------- Readiness of the current image ---------------- */
 
   const markReady = useCallback((i: number) => {
@@ -183,6 +220,7 @@ const QuotationHighlightsScreen: React.FC = () => {
       if (prev.has(i)) return prev;
       const nextSet = new Set(prev);
       nextSet.add(i);
+      failedRef.current = nextSet;
       return nextSet;
     });
   }, []);
@@ -214,6 +252,7 @@ const QuotationHighlightsScreen: React.FC = () => {
     eligible &&
     isFocused &&
     appActive &&
+    !held &&
     readySlides.has(index) &&
     !failedSlides.has(index);
 
@@ -252,6 +291,40 @@ const QuotationHighlightsScreen: React.FC = () => {
     }, []),
   );
 
+  /* ---------------- Touch: tap / hold ---------------- */
+
+  const onStageLayout = useCallback((e: LayoutChangeEvent) => {
+    stageWidthRef.current = e.nativeEvent.layout.width;
+  }, []);
+
+  // Pressable does not call onPress after onLongPress, so a hold never
+  // also counts as a tap.
+  const onStagePress = useCallback(
+    (e: GestureResponderEvent) => {
+      const width = stageWidthRef.current;
+      const isBack =
+        width > 0 &&
+        e.nativeEvent.locationX < width * HIGHLIGHT_BACK_ZONE_RATIO;
+      if (isBack) goBack();
+      else advance();
+    },
+    [advance, goBack],
+  );
+
+  const onStageLongPress = useCallback(() => setHeld(true), []);
+
+  // Fires on release AND when the system cancels the touch (finger
+  // slides off, incoming call), so a hold can never leave it paused.
+  const onStagePressOut = useCallback(() => setHeld(false), []);
+
+  const onAccessibilityAction = useCallback(
+    (e: AccessibilityActionEvent) => {
+      if (e.nativeEvent.actionName === 'increment') advance();
+      else if (e.nativeEvent.actionName === 'decrement') goBack();
+    },
+    [advance, goBack],
+  );
+
   /* ---------------- Render ---------------- */
 
   const barStates = useMemo(
@@ -285,10 +358,25 @@ const QuotationHighlightsScreen: React.FC = () => {
         ))}
       </View>
 
-      <View style={styles.stage}>
+      <Pressable
+        testID="highlights-stage"
+        style={styles.stage}
+        onLayout={onStageLayout}
+        onPress={onStagePress}
+        onLongPress={onStageLongPress}
+        onPressOut={onStagePressOut}
+        delayLongPress={HIGHLIGHT_HOLD_TO_PAUSE_MS}
+        accessible
+        accessibilityRole="adjustable"
+        accessibilityLabel={HIGHLIGHT_SLIDES[index]!.accessibilityLabel}
+        accessibilityValue={{ text: `Image ${index + 1} of ${SLIDE_COUNT}` }}
+        accessibilityHint="Swipe up for the next image, down for the previous one."
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={onAccessibilityAction}
+      >
         {/* All images are mounted up front so the next one is already
             decoded when its turn comes; only the current one is
-            visible and exposed to screen readers. */}
+            visible. The Pressable above is what screen readers read. */}
         {HIGHLIGHT_SLIDES.map((slide, i) => {
           const current = i === index;
           return (
@@ -298,19 +386,15 @@ const QuotationHighlightsScreen: React.FC = () => {
               resizeMode="contain"
               fadeDuration={0}
               style={[styles.image, !current && styles.hidden]}
-              accessible={current}
-              accessibilityRole="image"
-              accessibilityLabel={slide.accessibilityLabel}
-              importantForAccessibility={
-                current ? 'yes' : 'no-hide-descendants'
-              }
-              accessibilityElementsHidden={!current}
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
               onLoad={() => markReady(i)}
               onError={() => markFailed(i)}
             />
           );
         })}
-      </View>
+      </Pressable>
     </SafeScreen>
   );
 };
