@@ -46,6 +46,7 @@ import {
   QuotationDetailScreen,
   RequestQuotationScreen,
   QuotationSuccessScreen,
+  QuotationHighlightsScreen,
 } from '@features/customer/quotations';
 import {
   CompareVehiclesScreen,
@@ -87,6 +88,14 @@ const CustomerNavigator: React.FC = () => {
       <Stack.Screen
         name="QuotationSuccess"
         component={QuotationSuccessScreen}
+      />
+      {/* Brand images before QuotationDetail. No iOS swipe-back:
+          the customer must watch (Android back is blocked in the
+          screen itself). */}
+      <Stack.Screen
+        name="QuotationHighlights"
+        component={QuotationHighlightsScreen}
+        options={{ gestureEnabled: false }}
       />
       <Stack.Screen name="QuotationDetail" component={QuotationDetailScreen} />
       {/* Vehicle brochures (reached from QuotationDetail) */}

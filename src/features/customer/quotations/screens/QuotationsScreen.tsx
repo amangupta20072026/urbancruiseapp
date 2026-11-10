@@ -82,6 +82,7 @@ import type {
 } from '../types';
 import { MOCK_CUSTOMER_QUOTATIONS } from '../mocks';
 import { QuotationCard } from '../components/QuotationCard';
+import { useOpenQuotationDetail } from '../highlights';
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList>;
 
@@ -200,11 +201,17 @@ const QuotationsScreen: React.FC = () => {
     navigation.navigate('RequestQuotation');
   }, [navigation]);
 
+  /* Card tap, View Details and Book Now open the quotation through
+   * useOpenQuotationDetail: Pending / Accepted show the brand images
+   * first, Expired goes straight to details. The card already knows
+   * its status, so no lookup is needed. */
+  const openQuotationDetail = useOpenQuotationDetail();
+
   const goToQuotationDetail = useCallback(
     (item: CustomerQuotationListItem) => {
-      navigation.navigate('QuotationDetail', { quotationId: item.id });
+      openQuotationDetail({ quotationId: item.id }, item.status);
     },
-    [navigation],
+    [openQuotationDetail],
   );
 
   /* Card secondary actions. Book Now and Need Changes land on the
@@ -212,12 +219,12 @@ const QuotationsScreen: React.FC = () => {
    * keep a single owner (QuotationDetail). */
   const onBookNow = useCallback(
     (item: CustomerQuotationListItem) => {
-      navigation.navigate('QuotationDetail', {
-        quotationId: item.id,
-        openContinueSheet: true,
-      });
+      openQuotationDetail(
+        { quotationId: item.id, openContinueSheet: true },
+        item.status,
+      );
     },
-    [navigation],
+    [openQuotationDetail],
   );
 
   const onFilterSheetOpen = useCallback(() => {

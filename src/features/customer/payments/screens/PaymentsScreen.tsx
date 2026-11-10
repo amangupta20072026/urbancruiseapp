@@ -51,6 +51,7 @@ import { MOCK_CUSTOMER_PAYMENTS } from '../mocks';
 import { PaymentCard } from '../components/PaymentCard';
 import { PaymentDetailSheet } from '../components/PaymentDetailSheet';
 import { useReceiptActions } from '../hooks/useReceiptActions';
+import { useOpenQuotationDetail } from '@features/customer/quotations';
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList>;
 
@@ -85,14 +86,19 @@ const PaymentsScreen: React.FC = () => {
     navigation.navigate('HelpSupport');
   }, [navigation]);
 
+  /* Pay Now: the payment row carries only the quotation id, so
+   * useOpenQuotationDetail looks the status up before deciding
+   * whether to show the brand images first. */
+  const openQuotationDetail = useOpenQuotationDetail();
+
   const onPayNow = useCallback(
     (payment: CustomerPaymentDetail) => {
-      navigation.navigate('QuotationDetail', {
+      openQuotationDetail({
         quotationId: payment.quotationId,
         openContinueSheet: true,
       });
     },
-    [navigation],
+    [openQuotationDetail],
   );
 
   /* ---- Pull-to-refresh ----

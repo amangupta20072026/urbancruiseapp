@@ -125,6 +125,13 @@ export type CustomerStackParamList = {
   // will carry the server's enquiry id — no route-shape change.
   RequestQuotation: undefined;
   QuotationSuccess: { requestId: string };
+  /**
+   * Three brand images (5 s each) shown before QuotationDetail for
+   * Pending / Accepted quotations. Takes exactly the QuotationDetail
+   * params and forwards them via `replace` when done. Open it through
+   * `useOpenQuotationDetail` (in-app) or a deep link — never directly.
+   */
+  QuotationHighlights: CustomerStackParamList['QuotationDetail'];
   QuotationDetail: {
     quotationId: QuotationId;
     /**

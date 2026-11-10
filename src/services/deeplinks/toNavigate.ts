@@ -74,7 +74,10 @@ export function targetToNavigatePayload(t: DeepLinkTarget): NavigatePayload {
     case 'customer.bookingDetail':
       return screen('BookingDetail', { bookingId: t.bookingId });
     case 'customer.quotationDetail':
-      return screen('QuotationDetail', { quotationId: t.quotationId });
+      // Lands on the highlights screen, which applies the status rule
+      // itself (Pending / Accepted → images, then details; Expired or
+      // unknown → straight to details).
+      return screen('QuotationHighlights', { quotationId: t.quotationId });
     case 'customer.feedback':
       return screen('Feedback', { bookingId: t.bookingId });
     case 'customer.tripLive':
