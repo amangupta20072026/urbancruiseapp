@@ -12,7 +12,6 @@
  *   ┃│                                   QU-2026-563698 📋 │
  *   ┃│ Delhi → Agra                                        │
  *   ┃│ 📅 08 Nov 2026 - 08 Nov 2026   🕒 1 Day             │
- *   ┃│ 🚌 Force Traveller · 13 Seater                      │
  *   ┃│ ─────────────────────────────────────────────────── │
  *   ┃│ (RS) Rahul Sharma                 ⋮ [View details ›]│
  *   ┃│      +91 98765 43210                                │
@@ -37,10 +36,13 @@
  *   - Dates: server start → server end ("08 Nov 2026 - 09 Nov 2026");
  *     a one-day trip repeats the date. Nothing is derived from `days`.
  *   - Days: kept as its own item ("1 Day", "2 Days").
- *   - Vehicle: "Force Traveller · 13 Seater", or the name only when
- *     the seat count is unknown. The icon still follows serviceType;
- *     the service-type label is not shown.
- * No price is shown on the card.
+ *
+ * The vehicle ("Force Traveller · 13 Seater") was removed from this
+ * card on 13 Nov 2026 (product decision): a quotation can carry
+ * several vehicle options, so naming one on the list row was
+ * misleading. The vehicle belongs on the detail screen, where every
+ * option is shown. `formatVehicle` stays in ../utils/format for that.
+ * No price is shown on the card either.
  *
  * Touch targets (each stops the tap reaching the card):
  *   - Card / "View details" → onPress
@@ -62,9 +64,7 @@ import {
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import {
-  Bus,
   Calendar,
-  Car,
   Check,
   ChevronRight,
   CircleCheck,
@@ -77,7 +77,6 @@ import {
   Plane,
   RefreshCw,
   Send,
-  TrainFront,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -97,7 +96,6 @@ import {
   UC_QUOTATION_STATUS_LABEL,
   type UcQuotationListItem,
   type UcQuotationStatus,
-  type UcServiceType,
   type UcTripType,
 } from '../types';
 import {
@@ -106,7 +104,6 @@ import {
   formatRoute,
   formatTravelDateRange,
   formatTripType,
-  formatVehicle,
 } from '../utils/format';
 
 type Props = {
@@ -138,13 +135,6 @@ const TRIP_TYPE_ICON: Readonly<Record<UcTripType, LucideIcon>> = {
   local: MapPin,
 };
 
-const SERVICE_ICON: Readonly<Record<UcServiceType, LucideIcon>> = {
-  car_rental: Car,
-  bus_rental: Bus,
-  tempo_traveller: Bus,
-  rail_rental: TrainFront,
-};
-
 /* ================================================================
  * Card
  * ================================================================ */
@@ -153,7 +143,6 @@ const UcQuotationCardBase: React.FC<Props> = ({ item, onPress, onMore }) => {
   const status = STATUS_STYLE[item.status] ?? STATUS_STYLE.draft;
   const StatusIcon = status.Icon;
   const TripIcon = TRIP_TYPE_ICON[item.tripType] ?? MapPin;
-  const ServiceIcon = SERVICE_ICON[item.serviceType] ?? Car;
 
   const statusLabel = UC_QUOTATION_STATUS_LABEL[item.status];
   const tripTypeLabel = formatTripType(item);
@@ -163,7 +152,6 @@ const UcQuotationCardBase: React.FC<Props> = ({ item, onPress, onMore }) => {
     item.travelDateStart,
   )} to ${formatDayMonthYear(item.travelDateEnd)}`;
   const daysText = formatDays(item.days);
-  const vehicleText = formatVehicle(item);
   const avatar = avatarColorFor(item.customerId);
 
   /* -------- Copy quotation number -------- */
@@ -222,7 +210,7 @@ const UcQuotationCardBase: React.FC<Props> = ({ item, onPress, onMore }) => {
         pressed && styles.pressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Quotation ${item.quotationNumber}, ${statusLabel}, ${tripTypeLabel}, ${route}, ${dateA11y}, ${daysText}, ${vehicleText}, customer ${item.customerName}`}
+      accessibilityLabel={`Quotation ${item.quotationNumber}, ${statusLabel}, ${tripTypeLabel}, ${route}, ${dateA11y}, ${daysText}, customer ${item.customerName}`}
     >
       {/* Row 1 — status + trip type (left), quotation id (right) */}
       <View style={styles.headerRow}>
@@ -278,11 +266,10 @@ const UcQuotationCardBase: React.FC<Props> = ({ item, onPress, onMore }) => {
       {/* Row 2 — route (wraps) */}
       <Text style={styles.route}>{route}</Text>
 
-      {/* Row 3 — date range · days · vehicle (wraps on narrow phones) */}
+      {/* Row 3 — date range · days (wraps on narrow phones) */}
       <View style={styles.metaRow}>
         <MetaItem Icon={Calendar} text={dateText} />
         <MetaItem Icon={Clock} text={daysText} />
-        <MetaItem Icon={ServiceIcon} text={vehicleText} />
       </View>
 
       <View style={styles.divider} />

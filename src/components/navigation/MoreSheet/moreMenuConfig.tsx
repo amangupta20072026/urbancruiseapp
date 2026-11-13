@@ -76,7 +76,15 @@ import type { UserRole } from '@rbac/roles';
  * `MORE_MAP` exhaustiveness check below — TypeScript will error
  * until a menu is provided for the new role.
  */
-export type MoreRole = UserRole;
+export type MoreRole =
+  | UserRole
+  /**
+   * The UC 'general' workspace (Finance, IT, HR, Digital Marketing,
+   * unset). Not a role — the role is still 'uc'. It is a separate
+   * MENU key because those staff get different bottom tabs, so their
+   * More sheet must not offer Payments or the full Directory.
+   */
+  | 'uc.workplace';
 
 export type MoreGroup =
   | 'account'
@@ -391,11 +399,45 @@ const ucMore: MoreItem[] = [
   },
 ];
 
+/**
+ * UC 'general' workspace. Directory and Performance are bottom tabs
+ * here, so they are deliberately absent from the sheet — an entry
+ * that duplicates a tab is noise. Payments is omitted because those
+ * staff have no access to it.
+ */
+const ucWorkplaceMore: MoreItem[] = [
+  {
+    key: 'profile',
+    label: 'Profile',
+    Icon: User,
+    color: Palette.pink,
+    actionId: 'profile',
+    group: 'account',
+  },
+  {
+    key: 'notifications',
+    label: 'Notifications',
+    Icon: Bell,
+    color: Palette.amber,
+    actionId: 'notifications',
+    group: 'account',
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    Icon: Settings,
+    color: Palette.slate,
+    actionId: 'settings',
+    group: 'account',
+  },
+];
+
 const MORE_MAP: Record<MoreRole, MoreItem[]> = {
   customer: customerMore,
   vendor: vendorMore,
   driver: driverMore,
   uc: ucMore,
+  'uc.workplace': ucWorkplaceMore,
 };
 
 export const getMoreMenu = (role: MoreRole): MoreItem[] => MORE_MAP[role];

@@ -149,6 +149,13 @@ export const queryKeys = {
 
   uc: {
     all: ['uc'] as const,
+    /** Which dashboard this staff member gets. Server-resolved. */
+    workspace: () => ['uc', 'workspace'] as const,
+    /** Workplace home ('general' workspace): tasks + announcements. */
+    workplace: {
+      all: () => ['uc', 'workplace'] as const,
+      dashboard: () => ['uc', 'workplace', 'dashboard'] as const,
+    },
     /** Settings › Security (this phone's MPIN / fingerprint state). */
     security: {
       status: () => ['uc', 'security', 'status'] as const,

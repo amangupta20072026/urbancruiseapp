@@ -3,9 +3,17 @@
  * ------------------------------------------------------------------
  * useStaffList — UC directory, staff tab
  * ------------------------------------------------------------------
- * Cursor-paginated infinite list for Directory > UC Staff.
- * Mirrors useCustomerList / useVendorList structurally so all four
- * directory hooks look the same at a glance.
+ * Cursor-paginated infinite list for Directory > UC Staff, served by
+ * GET /api/v1/uc/staff. Mirrors useCustomerList / useVendorList
+ * structurally so all four directory hooks look the same at a glance.
+ *
+ * Search, filtering and sorting all happen on the SERVER. Nothing is
+ * filtered here:
+ *   - the complete-phone-match rule (a phone matches only the whole
+ *     number, never part of it, because the UI masks phones) is
+ *     applied in the backend repository;
+ *   - `phoneAlt` (personal mobile) is present only for callers in the
+ *     HR department, decided server-side by which view is queried.
  * ------------------------------------------------------------------
  */
 
@@ -15,13 +23,9 @@ import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@api/axios';
 import { endpoints } from '@api/endpoints';
 import { queryKeys } from '@constants/queryKeys';
-import { fixtureUcStaffAll } from '@mocks/fixtures/ucStaff';
-import { delayLikeApi } from '@mocks/helpers/delay';
-import { phoneMatchesQuery } from '@shared/utils';
 
 import { DEFAULT_STAFF_FILTERS, type Staff, type StaffFilters } from '../types';
 
-const USE_MOCK = true;
 const PAGE_SIZE = 20;
 
 export type UseStaffListArgs = {
@@ -42,63 +46,23 @@ type StaffListPage = {
   total: number;
 };
 
-function sortStaff(items: Staff[], sortBy: StaffFilters['sortBy']): Staff[] {
-  const copy = [...items];
-  switch (sortBy) {
-    case 'newest':
-      return copy.sort(
-        (a, b) =>
-          new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime(),
-      );
-    case 'oldest':
-      return copy.sort(
-        (a, b) =>
-          new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime(),
-      );
-    case 'nameAsc':
-      return copy.sort((a, b) => a.name.localeCompare(b.name));
-  }
-}
-
 async function fetchStaff(params: StaffListParams): Promise<StaffListPage> {
-  if (!USE_MOCK) {
-    const { data } = await apiClient.get<StaffListPage>(
-      endpoints.uc.staff.list(),
-      { params },
-    );
-    return data;
-  }
-
-  await delayLikeApi();
-
-  const { search, filters, cursor, limit } = params;
-  const q = search.trim().toLowerCase();
-
-  const matched = fixtureUcStaffAll.filter(s => {
-    // Phones match only the complete number (phoneMatchesQuery), so
-    // partial digits can't reveal the masked part. The backend search
-    // for this tab must apply the same rule.
-    if (q) {
-      const hit =
-        s.name.toLowerCase().includes(q) ||
-        phoneMatchesQuery(s.phone, q) ||
-        phoneMatchesQuery(s.phoneAlt, q) ||
-        s.email.toLowerCase().includes(q) ||
-        s.city.toLowerCase().includes(q);
-      if (!hit) return false;
-    }
-    if (filters.active === 'active' && !s.active) return false;
-    if (filters.active === 'inactive' && s.active) return false;
-    return true;
-  });
-
-  const sorted = sortStaff(matched, filters.sortBy);
-  const start = cursor ? Number(cursor) : 0;
-  const items = sorted.slice(start, start + limit);
-  const nextIndex = start + items.length;
-  const nextCursor = nextIndex < sorted.length ? String(nextIndex) : null;
-
-  return { items, nextCursor, total: sorted.length };
+  const { data } = await apiClient.get<StaffListPage>(
+    endpoints.uc.staff.list(),
+    {
+      params: {
+        search: params.search,
+        active: params.filters.active,
+        sortBy: params.filters.sortBy,
+        // Omitted on the first page; the server treats a missing cursor
+        // as "start at the beginning" and rejects a cursor made for
+        // another sort with 400 INVALID_CURSOR.
+        ...(params.cursor ? { cursor: params.cursor } : {}),
+        limit: params.limit,
+      },
+    },
+  );
+  return data;
 }
 
 export function useStaffList({
@@ -117,6 +81,8 @@ export function useStaffList({
     initialPageParam: null as string | null,
     getNextPageParam: lastPage => lastPage.nextCursor,
     placeholderData: keepPreviousData,
+    // Staff rows carry colleagues' phone numbers, and the HR-only
+    // personal number varies by who is signed in. Never write to disk.
     meta: { persist: false },
   });
 

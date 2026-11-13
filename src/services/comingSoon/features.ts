@@ -76,7 +76,13 @@ export type ComingSoonFeature =
   | 'uc.enquiryDetail'
   | 'uc.tripMonitor'
   | 'uc.bookingDetail'
-  | 'uc.tripDetail';
+  | 'uc.tripDetail'
+  // Workplace home ('general' workspace). No table exists for any of
+  // these in `pinaak` or `saarthi` yet.
+  | 'uc.meetings'
+  | 'uc.companyResources'
+  | 'uc.approvals'
+  | 'uc.helpdesk';
 
 /**
  * User-facing label per feature. `Record<ComingSoonFeature, string>`
@@ -125,4 +131,9 @@ export const COMING_SOON_LABELS: Readonly<Record<ComingSoonFeature, string>> =
     'uc.tripMonitor': 'Live trip monitoring',
     'uc.bookingDetail': 'Booking details',
     'uc.tripDetail': 'Trip details',
+
+    'uc.meetings': 'Meetings',
+    'uc.companyResources': 'Company resources',
+    'uc.approvals': 'Approvals',
+    'uc.helpdesk': 'The helpdesk',
   });

@@ -49,6 +49,54 @@ export const UC_QUOTATION_STATUS_FILTERS: readonly {
   { key: 'rejected', label: 'Rejected' },
 ];
 
+/* ---------------- Filter chip colours ---------------- */
+
+/** Colours for one status chip. */
+export type UcQuotationChipTone = {
+  /** Selected: the chip fill. Label is white on top of it. */
+  solid: string;
+  /** Unselected: the chip fill. */
+  tint: string;
+  /**
+   * Unselected: the label colour. Usually the same as `solid`, but a
+   * few statuses need a darker shade to stay readable on their own
+   * tint — see the contrast table below. Keeping this separate means
+   * the SELECTED chip still carries the exact card accent, so the
+   * chips and the cards below them cannot drift apart.
+   */
+  text: string;
+};
+
+/**
+ * One colour per chip, matching the status colours on UcQuotationCard
+ * (its STATUS_STYLE accents). 'All' has no card, so it takes the
+ * brand's royal purple — a fifth colour none of the statuses use, the
+ * same choice the Bookings chips make.
+ *
+ * Every pair below passes WCAG AA for small text (>= 4.5:1), checked
+ * both ways round:
+ *
+ *   chip        selected (white on solid)   unselected (text on tint)
+ *   all         6.98                        5.92
+ *   draft       4.83                        6.87
+ *   sent        5.17                        5.49
+ *   accepted    5.13                        4.62
+ *   rejected    4.83                        5.30
+ *
+ * draft, sent and rejected use a darker `text` than `solid`: on their
+ * own tints the accent itself measures 4.39, 4.24 and 3.95, all below
+ * the 4.5 floor.
+ */
+export const UC_QUOTATION_CHIP_PALETTE: Readonly<
+  Record<UcQuotationStatusFilter, UcQuotationChipTone>
+> = Object.freeze({
+  all: { solid: '#7E22CE', tint: '#F3E8FF', text: '#7E22CE' },
+  draft: { solid: '#6B7280', tint: '#F3F4F6', text: '#4B5563' },
+  sent: { solid: '#2563EB', tint: '#DBEAFE', text: '#1D4ED8' },
+  accepted: { solid: '#2E7D32', tint: '#E7F7EC', text: '#2E7D32' },
+  rejected: { solid: '#DC2626', tint: '#FEE2E2', text: '#B91C1C' },
+});
+
 /* ================================================================
  * Service / trip
  * ================================================================ */

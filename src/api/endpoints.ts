@@ -155,6 +155,14 @@ export const endpoints = {
   },
 
   uc: {
+    /**
+     * Which dashboard this staff member gets. Resolved by the SERVER from
+     * the Saarthi department / sub-department / access role, read fresh on
+     * each call so an HR change applies at once. The app uses the value to
+     * choose a screen and nothing else — it never sends it back, and no
+     * endpoint authorises anything from it.
+     */
+    workspace: () => '/uc/workspace',
     customers: {
       list: () => '/uc/customers',
       detail: (id: string) => `/uc/customers/${id}`,

@@ -29,6 +29,8 @@ import {
   UserCheck,
   Wallet,
   type LucideProps,
+  Users,
+  BarChart3,
 } from 'lucide-react-native';
 
 import { Colors } from '@theme';
@@ -47,7 +49,15 @@ import type { UserRole } from '@rbac/roles';
  * `CONFIG_MAP` exhaustiveness check below — TypeScript will error
  * until a tab config is provided for the new role.
  */
-export type TabRoleName = UserRole;
+export type TabRoleName =
+  | UserRole
+  /**
+   * The UC 'general' workspace (Finance, IT, HR, Digital Marketing,
+   * unset). Not a role — the role is still 'uc'. It is a separate
+   * CONFIG key because those staff get a different set of bottom
+   * tabs: Dashboard · Directory · Performance · More.
+   */
+  | 'uc.workplace';
 
 export type TabMeta = {
   Icon: ComponentType<LucideProps>;
@@ -132,11 +142,31 @@ const ucTabConfig: TabConfig = {
   More: { Icon: MoreHorizontal, label: 'More', color: TabPalette.pink },
 };
 
+/**
+ * UC 'general' workspace. Directory here is the UC-staff-only list,
+ * not the four-tab hub the business workspaces reach from More.
+ */
+const ucWorkplaceTabConfig: TabConfig = {
+  Dashboard: {
+    Icon: LayoutDashboard,
+    label: 'Dashboard',
+    color: TabPalette.green,
+  },
+  Directory: { Icon: Users, label: 'Directory', color: TabPalette.blue },
+  Performance: {
+    Icon: BarChart3,
+    label: 'Performance',
+    color: TabPalette.purple,
+  },
+  More: { Icon: MoreHorizontal, label: 'More', color: TabPalette.pink },
+};
+
 const CONFIG_MAP: Record<TabRoleName, TabConfig> = {
   customer: customerTabConfig,
   vendor: vendorTabConfig,
   driver: driverTabConfig,
   uc: ucTabConfig,
+  'uc.workplace': ucWorkplaceTabConfig,
 };
 
 export const getTabConfig = (role: TabRoleName): TabConfig => CONFIG_MAP[role];

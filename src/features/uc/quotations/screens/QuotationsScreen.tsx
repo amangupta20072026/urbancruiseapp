@@ -39,7 +39,6 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -58,8 +57,10 @@ import { UcQuotationCard } from '../components/UcQuotationCard';
 import { QuotationActionsSheet } from '../components/QuotationActionsSheet';
 import { QuotationFilterSheet } from '../components/QuotationFilterSheet';
 import { QuotationListSkeleton } from '../components/QuotationListSkeleton';
+import { StatusFilterChips } from '@features/uc/_shared/components/StatusFilterChips';
 import {
   DEFAULT_UC_QUOTATION_FILTERS,
+  UC_QUOTATION_CHIP_PALETTE,
   UC_QUOTATION_STATUS_FILTERS,
   countActiveQuotationFilters,
   type UcQuotationFilters,
@@ -248,37 +249,18 @@ const QuotationsScreen: React.FC = () => {
         </Pressable>
       </View>
 
-      {/* Status chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.chipStrip}
-        contentContainerStyle={styles.chipRow}
-      >
-        {UC_QUOTATION_STATUS_FILTERS.map(chip => {
-          const active = status === chip.key;
-          return (
-            <Pressable
-              key={chip.key}
-              onPress={() => setStatus(chip.key)}
-              style={({ pressed }) => [
-                styles.chip,
-                active && styles.chipActive,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={`${chip.label}, ${
-                counts[chip.key]
-              } quotations`}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {chip.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {/* Status chips — the SAME component the Bookings tab uses, so
+          the two strips cannot end up different sizes. Only the
+          options, counts and palette differ. */}
+      <View style={styles.chipStrip}>
+        <StatusFilterChips
+          options={UC_QUOTATION_STATUS_FILTERS}
+          value={status}
+          onChange={setStatus}
+          counts={counts}
+          palette={UC_QUOTATION_CHIP_PALETTE}
+        />
+      </View>
 
       {/* Search + filter */}
       <View style={styles.searchRow}>
@@ -435,35 +417,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* Chips */
+  /* Chips — the strip's own padding lives in StatusFilterChips.
+   * This only adds the extra left/right inset this screen needs so
+   * the chips line up with the search bar directly below them. */
   chipStrip: {
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-  chipRow: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  chip: {
-    height: 40,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipActive: {
-    backgroundColor: Colors.primary,
-  },
-  chipText: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  chipTextActive: {
-    color: Colors.textOnPrimary,
-    fontWeight: '700',
+    paddingHorizontal: Spacing.xs,
+    paddingBottom: Spacing.sm,
   },
 
   /* Search + filter */

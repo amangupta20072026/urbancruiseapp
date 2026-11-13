@@ -222,6 +222,13 @@ export type DriverTabParamList = {
 /* --------------------- UC stack --------------------- */
 export type UcStackParamList = {
   UcTabs: NavigatorScreenParams<UcTabParamList>;
+  /**
+   * Bottom tabs for the 'general' workspace (Finance, IT, HR,
+   * Digital Marketing, unset). UcNavigator registers exactly one of
+   * UcTabs / UcWorkplaceTabs as its initial route, decided by
+   * GET /api/v1/uc/workspace.
+   */
+  UcWorkplaceTabs: NavigatorScreenParams<UcWorkplaceTabParamList>;
   CustomersList: undefined;
   CustomerDetail: { customerId: string };
 
@@ -242,6 +249,14 @@ export type UcStackParamList = {
   /** Settings › Security › Change MPIN. UC only. */
   UcChangeMpin: undefined;
 } & SharedParamsFor<'uc'>;
+
+export type UcWorkplaceTabParamList = {
+  Dashboard: undefined;
+  /** UC staff only — no customers, vendors or drivers. */
+  Directory: undefined;
+  Performance: undefined;
+  [MORE_ROUTE_NAME]: undefined;
+};
 
 export type UcTabParamList = {
   Dashboard: undefined;

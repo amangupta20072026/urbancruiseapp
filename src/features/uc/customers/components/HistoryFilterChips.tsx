@@ -2,34 +2,31 @@
  * ------------------------------------------------------------------
  * HistoryFilterChips
  * ------------------------------------------------------------------
- * Horizontal chip row for filtering the trip history by status.
+ * Trip-history status chips: All / Upcoming / Ongoing / Completed /
+ * Cancelled. Used by Trip History, the UC Bookings tab and the UC
+ * Trips tab.
  *
- *   ┌─────────────────────────────────────────────────────────┐
- *   │ [All 42] [Upcoming 2] [Ongoing 1] [Completed 34] [Cancel… │
- *   └─────────────────────────────────────────────────────────┘
+ * This is now a thin wrapper over
+ * `@features/uc/_shared/components/StatusFilterChips`, which owns all
+ * the markup and styling. The look is unchanged — the shared file is
+ * this component's own chip code, lifted out so the Quotations tab
+ * could render through it instead of keeping a second copy. Two files
+ * drawing chips is how two screens end up with different sized chips.
  *
- * Design decisions:
- *   - Horizontal ScrollView (not FlashList/View row) so future filters
- *     (`no_show`, `paid`, `refunded`, etc.) don't force us to shrink
- *     chips to fit; they scroll instead. The strip is pinned to its
- *     content height (flexGrow/flexShrink 0) so it never stretches
- *     when a screen places it straight into a flex column.
- *   - Counts are optional. When the parent hasn't computed them yet
- *     (still loading), the chip shows just the label — no "42" flicker.
- *   - Every chip has its own colour (FilterChipPalette): the selected
- *     chip is filled with its solid colour and white text; unselected
- *     chips show their solid colour as text on a light tint.
- *   - Colours come from the screen's own status colours so the chips
- *     match the cards below them. Default palette = Trip History card
- *     colours (used by Trip History and the UC Bookings tab); the UC
- *     Trips tab passes UC_TRIP_CHIP_PALETTE to match its cards.
- *   - Chip height ≈ 32px so this row barely eats scroll space.
+ * Everything this component adds on top:
+ *   - the fixed five-chip order,
+ *   - the HISTORY_STATUS_LABEL text,
+ *   - the default Trip History palette.
  * ------------------------------------------------------------------ */
 
-import React, { useCallback, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo } from 'react';
 
-import { Colors, Spacing, Typography } from '@theme';
+import { Colors } from '@theme';
+import {
+  StatusFilterChips,
+  type StatusChipPalette,
+  type StatusChipTone,
+} from '@features/uc/_shared/components/StatusFilterChips';
 
 import {
   HISTORY_STATUS_LABEL,
@@ -39,17 +36,9 @@ import {
 
 /* ---------------- Palette ---------------- */
 
-/** Colours for one chip. */
-export type FilterChipTone = {
-  /** Selected fill; also the text/badge colour when unselected. */
-  solid: string;
-  /** Unselected background and border. */
-  tint: string;
-};
-
-export type FilterChipPalette = Readonly<
-  Record<HistoryStatusFilter, FilterChipTone>
->;
+/** Kept as named exports: UcTripCard builds its palette from these. */
+export type FilterChipTone = StatusChipTone;
+export type FilterChipPalette = StatusChipPalette<HistoryStatusFilter>;
 
 /**
  * Default palette: the Trip History card colours. Status `solid`s are
@@ -77,6 +66,20 @@ export const TRIP_HISTORY_CHIP_PALETTE: FilterChipPalette = Object.freeze({
   },
 });
 
+/** Display order of the chips (left → right). */
+const ORDER: readonly HistoryStatusFilter[] = [
+  'all',
+  'upcoming',
+  'ongoing',
+  'completed',
+  'cancelled',
+];
+
+const OPTIONS = ORDER.map(key => ({
+  key,
+  label: HISTORY_STATUS_LABEL[key],
+}));
+
 type Props = {
   value: HistoryStatusFilter;
   onChange: (next: HistoryStatusFilter) => void;
@@ -93,156 +96,21 @@ type Props = {
   palette?: FilterChipPalette;
 };
 
-/** Display order of the chips (left → right). */
-const ORDER: readonly HistoryStatusFilter[] = [
-  'all',
-  'upcoming',
-  'ongoing',
-  'completed',
-  'cancelled',
-];
-
 export const HistoryFilterChips: React.FC<Props> = ({
   value,
   onChange,
   counts,
   palette = TRIP_HISTORY_CHIP_PALETTE,
 }) => {
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.strip}
-      contentContainerStyle={styles.row}
-      keyboardShouldPersistTaps="handled"
-    >
-      {ORDER.map(status => (
-        <FilterChip
-          key={status}
-          status={status}
-          selected={value === status}
-          count={counts?.[status]}
-          tone={palette[status]}
-          onPress={onChange}
-        />
-      ))}
-    </ScrollView>
-  );
-};
-
-/* ---------------- Chip ---------------- */
-
-/* Individual chip is memo'd so scrolling / re-selecting one chip
- * doesn't re-render the others. `tone` comes from a frozen palette
- * constant, so its reference is stable and doesn't break the memo. */
-const FilterChipImpl: React.FC<{
-  status: HistoryStatusFilter;
-  selected: boolean;
-  count: number | undefined;
-  tone: FilterChipTone;
-  onPress: (next: HistoryStatusFilter) => void;
-}> = ({ status, selected, count, tone, onPress }) => {
-  const handlePress = useCallback(() => onPress(status), [status, onPress]);
-
-  // Selected: solid fill + white text. Unselected: tint fill + solid text.
-  const chipColors = useMemo(
-    () =>
-      selected
-        ? { backgroundColor: tone.solid, borderColor: tone.solid }
-        : { backgroundColor: tone.tint, borderColor: tone.tint },
-    [selected, tone],
-  );
-  const textColor = useMemo(
-    () => ({ color: selected ? Colors.textInverse : tone.solid }),
-    [selected, tone],
-  );
+  const options = useMemo(() => OPTIONS, []);
 
   return (
-    <Pressable
-      onPress={handlePress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      accessibilityLabel={`${HISTORY_STATUS_LABEL[status]} filter${
-        typeof count === 'number' ? `, ${count}` : ''
-      }`}
-      style={({ pressed }) => [
-        styles.chip,
-        chipColors,
-        pressed && styles.chipPressed,
-      ]}
-    >
-      <Text style={[styles.label, textColor]} numberOfLines={1}>
-        {HISTORY_STATUS_LABEL[status]}
-      </Text>
-      {typeof count === 'number' ? (
-        <View
-          style={[
-            styles.badge,
-            selected ? styles.badgeSelected : styles.badgeDefault,
-          ]}
-        >
-          <Text style={[styles.badgeText, textColor]}>{count}</Text>
-        </View>
-      ) : null}
-    </Pressable>
+    <StatusFilterChips
+      options={options}
+      value={value}
+      onChange={onChange}
+      counts={counts}
+      palette={palette}
+    />
   );
 };
-const FilterChip = React.memo(FilterChipImpl);
-FilterChip.displayName = 'FilterChip';
-
-/* ---------------- Styles ---------------- */
-
-const styles = StyleSheet.create({
-  /* A horizontal ScrollView placed directly in a column grows to fill
-   * the free vertical space (the chips became full-height pills on
-   * the Trips tab). Pin it to its content height so it is correct on
-   * every screen, wrapped or not — same as the UC Quotations chips. */
-  strip: {
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-  row: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
-  },
-
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  chipPressed: {
-    opacity: 0.75,
-  },
-
-  label: {
-    ...Typography.bodySmall,
-    fontWeight: '600',
-  },
-
-  /* Small pill inside the chip carrying the count. */
-  badge: {
-    minWidth: 22,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeDefault: {
-    backgroundColor: Colors.surface,
-  },
-  badgeSelected: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
-  },
-  badgeText: {
-    ...Typography.caption,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-});
