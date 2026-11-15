@@ -48,6 +48,7 @@ export type ComingSoonFeature =
   | 'customer.tripLive'
   | 'customer.payBalance'
   | 'customer.modifyBooking'
+  | 'customer.spiritualToursApp'
 
   // ── Vendor ────────────────────────────────────────────────────
   | 'vendor.assignments'
@@ -105,6 +106,7 @@ export const COMING_SOON_LABELS: Readonly<Record<ComingSoonFeature, string>> =
     'customer.tripLive': 'Live trip tracking',
     'customer.payBalance': 'Online balance payment',
     'customer.modifyBooking': 'Booking changes',
+    'customer.spiritualToursApp': 'The Spiritual Tours app',
 
     'vendor.assignments': 'Booking assignments',
     'vendor.bookings': 'Bookings',

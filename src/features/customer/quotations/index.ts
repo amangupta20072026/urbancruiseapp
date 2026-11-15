@@ -23,7 +23,7 @@ export type {
   QuotationFilter,
   QuotationStatus,
   QuotationStop,
-  QuotationChargeBreakdown,
+  QuotationCharge,
   QuotationVehicle,
   TravelExecutive,
   TripType,

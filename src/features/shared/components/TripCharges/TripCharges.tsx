@@ -1,11 +1,18 @@
 /**
  * ------------------------------------------------------------------
- * BookingTermsCards — "Notes" + "Other Charges (if applicable)"
+ * TripCharges — "Notes" + "Other Charges (if applicable)"
  * ------------------------------------------------------------------
- * Two cards shown after Fare Details on the upcoming-booking detail
- * screen. Content comes from the booking (`detail.notes`,
- * `detail.otherCharges`); it's static mock data until the backend
- * sends it.
+ * Two cards describing what the fare covers and what the customer
+ * still owes the driver. Shared by BOTH ends of the funnel:
+ *
+ *   Quotation Details — after "Advance to Book"
+ *   Booking Details   — after "Fare Details"
+ *
+ * One component on purpose. These are the same commercial terms seen
+ * twice, so a customer who reads them on the quotation must see the
+ * identical wording and layout on the booking they confirm. Content
+ * comes from the screen (`detail.notes`, `detail.otherCharges`); it's
+ * static mock data until the backend sends it.
  *
  *   ┌ (📋) Notes ─────────────────────────── soft green ┐
  *   │ ✓ Pricing includes vehicle cost, fuel cost, …     │
@@ -39,7 +46,7 @@ import { CircleCheck, ClipboardList, ReceiptText } from 'lucide-react-native';
 
 import { Colors, Radius, Spacing, Typography } from '@theme';
 
-import type { BookingCharge, BookingChargeStatus } from '../types';
+import type { TripCharge, TripChargeStatus } from './types';
 
 /* ================================================================
  * Palette — two soft, distinct card surfaces
@@ -57,7 +64,7 @@ const CHARGES_FG = '#C2410C'; // deep orange — 4.6:1 on the cream bg
 const CHARGES_ICON_BG = '#FFE9CC';
 
 const STATUS_META: Record<
-  BookingChargeStatus,
+  TripChargeStatus,
   { label: string; bg: string; fg: string }
 > = {
   included: {
@@ -77,7 +84,7 @@ const STATUS_META: Record<
  * Notes card
  * ================================================================ */
 
-export const BookingNotesCard: React.FC<{ notes: readonly string[] }> = ({
+export const TripNotesCard: React.FC<{ notes: readonly string[] }> = ({
   notes,
 }) => {
   if (notes.length === 0) return null;
@@ -115,7 +122,7 @@ export const BookingNotesCard: React.FC<{ notes: readonly string[] }> = ({
  * Other Charges card
  * ================================================================ */
 
-const ChargeRow: React.FC<{ charge: BookingCharge; isFirst: boolean }> = ({
+const ChargeRow: React.FC<{ charge: TripCharge; isFirst: boolean }> = ({
   charge,
   isFirst,
 }) => {
@@ -158,8 +165,8 @@ const ChargeRow: React.FC<{ charge: BookingCharge; isFirst: boolean }> = ({
   );
 };
 
-export const BookingOtherChargesCard: React.FC<{
-  charges: readonly BookingCharge[];
+export const OtherChargesCard: React.FC<{
+  charges: readonly TripCharge[];
 }> = ({ charges }) => {
   if (charges.length === 0) return null;
   return (

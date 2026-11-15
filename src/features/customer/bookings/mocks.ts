@@ -12,8 +12,8 @@
 
 import { asBookingId } from '@app-types/ids';
 import type { BookingId } from '@app-types/ids';
+import type { TripCharge } from '@shared/components/TripCharges';
 import type {
-  BookingCharge,
   BookingProgressTimeline,
   BookingVehicleOption,
   CustomerBookingDetail,
@@ -396,7 +396,7 @@ const STANDARD_NOTES: readonly string[] = [
   'Restricted places — the vehicle may not go to some places on hills due to local govt. restrictions, difficult terrain or narrow roads.',
 ];
 
-const STANDARD_OTHER_CHARGES: readonly BookingCharge[] = [
+const STANDARD_OTHER_CHARGES: readonly TripCharge[] = [
   {
     label: 'Toll Charges',
     status: 'included',
@@ -459,13 +459,13 @@ const EXTRA_KM_RATE_BY_OPTION: Readonly<Record<number, string>> = {
 function otherChargesFor(
   base: CustomerBookingListItem,
   option: BookingVehicleOption | null,
-): readonly BookingCharge[] {
+): readonly TripCharge[] {
   const rate = option ? EXTRA_KM_RATE_BY_OPTION[option.number] : undefined;
   if (!option || !rate) return STANDARD_OTHER_CHARGES;
   const vehicle = `${base.seater ? `${base.seater} Seat ` : ''}${
     base.vehicleType
   }`;
-  const extraKm: BookingCharge = {
+  const extraKm: TripCharge = {
     label: 'Extra Charge above 1800 km',
     status: 'extra',
     detail: null,

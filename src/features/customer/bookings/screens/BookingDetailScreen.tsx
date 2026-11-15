@@ -85,9 +85,9 @@ import { VehicleDetailsCard } from '../components/VehicleDetailsCard';
 import { DriverDetailsCard } from '../components/DriverDetailsCard';
 import { TripDetailsCard } from '../components/TripDetailsCard';
 import {
-  BookingNotesCard,
-  BookingOtherChargesCard,
-} from '../components/BookingTermsCards';
+  TripNotesCard,
+  OtherChargesCard,
+} from '@shared/components/TripCharges';
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList, 'BookingDetail'>;
 type Route = RouteProp<CustomerStackParamList, 'BookingDetail'>;
@@ -395,8 +395,8 @@ const CompletedDetail: React.FC<CompletedProps> = ({
         </View>
 
         {/* ── Notes + Other Charges (from the booking; static for now) ── */}
-        <BookingNotesCard notes={detail.notes} />
-        <BookingOtherChargesCard charges={detail.otherCharges} />
+        <TripNotesCard notes={detail.notes} />
+        <OtherChargesCard charges={detail.otherCharges} />
 
         {/* ── Need Help support card ── */}
         <View style={styles.helpCard}>
@@ -840,8 +840,8 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
         </View>
 
         {/* ── Notes + Other Charges (from the booking; static for now) ── */}
-        <BookingNotesCard notes={detail.notes} />
-        <BookingOtherChargesCard charges={detail.otherCharges} />
+        <TripNotesCard notes={detail.notes} />
+        <OtherChargesCard charges={detail.otherCharges} />
       </ScrollView>
 
       {/* ── Sticky bottom bar: Need Changes · Need Help ── */}
@@ -932,7 +932,7 @@ const UpcomingDetail: React.FC<UpcomingProps> = ({ detail, onBack }) => {
  *     — Map placeholder (real map SDK not wired yet — see notes)
  *     — Overlay ETA badge + "En route to X" chip
  *   Vehicle + Driver side-by-side            [reused from upcoming]
- *   Notes + Other Charges                    [shared BookingTermsCards]
+ *   Notes + Other Charges                    [shared TripCharges]
  *   Need Help support card (green variant)   [ongoing-only]
  *
  * The Fare Details block from UpcomingDetail is intentionally
@@ -1086,8 +1086,8 @@ const OngoingDetail: React.FC<OngoingProps> = ({ detail, onBack }) => {
         </View>
 
         {/* ── Notes + Other Charges (from the booking; static for now) ── */}
-        <BookingNotesCard notes={detail.notes} />
-        <BookingOtherChargesCard charges={detail.otherCharges} />
+        <TripNotesCard notes={detail.notes} />
+        <OtherChargesCard charges={detail.otherCharges} />
 
         {/* ── Need Help support card ── */}
         <View style={styles.helpCard}>

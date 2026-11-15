@@ -15,6 +15,7 @@
 import type { BookingId } from '@app-types/ids';
 import type { BookingStatus } from '@shared/bookings';
 import type { TripType } from '@features/customer/quotations';
+import type { TripCharge } from '@shared/components/TripCharges';
 
 /**
  * The user-facing booking status. Drives:
@@ -242,32 +243,9 @@ export type BookingLiveTracking = {
   routeSummary: string;
 };
 
-/** How an "other charge" relates to the quoted fare. */
-export type BookingChargeStatus =
-  /** Already part of the quoted fare (e.g. tolls). */
-  | 'included'
-  /** Not in the fare — the customer pays the driver directly. */
-  | 'not_included'
-  /** Billed on top of the fare only when the trip goes beyond plan
-   *  (extra km, extra hours). */
-  | 'extra';
-
-/** One row of the "Other Charges (if applicable)" card. */
-export type BookingCharge = {
-  /** e.g. "State Tax (Karnataka)". */
-  label: string;
-  status: BookingChargeStatus;
-  /** One-line explanation, e.g. "Client will pay to driver". */
-  detail: string | null;
-  /** Rate lines rendered as small chips, e.g. ["₹20/km", "₹150/hr"]. */
-  rates: readonly string[];
-  /** Set when the rate depends on the vehicle option the customer
-   *  booked (e.g. extra km above 1800): names that vehicle, e.g.
-   *  "Option 4 · Royal · 17 Seat Tempo Traveller". The row then shows
-   *  only `rates[0]` as one large chip beside "For your vehicle".
-   *  Null for charges that are the same for every vehicle. */
-  forVehicle: string | null;
-};
+/* `BookingChargeStatus` / `BookingCharge` moved to
+ * `@shared/components/TripCharges` when Quotation Details adopted the
+ * same two cards — see `TripChargeStatus` / `TripCharge` there. */
 
 /** The vehicle option the customer picked from the quotation's
  *  "Vehicle Options & Pricing" table (#1 Economy … #7 Royal VIP). */
@@ -346,7 +324,7 @@ export type CustomerBookingDetail = CustomerBookingListItem & {
    *  per booking, with vehicle-specific rows (extra km) already
    *  narrowed to the booked vehicle option; static for now (see
    *  mocks). */
-  otherCharges: readonly BookingCharge[];
+  otherCharges: readonly TripCharge[];
   /** Live tracking snapshot for the ongoing-booking Live Location
    *  card. Null unless the booking is currently rolling and a feed
    *  is available. */

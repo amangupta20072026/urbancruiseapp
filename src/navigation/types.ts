@@ -126,6 +126,12 @@ export type CustomerStackParamList = {
   RequestQuotation: undefined;
   QuotationSuccess: { requestId: string };
   /**
+   * Download page for the SEPARATE Spiritual Tours app, opened from the
+   * "Spiritual Tours" tile on Customer Home. Customer-only, so it lives
+   * here rather than in SharedStackParamList.
+   */
+  SpiritualTours: undefined;
+  /**
    * Three brand images (5 s each) shown before QuotationDetail for
    * Pending / Accepted quotations. Takes exactly the QuotationDetail
    * params and forwards them via `replace` when done. Open it through

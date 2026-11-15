@@ -39,9 +39,10 @@ import type { QuotationId } from '@app-types/ids';
 import type {
   CustomerQuotationDetail,
   CustomerQuotationListItem,
-  QuotationChargeBreakdown,
+  QuotationCharge,
   TravelExecutive,
 } from './types';
+import { VEHICLE_OPTIONS } from './vehicleTierOptions';
 
 export const MOCK_CUSTOMER_QUOTATIONS: readonly CustomerQuotationListItem[] = [
   /* ---------------- Pending ---------------- */
@@ -177,59 +178,102 @@ export const MOCK_CUSTOMER_QUOTATIONS: readonly CustomerQuotationListItem[] = [
  * ================================================================ */
 
 /**
- * Shared charges + T&C block used by every mock detail. Ops has
- * one standard set of terms today; keeping it as a shared constant
- * (rather than duplicating per record) makes the intent obvious.
- * A future quotation with bespoke terms just inlines its own
- * `chargesBreakdown` on the record. Copy mirrors the fleet-wide
- * boilerplate ops sends today.
+ * Notes + Other Charges shown on every mock quotation. Deliberately
+ * the SAME copy as `STANDARD_NOTES` / `STANDARD_OTHER_CHARGES` in
+ * features/customer/bookings/mocks.ts: a customer reads these terms
+ * on the quotation and must find them word-for-word unchanged on the
+ * booking they confirm. If one side is re-worded, re-word both.
+ *
+ * TODO(api): both arrays come from the quotations endpoint once it
+ * is built, and the two mock copies collapse into one server field.
  */
-const STANDARD_CHARGES: QuotationChargeBreakdown = {
-  included: [
-    'Vehicle Cost',
-    'Fuel Charges',
-    'Driver Charges',
-    'Toll Charges',
-    'State Tax / Permit',
-  ],
-  paidByCustomer: [
-    { label: 'Parking Charges', note: 'To be paid to driver as actuals' },
-    {
-      label: 'Police Entry Fee (If any)',
-      note: 'To be paid to driver as actuals',
-    },
-    { label: 'Extra KM Charges (Per Km)', note: 'See below' },
-    { label: 'Driver Night Charges', note: 'See below' },
-    { label: 'Hill Area AC Charges', note: 'To be paid to driver as actuals' },
-    {
-      label: 'Anything not mentioned in inclusions',
-      note: 'To be paid to driver as actuals',
-    },
-  ],
-  extraKm: {
-    afterKmLabel: 'After 1800 KM',
-    tiers: [
-      { label: 'Option 1 - 3', rateLabel: '₹20 / km' },
-      { label: 'Option 4', rateLabel: '₹26 / km' },
-      { label: 'Option 5', rateLabel: '₹40 / km' },
-    ],
-  },
-  nightCharges: [
-    {
-      label: 'Before 6 AM (1st Day) & After 11 PM (Last Day)',
-      rateLabel: '₹500',
-    },
-    { label: 'After 1 AM', rateLabel: '₹500 / Hr' },
-    { label: 'After 3 AM', rateLabel: 'Next Day Full Charge' },
-  ],
-  termsAndConditions: [
-    'KM will be counted from pickup point to pickup point.',
-    'Visit to local places in the city is not included in the cost.',
-    'AC will be switched OFF intermittently on hills.',
-    'There are some places in hills where vehicle may not go due to restrictions by local Govt.',
-    'Prices are subject to availability and may change before final confirmation.',
-  ],
+const QUOTATION_NOTES: readonly string[] = [
+  'Pricing includes vehicle cost, fuel cost, driver and local tax.',
+  'KM will be counted from pickup point to pickup point.',
+  'A/C will be switched off intermittently on hills.',
+  'Visits to local city places are not included in the cost.',
+  'Restricted places — the vehicle may not go to some places on hills due to local govt. restrictions, difficult terrain or narrow roads.',
+];
+
+/**
+ * Extra km above 1800, per vehicle option, from the ops rate sheet
+ * ("Rs. 20/km (1-3) | Rs. 26/km (4) | Rs. 40/km (5)"). Options 6 and
+ * 7 are not priced there, so they are absent rather than guessed —
+ * a customer who picks one keeps seeing the full tier list.
+ *
+ * Keyed by `VehicleOption.id`, not by row number, so renumbering the
+ * sheet can never silently re-price a vehicle.
+ */
+const EXTRA_KM_RATE_BY_OPTION: Readonly<Record<string, string>> = {
+  'economy-traveller-13': '₹20/km',
+  'premium-traveller-13': '₹20/km',
+  'royal-traveller-13': '₹20/km',
+  'royal-traveller-26': '₹26/km',
+  'royal-vip-traveller-12': '₹40/km',
 };
+
+/**
+ * Row order mirrors Booking Details, with the vehicle-priced extra-km
+ * row sitting after "Parking & Police Entry" exactly where the rate
+ * sheet lists it.
+ */
+const QUOTATION_OTHER_CHARGES: readonly QuotationCharge[] = [
+  {
+    label: 'Toll Charges',
+    status: 'included',
+    detail: 'Already included in the cost.',
+    rates: [],
+    forVehicle: null,
+    vehicleRates: null,
+  },
+  {
+    label: 'State Tax (Karnataka)',
+    status: 'not_included',
+    detail: 'Client will pay to driver.',
+    rates: [],
+    forVehicle: null,
+    vehicleRates: null,
+  },
+  {
+    label: 'Parking & Police Entry',
+    status: 'not_included',
+    detail: 'Client will pay to driver.',
+    rates: [],
+    forVehicle: null,
+    vehicleRates: null,
+  },
+  {
+    // Vehicle-priced. `rates` is the full tier list the customer sees
+    // before choosing; `vehicleRates` lets the screen collapse it to
+    // their pick. Both are kept in sync by the dev check below.
+    label: 'Extra Charge above 1800 km',
+    status: 'extra',
+    detail: null,
+    rates: ['Option 1-3: ₹20/km', 'Option 4: ₹26/km', 'Option 5: ₹40/km'],
+    forVehicle: null,
+    vehicleRates: EXTRA_KM_RATE_BY_OPTION,
+  },
+  {
+    label: 'Extra Charge (Local)',
+    status: 'extra',
+    detail: null,
+    rates: ['₹20/km', '₹150/hr'],
+    forVehicle: null,
+    vehicleRates: null,
+  },
+  {
+    label: 'Driver Night Charge',
+    status: 'not_included',
+    detail: 'Client will pay to driver.',
+    rates: [
+      'Before 6 AM (1st day) & after 11 PM (last day): ₹500',
+      'After 1 AM: ₹500/hr',
+      'After 3 AM: next day charge',
+    ],
+    forVehicle: null,
+    vehicleRates: null,
+  },
+];
 
 /**
  * Placeholder vehicle image. Swap for `@assets/images/vehicle-tempo-
@@ -299,7 +343,8 @@ const DETAIL_RECORDS: readonly CustomerQuotationDetail[] = [
       { city: 'Ooty', address: 'Ooty Lake, Ooty' },
     ],
     vehicle: INNOVA_CRYSTA,
-    chargesBreakdown: STANDARD_CHARGES,
+    notes: QUOTATION_NOTES,
+    otherCharges: QUOTATION_OTHER_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     pickupTime: '07:00 AM',
     dropTime: '06:00 PM',
@@ -315,7 +360,8 @@ const DETAIL_RECORDS: readonly CustomerQuotationDetail[] = [
       { city: 'Kolkata', address: 'Netaji Subhas Chandra Bose Airport' },
     ],
     vehicle: INNOVA_CRYSTA,
-    chargesBreakdown: STANDARD_CHARGES,
+    notes: QUOTATION_NOTES,
+    otherCharges: QUOTATION_OTHER_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     pickupTime: '06:30 AM',
     dropTime: '08:30 PM',
@@ -333,7 +379,8 @@ const DETAIL_RECORDS: readonly CustomerQuotationDetail[] = [
       { city: 'Pune', address: 'Pune Railway Station, Pune' },
     ],
     vehicle: INNOVA_CRYSTA,
-    chargesBreakdown: STANDARD_CHARGES,
+    notes: QUOTATION_NOTES,
+    otherCharges: QUOTATION_OTHER_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     pickupTime: '05:30 AM',
     dropTime: '09:00 PM',
@@ -356,7 +403,8 @@ const DETAIL_RECORDS: readonly CustomerQuotationDetail[] = [
       ac: true,
       hasLuggageSpace: true,
     },
-    chargesBreakdown: STANDARD_CHARGES,
+    notes: QUOTATION_NOTES,
+    otherCharges: QUOTATION_OTHER_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     pickupTime: '08:00 AM',
     dropTime: '01:00 PM',
@@ -379,7 +427,8 @@ const DETAIL_RECORDS: readonly CustomerQuotationDetail[] = [
       ac: true,
       hasLuggageSpace: true,
     },
-    chargesBreakdown: STANDARD_CHARGES,
+    notes: QUOTATION_NOTES,
+    otherCharges: QUOTATION_OTHER_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     pickupTime: '06:00 AM',
     dropTime: '09:30 PM',
@@ -394,7 +443,8 @@ const DETAIL_RECORDS: readonly CustomerQuotationDetail[] = [
       { city: 'Hyderabad', address: 'Rajiv Gandhi International Airport' },
     ],
     vehicle: INNOVA_CRYSTA,
-    chargesBreakdown: STANDARD_CHARGES,
+    notes: QUOTATION_NOTES,
+    otherCharges: QUOTATION_OTHER_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     pickupTime: '09:00 AM',
     dropTime: '08:30 PM',
@@ -417,7 +467,8 @@ const DETAIL_RECORDS: readonly CustomerQuotationDetail[] = [
       },
     ],
     vehicle: INNOVA_CRYSTA,
-    chargesBreakdown: STANDARD_CHARGES,
+    notes: QUOTATION_NOTES,
+    otherCharges: QUOTATION_OTHER_CHARGES,
     travelExecutive: STANDARD_EXECUTIVE,
     pickupTime: '06:30 AM',
     dropTime: '07:00 PM',
@@ -487,6 +538,28 @@ if (__DEV__) {
         );
       }
     });
+  }
+}
+
+/* -------- Invariant check — vehicle-priced charges --------
+ *
+ * A `vehicleRates` key that isn't a real `VehicleOption.id` is a
+ * silent bug: the row simply never narrows, and the customer keeps
+ * seeing the full tier list after choosing a vehicle. Nothing in the
+ * type system catches a typo'd string key, so check it here. Runs
+ * once at module load in development only. */
+if (__DEV__) {
+  const optionIds = new Set(VEHICLE_OPTIONS.map(o => o.id));
+  for (const charge of QUOTATION_OTHER_CHARGES) {
+    if (!charge.vehicleRates) continue;
+    for (const id of Object.keys(charge.vehicleRates)) {
+      if (!optionIds.has(id)) {
+        throw new Error(
+          `[quotations/mocks] "${charge.label}" prices unknown vehicle ` +
+            `option "${id}"`,
+        );
+      }
+    }
   }
 }
 

@@ -86,6 +86,12 @@ export type EventName =
   // ── Home CTAs ─────────────────────────────────────────
   | 'home.cta_tapped'
   | 'home.service_mode_changed'
+  // Spiritual Tours is a separate app: its tile opens a download
+  // screen. `_opened` is the tile tap, `_store_opened` the tap that
+  // actually reaches the store ({ store: 'android' | 'ios' }) — the
+  // gap between the two is how many people find it unpublished.
+  | 'home.spiritual_tours_opened'
+  | 'spiritual_tours.store_opened'
 
   // ── Customer feedback ─────────────────────────────────
   // Booking-scoped post-trip feedback flow. `_started` fires when

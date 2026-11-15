@@ -73,12 +73,23 @@ export type AppConfigLegal = {
   termsVersion: string;
 };
 
+/**
+ * Store page for the SEPARATE Spiritual Tours app, already resolved by the
+ * server for THIS device's platform (the bootstrap fetch sends `platform`).
+ * null means not published on this store yet — the Spiritual Tours screen
+ * then shows its download button disabled instead of opening a dead link.
+ */
+export type AppConfigSpiritualToursApp = {
+  url: string | null;
+};
+
 export type AppConfig = {
   version: AppConfigVersion;
   maintenance: AppConfigMaintenance;
   featureFlags: AppConfigFeatureFlags;
   support: AppConfigSupport;
   legal: AppConfigLegal;
+  spiritualToursApp: AppConfigSpiritualToursApp;
   serviceCities: string[];
 };
 
@@ -121,6 +132,9 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     privacyUrl: 'https://urbancruise.in/privacy/',
     termsVersion: '1.0.0',
   },
+  // Safe default: no link, so the download button stays disabled until a
+  // successful /config/app says otherwise. Never a guessed store URL.
+  spiritualToursApp: { url: null },
   serviceCities: [],
 };
 

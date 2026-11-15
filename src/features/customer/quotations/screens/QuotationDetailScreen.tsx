@@ -158,13 +158,9 @@ import {
   ChevronRight,
   ChevronUp,
   Clock,
-  FileText,
-  IndianRupee,
   Mail,
   MessageCircle,
   Lock,
-  Milestone,
-  Moon,
   PenSquare,
   Phone,
   RefreshCw,
@@ -175,6 +171,10 @@ import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { makePhoneCall, openWhatsApp, sendEmail } from '@services/contact';
 import type { CustomerStackParamList } from '@navigation/types';
+import {
+  TripNotesCard,
+  OtherChargesCard,
+} from '@shared/components/TripCharges';
 
 import type { CustomerQuotationDetail, QuotationStatus } from '../types';
 import { getCustomerQuotationDetail } from '../mocks';
@@ -182,9 +182,11 @@ import { QuotationTripCard } from '../components/QuotationTripCard';
 import {
   VEHICLE_OPTIONS,
   VEHICLE_TIER_LABELS,
+  findVehicleOption,
   type VehicleOption,
   type VehicleSelection,
 } from '../vehicleTierOptions';
+import { narrowChargesToVehicle } from '../utils/otherCharges';
 import { VehicleOptionCard } from '../components/VehicleOptionCard';
 import { NeedChangesSheet } from '../components/NeedChangesSheet';
 import { ContinueToBookingSheet } from '../components/ContinueToBookingSheet';
@@ -204,16 +206,6 @@ import {
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList, 'QuotationDetail'>;
 type Route = RouteProp<CustomerStackParamList, 'QuotationDetail'>;
-
-/* ================================================================
- * Palette extras
- * ================================================================
- * The design's night-charge tile is purple, but there's no purple
- * token in `@theme/colors`. Hard-coded here with a note — hoist
- * into the palette if a second consumer appears.
- * ================================================================ */
-const PURPLE_FG = '#8B5CF6';
-const PURPLE_TINT = '#EDE9FE';
 
 /* ================================================================
  * Advisor contact-action tints
@@ -380,6 +372,20 @@ const QuotationDetailScreen: React.FC = () => {
 
   const acceptDisabled = status === 'pending' && vehicleSelection === null;
 
+  /* The vehicle behind `vehicleSelection.optionId`, or null while the
+   * customer hasn't chosen. Drives the "For your vehicle" line on the
+   * Other Charges card — see TripChargesSection. `findVehicleOption`
+   * returns undefined for an id that is no longer offered (a stale
+   * deep-link), which collapses to null so the card falls back to the
+   * full tier list rather than crashing. */
+  const selectedVehicleOption = useMemo(
+    () =>
+      vehicleSelection
+        ? findVehicleOption(vehicleSelection.optionId) ?? null
+        : null,
+    [vehicleSelection],
+  );
+
   /* -------- Handlers -------- */
 
   const onNeedChanges = useCallback(() => {
@@ -472,7 +478,10 @@ const QuotationDetailScreen: React.FC = () => {
           amount={detail.amount}
           advanceAmount={detail.advanceAmount}
         />
-        <TermsCard detail={detail} />
+        <TripChargesSection
+          detail={detail}
+          selectedOption={selectedVehicleOption}
+        />
       </ScrollView>
 
       <BottomBar
@@ -1034,183 +1043,40 @@ const ChooseVehicleSection: React.FC<{
 };
 
 /* ================================================================
- * TermsCard  — three sibling cards making up the "Important Charges
- *              + Terms" block.
+ * TripChargesSection — "Notes" + "Other Charges (if applicable)"
  * ================================================================
- * Rendered as a Fragment (three cards, not one) so the parent's
- * scroll gap handles spacing consistently with every other section.
+ * The same two cards Booking Details renders, from the same shared
+ * component. Replaced the old three-card block (Important Charges /
+ * Extra KM + Night Charges band / Terms & Conditions) so a customer
+ * reads one set of terms, worded identically, before and after they
+ * confirm.
  *
- *   1. Important Charges — one card, two colour-coded sub-groups:
- *      "Included in Package" (green) and "Paid by Customer" (orange).
- *      Ops wants both lists visible at a glance so the customer
- *      can't miss anything they'll owe the driver directly.
+ * The only difference between the two screens is WHEN the vehicle is
+ * known. Booking Details always knows it. Here the customer may
+ * still be choosing, so `narrowChargesToVehicle` collapses the
+ * vehicle-priced extra-km row to their pick the moment they select
+ * one, and leaves the full tier list showing until then.
  *
- *   2. Extra KM + Night Charges — two small tabular callouts sitting
- *      side-by-side inside an accent-tinted band. Kept as their
- *      own row because ops flagged these two as the most-forgotten
- *      items, and side-by-side they still fit in a phone viewport.
- *
- *   3. Terms & Conditions — one card, checklist of miscellaneous
- *      rules that don't belong to a specific charge (KM
- *      measurement, hills caveats, availability disclaimer).
+ * TODO(api): an accepted quotation records which option was chosen
+ * on the server, but the detail payload does not carry its id yet,
+ * so the row shows every tier on an accepted quotation. Pass the
+ * chosen option id through and this narrows there too, with no
+ * change needed here.
  * ================================================================ */
 
-const TermsCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
-  detail,
-}) => {
-  const c = detail.chargesBreakdown;
+const TripChargesSection: React.FC<{
+  detail: CustomerQuotationDetail;
+  selectedOption: VehicleOption | null;
+}> = ({ detail, selectedOption }) => {
+  const charges = useMemo(
+    () => narrowChargesToVehicle(detail.otherCharges, selectedOption),
+    [detail.otherCharges, selectedOption],
+  );
+
   return (
     <>
-      {/* ── Important Charges card ── */}
-      <View style={styles.card}>
-        <SectionHeader
-          icon={
-            <IndianRupee size={18} color={Colors.success} strokeWidth={2} />
-          }
-          iconBg={Colors.successTint}
-          title="Important Charges"
-          rightSlot={
-            <Text style={styles.chargesAllInInr}>All amounts in ₹</Text>
-          }
-        />
-
-        {/* Included in Package */}
-        <View style={styles.chargesGroup}>
-          <View
-            style={[
-              styles.chargesGroupHeader,
-              { backgroundColor: Colors.successTint },
-            ]}
-          >
-            <Text
-              style={[styles.chargesGroupHeaderText, { color: Colors.success }]}
-            >
-              Included in Package{' '}
-              <Text style={styles.chargesGroupHeaderSub}>
-                (All amounts included in total price)
-              </Text>
-            </Text>
-          </View>
-          <View style={styles.chargesListPadded}>
-            {c.included.map(item => (
-              <View key={item} style={styles.chargesItemRow}>
-                <CheckCircle2
-                  size={16}
-                  color={Colors.success}
-                  strokeWidth={2.25}
-                />
-                <Text style={styles.chargesItemText}>{item}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Paid by Customer */}
-        <View style={styles.chargesGroup}>
-          <View
-            style={[
-              styles.chargesGroupHeader,
-              { backgroundColor: Colors.accentTint },
-            ]}
-          >
-            <Text
-              style={[styles.chargesGroupHeaderText, { color: Colors.accent }]}
-            >
-              Paid by Customer{' '}
-              <Text style={styles.chargesGroupHeaderSub}>
-                (Not Included in Package)
-              </Text>
-            </Text>
-          </View>
-          <View style={styles.chargesListPadded}>
-            {c.paidByCustomer.map(row => (
-              <View key={row.label} style={styles.chargesPayRow}>
-                <View style={styles.chargesPayRowLeft}>
-                  <View style={styles.chargesBullet} />
-                  <Text style={styles.chargesItemText}>{row.label}</Text>
-                </View>
-                <Text style={styles.chargesPayNote}>{row.note}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </View>
-
-      {/* ── Extra KM + Night Charges (accent-tinted band) ── */}
-      <View style={styles.calloutBand}>
-        {/* Extra KM */}
-        <View style={styles.calloutCard}>
-          <View style={styles.calloutHeadRow}>
-            <View
-              style={[
-                styles.calloutIcon,
-                { backgroundColor: Colors.accentTint },
-              ]}
-            >
-              <Milestone size={16} color={Colors.accent} strokeWidth={2.25} />
-            </View>
-            <View style={styles.calloutHeadTextCol}>
-              <Text style={styles.calloutTitle}>Extra KM Charges</Text>
-              <Text style={styles.calloutSubtitle}>
-                ({c.extraKm.afterKmLabel})
-              </Text>
-            </View>
-          </View>
-          <View style={styles.calloutRows}>
-            {c.extraKm.tiers.map(tier => (
-              <View key={tier.label} style={styles.calloutRow}>
-                <Text style={styles.calloutRowLabel}>{tier.label}</Text>
-                <Text style={styles.calloutRowValue}>{tier.rateLabel}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Driver Night Charges */}
-        <View style={styles.calloutCard}>
-          <View style={styles.calloutHeadRow}>
-            <View
-              style={[styles.calloutIcon, { backgroundColor: PURPLE_TINT }]}
-            >
-              <Moon size={16} color={PURPLE_FG} strokeWidth={2.25} />
-            </View>
-            <View style={styles.calloutHeadTextCol}>
-              <Text style={styles.calloutTitle}>Driver Night Charges</Text>
-            </View>
-          </View>
-          <View style={styles.calloutRows}>
-            {c.nightCharges.map(item => (
-              <View key={item.label} style={styles.calloutRow}>
-                <Text style={styles.calloutRowLabel} numberOfLines={2}>
-                  {item.label}
-                </Text>
-                <Text style={styles.calloutRowValue}>{item.rateLabel}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </View>
-
-      {/* ── Terms & Conditions card ── */}
-      <View style={styles.card}>
-        <SectionHeader
-          icon={<FileText size={18} color={Colors.info} strokeWidth={2} />}
-          iconBg={Colors.infoTint}
-          title="Terms & Conditions"
-        />
-        <View style={styles.chargesList}>
-          {c.termsAndConditions.map(text => (
-            <View key={text} style={styles.chargesItemRow}>
-              <CheckCircle2
-                size={16}
-                color={Colors.success}
-                strokeWidth={2.25}
-              />
-              <Text style={styles.chargesItemText}>{text}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
+      <TripNotesCard notes={detail.notes} />
+      <OtherChargesCard charges={charges} />
     </>
   );
 };
@@ -1749,155 +1615,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: Colors.textSecondary,
     fontWeight: '500',
-  },
-
-  /* ── Important Charges card ── */
-  chargesAllInInr: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    includeFontPadding: false,
-  },
-  chargesGroup: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    overflow: 'hidden',
-  },
-  chargesGroupHeader: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-  },
-  chargesGroupHeaderText: {
-    ...Typography.bodySmall,
-    fontWeight: '800',
-    includeFontPadding: false,
-  },
-  /* Nested inside the header — inherits color but goes muted-weight,
-     rendering "(All amounts included in total price)" as a
-     parenthetical after the colored title in the same line. */
-  chargesGroupHeaderSub: {
-    fontWeight: '500',
-    fontSize: 11,
-  },
-  chargesListPadded: {
-    padding: Spacing.md,
-    gap: 10,
-  },
-  chargesList: {
-    gap: 10,
-    marginTop: 4,
-  },
-  chargesItemRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-  },
-  chargesItemText: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '500',
-    flex: 1,
-    includeFontPadding: false,
-  },
-  /* Right column of "Paid by Customer" — label + per-item note.
-     The note wraps to two lines on narrow screens; using a fixed
-     ~40% max width keeps the split legible without truncation. */
-  chargesPayRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-  },
-  chargesPayRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-    flex: 1,
-  },
-  chargesBullet: {
-    width: 6,
-    height: 6,
-    borderRadius: Radius.circle,
-    backgroundColor: Colors.textSecondary,
-    marginTop: 7, // vertical-align with the first text line
-  },
-  chargesPayNote: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    textAlign: 'right',
-    maxWidth: '45%',
-    includeFontPadding: false,
-  },
-
-  /* ── Extra KM + Night Charges band ── */
-  calloutBand: {
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.accentTint,
-    gap: Spacing.sm,
-  },
-  calloutCard: {
-    padding: Spacing.md,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surface,
-    gap: Spacing.sm,
-    ...Shadows.xs,
-  },
-  calloutHeadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  calloutIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calloutHeadTextCol: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  calloutTitle: {
-    ...Typography.subtitle,
-    color: Colors.accent,
-    fontWeight: '800',
-    fontSize: 15,
-    includeFontPadding: false,
-  },
-  calloutSubtitle: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    includeFontPadding: false,
-  },
-  calloutRows: {
-    gap: 6,
-  },
-  calloutRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-  },
-  calloutRowLabel: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '500',
-    flex: 1,
-    includeFontPadding: false,
-  },
-  calloutRowValue: {
-    ...Typography.bodySmall,
-    color: Colors.accent,
-    fontWeight: '800',
-    textAlign: 'right',
-    includeFontPadding: false,
   },
 
   /* Advance-to-book card (scrollable content, between Vehicle

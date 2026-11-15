@@ -41,6 +41,7 @@ import {
   GiveFeedbackScreen,
 } from '@features/customer/feedback';
 import { ReferralsScreen } from '@features/customer/referrals';
+import { SpiritualToursScreen } from '@features/customer/spiritualTours';
 import { BookingDetailScreen } from '@features/customer/bookings';
 import {
   QuotationDetailScreen,
@@ -79,6 +80,10 @@ const CustomerNavigator: React.FC = () => {
         component={CustomerFeedbackScreen}
       />
       <Stack.Screen name="Referrals" component={ReferralsScreen} />
+
+      {/* Download page for the separate Spiritual Tours app, opened
+          from the "Spiritual Tours" tile on Customer Home. */}
+      <Stack.Screen name="SpiritualTours" component={SpiritualToursScreen} />
 
       {/* "Plan your next journey" flow — form + success */}
       <Stack.Screen

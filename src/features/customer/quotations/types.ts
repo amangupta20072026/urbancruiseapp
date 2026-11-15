@@ -29,6 +29,7 @@
  */
 
 import type { QuotationId } from '@app-types/ids';
+import type { TripCharge } from '@shared/components/TripCharges';
 import type { VehicleTierKey } from './vehicleTierOptions';
 
 /**
@@ -208,53 +209,31 @@ export type QuotationVehicle = {
  */
 /**
  * ================================================================
- * QuotationChargeBreakdown
+ * QuotationCharge
  * ================================================================
- * Structured content for the "Important Charges + Terms" block on
- * QuotationDetailScreen. Replaces the old `priceIncludes` /
- * `priceExtra` / `terms` triplet (which was a mix of free text and
- * a small variant-tagged tile grid) with a shape that mirrors the
- * three cards ops actually asked for:
+ * One row of the "Other Charges (if applicable)" card on
+ * QuotationDetailScreen. It is the shared `TripCharge` (same row
+ * Booking Details renders) plus the one thing a quotation knows and
+ * a booking does not: a charge whose rate depends on a vehicle the
+ * customer has not chosen yet.
  *
- *   1. Important Charges — two lists that split the trip price:
- *      what's already covered vs. what the customer settles
- *      directly with the driver, each item with a short per-item
- *      note (or a "See below" pointer to the callout sub-card).
- *
- *   2. Extra KM tiers + Driver Night Charges — two small tabular
- *      callouts, rendered inside a warm amber band because they're
- *      the two areas customers most often forget about.
- *
- *   3. Terms & Conditions — a plain checklist of bullets covering
- *      everything else (KM measurement rules, hill-area caveats,
- *      price-availability disclaimer, etc).
- *
- * Every string is display-ready — the screen only lays them out.
- * That means ops can freely re-word without any component change,
- * and TypeScript keeps the shape rigid so a stray missing field
- * fails at build time rather than as an empty card at runtime.
+ * Booking Details can always name the vehicle, so its rows arrive
+ * with `forVehicle` already set. On a pending quotation the customer
+ * is still choosing, so the row carries EVERY option's rate and the
+ * screen narrows it the moment a vehicle is selected — see
+ * `utils/otherCharges.ts`.
  */
-export type QuotationChargeBreakdown = {
-  /** Left-list items covered by the quoted price. Rendered with
-   *  a green check bullet. */
-  included: readonly string[];
-  /** Right-list items the customer pays the driver directly. The
-   *  `note` renders as a muted right-aligned line beside the label
-   *  ("To be paid to driver as actuals" / "See below" / …). */
-  paidByCustomer: readonly { label: string; note: string }[];
-  /** Small tabular callout: per-tier rate for kms beyond the
-   *  quoted allowance. `afterKmLabel` renders as the sub-header,
-   *  e.g. "After 1800 KM". */
-  extraKm: {
-    afterKmLabel: string;
-    tiers: readonly { label: string; rateLabel: string }[];
-  };
-  /** Small tabular callout: driver-night-charge rules. Each entry
-   *  is a time-window label + the amount the customer owes. */
-  nightCharges: readonly { label: string; rateLabel: string }[];
-  /** Bulleted terms & conditions. Rendered with green check
-   *  bullets. Ordered — first-to-last is display order. */
-  termsAndConditions: readonly string[];
+export type QuotationCharge = TripCharge & {
+  /**
+   * Rate per vehicle option, keyed by `VehicleOption.id`, for a
+   * charge that is priced differently per vehicle (today: extra km
+   * above 1800). Options the rate sheet does not price are simply
+   * absent — never guessed.
+   *
+   * Null for every charge that costs the same whatever the customer
+   * books, which is all of them except extra km.
+   */
+  vehicleRates: Readonly<Record<string, string>> | null;
 };
 
 /**
@@ -338,13 +317,18 @@ export type CustomerQuotationDetail = CustomerQuotationListItem & {
 
   vehicle: QuotationVehicle;
 
-  /**
-   * Structured content for the Important Charges + Terms &
-   * Conditions block on the detail screen. Replaces the previous
-   * `priceIncludes` / `priceExtra` / `terms` triplet. See
-   * `QuotationChargeBreakdown` above for the field-level meaning.
-   */
-  chargesBreakdown: QuotationChargeBreakdown;
+  /** "Notes" card bullets — what the fare covers and the trip rules
+   *  (km counting, A/C on hills, restricted places…). Same card and
+   *  same copy as Booking Details, so the customer reads the terms
+   *  once and sees them unchanged on the booking they confirm.
+   *  Static for now (see mocks). */
+  notes: readonly string[];
+
+  /** "Other Charges (if applicable)" card rows — tolls, state tax,
+   *  parking, extra km, driver night charges. Rows priced per
+   *  vehicle carry `vehicleRates`; the screen narrows them to the
+   *  customer's pick. Static for now (see mocks). */
+  otherCharges: readonly QuotationCharge[];
 
   /**
    * The travel executive on the customer's side. The "Request

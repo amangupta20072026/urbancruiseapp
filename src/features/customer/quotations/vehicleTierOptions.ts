@@ -35,6 +35,17 @@ export const VEHICLE_TIER_LABELS: Readonly<Record<VehicleTierKey, string>> = {
   royal_vip: 'ROYAL VIP',
 };
 
+/** Title-case tier name for running text, e.g. the "For your vehicle"
+ *  line on the Other Charges card. The pill above shouts; prose
+ *  shouldn't. Booking Details already uses these exact spellings in
+ *  `BookingVehicleOption.tier`, so the two screens read alike. */
+export const VEHICLE_TIER_NAMES: Readonly<Record<VehicleTierKey, string>> = {
+  economy: 'Economy',
+  premium: 'Premium',
+  royal: 'Royal',
+  royal_vip: 'Royal VIP',
+};
+
 /**
  * Amenity kinds the card knows how to draw an icon for. `label` on
  * each amenity is free text, so ops can say "BT Music" vs "Music
@@ -56,6 +67,14 @@ export type VehicleAmenity = {
 export type VehicleOption = {
   /** Unique per option. Selection is keyed on this. */
   id: string;
+  /**
+   * Row number on the ops rate sheet ("Vehicle Options & Pricing",
+   * #1 … #7), 1-based. NOT the array index — ops may reorder or
+   * retire a row, and the number is what they, the customer and the
+   * booking all quote ("Option 4"). `BookingVehicleOption.number` on
+   * the booking side is the same number.
+   */
+  number: number;
   tier: VehicleTierKey;
   /** Vehicle model, e.g. "Force Traveller". Card title. */
   model: string;
@@ -92,6 +111,7 @@ const PLACEHOLDER_IMG = require('@assets/images/service-car.png');
 export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
   {
     id: 'economy-traveller-13',
+    number: 1,
     tier: 'economy',
     model: 'Force Traveller',
     description: 'Basic A/c, Non-Recline Seat, Basic',
@@ -105,6 +125,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
   },
   {
     id: 'premium-traveller-13',
+    number: 2,
     tier: 'premium',
     model: 'Force Traveller',
     description:
@@ -120,6 +141,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
   },
   {
     id: 'royal-traveller-13',
+    number: 3,
     tier: 'royal',
     model: 'Force Traveller',
     description:
@@ -136,6 +158,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
   },
   {
     id: 'royal-traveller-26',
+    number: 4,
     tier: 'royal',
     model: 'Force Traveller',
     description:
@@ -153,6 +176,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
   },
   {
     id: 'royal-vip-traveller-12',
+    number: 5,
     tier: 'royal_vip',
     model: 'Force Traveller',
     description:
@@ -168,6 +192,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
   },
   {
     id: 'royal-vip-urbania-15-a',
+    number: 6,
     tier: 'royal_vip',
     model: 'Force Urbania',
     description:
@@ -183,6 +208,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
   },
   {
     id: 'royal-vip-urbania-15-b',
+    number: 7,
     tier: 'royal_vip',
     model: 'Force Urbania',
     // TODO(data): identical to the row above in the rate sheet (its
@@ -202,4 +228,41 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
 
 export function findVehicleOption(id: string): VehicleOption | undefined {
   return VEHICLE_OPTIONS.find(o => o.id === id);
+}
+
+/**
+ * One-line name for a chosen vehicle, e.g.
+ *   "Option 4 · Royal · 26 Seat Force Traveller"
+ *
+ * Used by the "For your vehicle" line on the Other Charges card.
+ * Deliberately identical in shape to what Booking Details builds from
+ * `BookingVehicleOption`, so the same charge reads the same way
+ * before and after the customer confirms.
+ */
+export function describeVehicleOption(option: VehicleOption): string {
+  return [
+    `Option ${option.number}`,
+    VEHICLE_TIER_NAMES[option.tier],
+    `${option.seats} Seat ${option.model}`,
+  ].join(' · ');
+}
+
+/* -------- Invariant check --------
+ *
+ * `number` is the rate sheet's row number and other data keys off it
+ * (extra-km rates, the booking's `vehicleOption.number`). A duplicate
+ * or a gap means two vehicles answer to "Option 4". Runs once at
+ * module load in development only; production bundles pay nothing. */
+if (__DEV__) {
+  const numbers = VEHICLE_OPTIONS.map(o => o.number);
+  const unique = new Set(numbers);
+  if (unique.size !== numbers.length) {
+    throw new Error(
+      `[vehicleTierOptions] duplicate option number in ${numbers.join(', ')}`,
+    );
+  }
+  const ids = new Set(VEHICLE_OPTIONS.map(o => o.id));
+  if (ids.size !== VEHICLE_OPTIONS.length) {
+    throw new Error('[vehicleTierOptions] duplicate option id');
+  }
 }

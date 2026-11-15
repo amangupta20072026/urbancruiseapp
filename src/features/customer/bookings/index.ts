@@ -12,8 +12,6 @@ export type {
   BookingFilter,
   BookingProgressStep,
   BookingProgressTimeline,
-  BookingCharge,
-  BookingChargeStatus,
   BookingDriver,
   BookingItineraryStop,
   BookingPaymentStatus,
