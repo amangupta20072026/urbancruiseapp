@@ -72,7 +72,13 @@ const VehicleBrochuresScreen: React.FC = () => {
   let body: React.ReactNode;
   if (isLoading) {
     body = <LoadingList />;
-  } else if (isError) {
+  } else if (isError && groups.length === 0) {
+    // Only when there is nothing to show. The catalog revalidates on
+    // every mount now, so a customer opening this screen offline gets
+    // a failed background refetch while holding a perfectly good
+    // cached catalog — `isError` alone would hide it behind an error
+    // view. CompareVehiclesScreen and VehicleVideoScreen already
+    // guard the same way with `!data && isError`.
     body = (
       <ErrorView
         title="Couldn’t load vehicle brochures"

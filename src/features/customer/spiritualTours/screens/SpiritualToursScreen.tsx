@@ -1,63 +1,68 @@
 /**
  * ------------------------------------------------------------------
- * SpiritualToursScreen — download page for the separate app
+ * SpiritualToursScreen — "Coming soon" for the in-app section
  * ------------------------------------------------------------------
- * Spiritual Tours is its own app published by Urban Cruise. This
- * screen is the handover: it says what that app is and sends the
- * customer to the right store.
+ * Reached from the "Spiritual Tours" tile on Customer Home.
+ *
+ * WHAT CHANGED, AND WHY THE OLD VERSION IS GONE
+ *   This screen used to send customers to a SEPARATE Spiritual Tours
+ *   app on the store. Management has since decided Spiritual Tours
+ *   ships INSIDE Urban Cruise. So there is no store link, no platform
+ *   detection and no "separate app" notice — all of that would now be
+ *   telling the customer something untrue.
+ *
+ *   Leftovers from that version, to clean up once the decision is
+ *   settled (left in place because reversing it would need them):
+ *     - `spiritualToursApp` on AppConfig, app and backend side
+ *     - SPIRITUAL_TOURS_STORE_LINKS in the backend's app-config.ts
  *
  *   ┌───────────────────────────────────────┐
- *   │ ‹        [ Urban Cruise ]             │  deep-green hero,
- *   │                                       │  soft arcs behind
- *   │ Spiritual                             │
+ *   │ ‹        [ Urban Cruise ]        ╱▲╲  │  deep-green hero with
+ *   │ Spiritual                       ╱███╲ │  the temple silhouette
  *   │ Tours                                 │
  *   │ Explore divine destinations with …    │
- *   ╰───────────────────────────────╮       │
- *   ┌───────────────────────────────┴─────┐ │  card lifts OUT of
- *   │ [icon] │ Download our               │ │  the hero on a shadow
- *   │        │ Spiritual Tours app        │ │
- *   │ ( Exclusive packages ) ( Itineraries)│ │
- *   │ [  Download on Google Play     › ]  │ │
- *   │        Launching soon on Google Play │ │
- *   └──────────────────────────────────────┘
- *   │ (i) │ Spiritual Tours is a separate … │
+ *   ╭───────────────────────────────────────╮
+ *   │              ╱▲╲                      │  cream glow + temple
+ *   │             ╱███╲                     │
+ *   │       ⧗ [ Coming Soon ]               │  ribbon over its base
+ *   │   Spiritual Tours is Coming Soon!     │
+ *   │   We are working hard to bring you …  │
+ *   │   📍 Exclusive │ 📅 Custom │ 🛕 Easy   │
+ *   │   ┌─────────────────────────────────┐ │
+ *   │   │ 🔔 │ Get Notified   [Notify Me] │ │
+ *   │   └─────────────────────────────────┘ │
  *   └───────────────────────────────────────┘
  *
- * LAYOUT NOTE — why the hero owns the top inset
- *   SafeScreen paints its top padding with `backgroundColor`, so the
- *   hero green is passed there and the status-bar strip becomes part
- *   of the hero. The bottom edge is NOT handed to SafeScreen (white
- *   content sits there); the scroll pads itself with `insets.bottom`
- *   instead.
+ * THE TEMPLE IS THE REPO'S OWN ASSET, IN FULL COLOUR
+ *   `service-temple.png` (the Home service switcher's artwork) is a
+ *   detailed 512×512 illustration on a transparent canvas: domes,
+ *   arches, pillars, an Om finial.
  *
- * ONE BUTTON, FOR THIS DEVICE
- *   An Android phone cannot install from the App Store and an iPhone
- *   cannot install from Play, so exactly one store button shows: the
- *   one for `Platform.OS`.
+ *   An earlier pass ran it through `tintColor` to turn it green and
+ *   match the design. That was wrong. Flattening every opaque pixel
+ *   to one colour merges all of that interior detail into a single
+ *   mass — on device it reads as a green blob, and at the 28 dp
+ *   feature-tile size it is just a triangle. The asset is an
+ *   illustration, not a glyph, and it only survives in full colour
+ *   at a decent size.
  *
- * THE URL IS THE SERVER'S, NEVER THE APP'S
- *   `appConfig.spiritualToursApp.url` is already resolved for this
- *   device's platform by GET /config/app (the bootstrap fetch sends
- *   `platform`). The app never builds a store URL itself — a guessed
- *   package id would send customers to a 404 or, worse, to someone
- *   else's listing.
+ *   So: the card shows it full colour at 180 dp on a warm halo,
+ *   which is the one place it has the room to read. It appears
+ *   nowhere else. The hero keeps tonal circles instead of a faded
+ *   temple, and the feature tile uses a line icon, because at those
+ *   sizes and opacities the illustration cannot work.
  *
- * DISABLED UNTIL PUBLISHED
- *   The app is on neither store yet, so the server sends null and the
- *   button renders disabled with a "Launching soon" line. Tapping it
- *   still shows the coming-soon toast, so the tap is never silently
- *   swallowed and ops can see the demand in telemetry.
- *
- *   When ops sets a real link in the backend's
- *   SPIRITUAL_TOURS_STORE_LINKS, the button goes live on the next
- *   cold start. No app release, no change to this file.
+ * LAYOUT NOTE — why SafeScreen is not used
+ *   SafeScreen paints BOTH insets with one colour. This screen needs
+ *   a green top and a white bottom, so the hero paints its own top
+ *   inset and the scroll pads itself with `insets.bottom`.
  * ------------------------------------------------------------------
  */
 
 import React, { useCallback } from 'react';
 import {
-  Linking,
-  Platform,
+  Image,
+  type ImageSourcePropType,
   Pressable,
   ScrollView,
   StatusBar,
@@ -67,64 +72,76 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Info } from 'lucide-react-native';
+import {
+  Bell,
+  CalendarDays,
+  ChevronLeft,
+  Hourglass,
+  Landmark,
+  MapPin,
+  type LucideProps,
+} from 'lucide-react-native';
 
+import { BrandLockup } from '@shared/components/BrandLockup';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
-import { notifyComingSoon } from '@services/comingSoon';
 import { logEvent } from '@services/telemetry';
 import { toast } from '@services/toast';
-import { useAppSelector } from '@store/hooks';
-
-import { BrandLockup } from '../components/BrandLockup';
 
 /* ================================================================
- * Hero palette
+ * Palette
  * ================================================================
- * Deeper than Colors.primaryDark so white body text clears 7:1 and
- * the card above it reads as lifted rather than floating on brand
- * green. Local because nothing else in the app uses a green this
- * dark; hoist into @theme/colors if a second screen wants it.
+ * Deeper greens than Colors.primaryDark so white text on the hero
+ * clears 7:1, plus the gold used on the ribbon. Local because
+ * nothing else in the app uses a green this dark or this gold.
  * ================================================================ */
 
-const HERO_TOP = '#2E7D32'; // Colors.primaryDark
-const HERO_BOTTOM = '#1B5E20';
-/** Arc strokes drawn over the hero. Low alpha: texture, not pattern. */
-const HERO_ARC = 'rgba(255, 255, 255, 0.13)';
+const HERO_BG = '#1B5E20';
+const HERO_TINT = '#2E7D32';
 const HERO_SUBTITLE = 'rgba(255, 255, 255, 0.88)';
+/** Warm halo behind the card's temple, as in the design. */
+const GLOW = '#FDF4DC';
+const GOLD = '#FFC107';
+const FEATURE_TILE = '#EAF7EC';
+const NOTIFY_BG = '#EAF7EC';
+/** The pale wash at the very bottom of the sheet. */
+const WAVE = '#F0F9F1';
+
+const TEMPLE = require('@assets/images/service-temple.png');
 
 /* ================================================================
- * Store presentation — label per platform
- * ================================================================
- * Only the copy lives here. WHICH entry is used is decided by
- * `Platform.OS`; whether it works at all, by the server's URL.
+ * Artwork slot
  * ================================================================ */
-
-type StoreKey = 'android' | 'ios';
-
-const STORE_LABEL: Readonly<Record<StoreKey, string>> = {
-  android: 'Download on Google Play',
-  ios: 'Download on App Store',
-};
-
-const STORE_NAME: Readonly<Record<StoreKey, string>> = {
-  android: 'Google Play',
-  ios: 'the App Store',
-};
-
-const STORE: StoreKey = Platform.OS === 'ios' ? 'ios' : 'android';
 
 /**
- * Short feature chips. Every one is a phrase already present in the
- * card's own approved sentence below ("exclusive spiritual packages,
- * itineraries, and bookings for pilgrimages and holy destinations"),
- * so the chips promise nothing the screen does not already say.
- * Ops can re-word freely — these are display strings, nothing keys
- * off them.
+ * A finished illustration for the card, if one is ever produced —
+ * the design's version has foliage, birds and a multi-tone temple
+ * that a flat tint cannot reproduce. While null, the card composes
+ * the glow and the tinted temple below, which is close and uses only
+ * what the repo already ships.
+ *
+ * TODO(design): set to
+ *   require('@assets/images/spiritual-tours-coming-soon.png')
  */
-const FEATURE_CHIPS: readonly string[] = [
-  'Exclusive packages',
-  'Itineraries',
-  'Easy bookings',
+const COMING_SOON_ARTWORK: ImageSourcePropType | null = null;
+
+/* ================================================================
+ * Content
+ * ================================================================ */
+
+type Feature = {
+  label: string;
+  Icon: React.ComponentType<LucideProps>;
+};
+
+/**
+ * `Landmark` stands in for the design's little temple glyph. The
+ * repo's temple is an illustration and collapses to a triangle at
+ * this size — a line icon is the only thing that reads at 24 dp.
+ */
+const FEATURES: readonly Feature[] = [
+  { label: 'Exclusive\nPackages', Icon: MapPin },
+  { label: 'Custom\nItineraries', Icon: CalendarDays },
+  { label: 'Easy\nBookings', Icon: Landmark },
 ];
 
 /* ================================================================
@@ -135,39 +152,25 @@ const SpiritualToursScreen: React.FC = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  /* Already narrowed to this device's platform by the server. `??
-   * null` covers the pre-bootstrap window, where appConfig is still
-   * undefined — the button is disabled then too, which is correct:
-   * there is no link to open. */
-  const storeUrl = useAppSelector(
-    s => s.app.appConfig?.spiritualToursApp.url ?? null,
-  );
-
-  const available = storeUrl !== null;
-
   const onBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
-  const onDownload = useCallback(() => {
-    if (storeUrl === null) {
-      // Not published on this store yet. Say so and record the
-      // attempt, rather than letting the tap do nothing.
-      notifyComingSoon('customer.spiritualToursApp');
-      return;
-    }
-
-    logEvent('spiritual_tours.store_opened', { store: STORE });
-
-    // openURL rejects when nothing can handle the link (a device
-    // without Play Services, a bare emulator image). Catch it and
-    // say so — an unhandled rejection here would be invisible.
-    Linking.openURL(storeUrl).catch(() => {
-      toast.error('Could not open the store', {
-        description: 'Please search for "Urban Cruise Spiritual Tours".',
-      });
+  /**
+   * TODO(api): this records nothing on the server yet, so no one can
+   * actually be notified. The toast is therefore worded to promise
+   * only what the app can keep — that the section will appear here
+   * when it launches — rather than a push the backend cannot send.
+   * When an endpoint exists (e.g. POST
+   * /customer/spiritual-tours/interest), call it here and the copy
+   * can become a real promise.
+   */
+  const onNotifyMe = useCallback(() => {
+    logEvent('spiritual_tours.notify_me_tapped');
+    toast.success('Thanks for your interest', {
+      description: 'Spiritual Tours will appear here as soon as it launches.',
     });
-  }, [storeUrl]);
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -176,35 +179,26 @@ const SpiritualToursScreen: React.FC = () => {
           underneath gets its dark-content bar back automatically. */}
       <StatusBar
         barStyle="light-content"
-        backgroundColor={HERO_BOTTOM}
+        backgroundColor={HERO_BG}
         translucent={false}
       />
 
-      {/* SafeScreen is not used here: it paints BOTH insets with one
-          colour, and this screen needs a green top and a white
-          bottom. StatusBar styling travels with the hero instead. */}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + Spacing.xxl },
-        ]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xxl }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Hero ───────────────────────────────────────────── */}
         <View style={[styles.hero, { paddingTop: insets.top + Spacing.sm }]}>
-          {/* Decorative arcs. Plain bordered circles rather than SVG:
-              two Views cost less than pulling a renderer in, and
-              nothing here needs a path. */}
           <View
             pointerEvents="none"
-            style={[styles.arc, styles.arcSmall]}
+            style={styles.heroHalo}
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           />
           <View
             pointerEvents="none"
-            style={[styles.arc, styles.arcLarge]}
+            style={styles.heroHaloSmall}
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           />
@@ -223,11 +217,11 @@ const SpiritualToursScreen: React.FC = () => {
               <ChevronLeft size={26} color={Colors.surface} strokeWidth={2.4} />
             </Pressable>
 
-            {/* White plate behind the logo: the wordmark's "Urban" is
-                brand green, which would all but vanish on the hero.
-                The plate guarantees contrast whatever the artwork. */}
+            {/* White plate: the wordmark's "Urban" is brand green and
+                would all but vanish on the hero. The plate guarantees
+                contrast whatever the artwork becomes. */}
             <View style={styles.brandPlate}>
-              <BrandLockup width={132} variant="wordmark" />
+              <BrandLockup width={150} variant="wordmark" />
             </View>
 
             {/* Balances the back button so the plate sits centred. */}
@@ -236,92 +230,104 @@ const SpiritualToursScreen: React.FC = () => {
 
           <Text style={styles.heroTitle}>Spiritual{'\n'}Tours</Text>
           <Text style={styles.heroSubtitle}>
-            Explore divine destinations with our dedicated Spiritual Tours App.
+            Explore divine destinations with our dedicated Spiritual Tours
+            section.
           </Text>
         </View>
 
-        {/* ── Download card, lifted out of the hero ──────────── */}
-        <View style={styles.card}>
-          <View style={styles.cardTop}>
-            <View style={styles.appIcon}>
-              <BrandLockup
-                width={46}
-                variant="mark"
-                accessibilityLabel={null}
+        {/* ── White sheet ────────────────────────────────────── */}
+        <View style={styles.sheet}>
+          {/* ── Artwork + ribbon ── */}
+          <View style={styles.artwork}>
+            {COMING_SOON_ARTWORK ? (
+              <Image
+                source={COMING_SOON_ARTWORK}
+                style={styles.artworkImage}
+                resizeMode="contain"
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
               />
-              <View style={styles.appIconBadge}>
-                <Text style={styles.appIconBadgeText} numberOfLines={1}>
-                  Spiritual Tours
-                </Text>
-              </View>
-            </View>
+            ) : (
+              <>
+                <View style={styles.glow} />
+                <Image
+                  source={TEMPLE}
+                  style={styles.cardTemple}
+                  resizeMode="contain"
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                />
+              </>
+            )}
 
-            <View style={styles.cardCopy}>
-              <Text style={styles.cardTitle}>
-                Download our{'\n'}Spiritual Tours app
-              </Text>
-              <Text style={styles.cardBody}>
-                Get access to exclusive spiritual packages, itineraries, and
-                bookings for pilgrimages and holy destinations.
-              </Text>
+            {/* Ribbon sits over the temple's base, as in the design.
+                Announced to screen readers; the artwork behind it is
+                decorative and hidden. */}
+            <View style={styles.ribbon} accessibilityRole="text">
+              <Hourglass size={20} color={GOLD} strokeWidth={2.2} />
+              <Text style={styles.ribbonText}>Coming Soon</Text>
             </View>
           </View>
 
-          <View style={styles.chipRow}>
-            {FEATURE_CHIPS.map(chip => (
-              <View key={chip} style={styles.chip}>
-                <Text style={styles.chipText}>{chip}</Text>
-              </View>
+          <Text style={styles.comingTitle}>
+            Spiritual Tours is Coming Soon!
+          </Text>
+          <Text style={styles.comingBody}>
+            We are working hard to bring you an amazing Spiritual Tours
+            experience. Stay tuned!
+          </Text>
+
+          {/* ── Three features ── */}
+          <View style={styles.features}>
+            {FEATURES.map((feature, index) => (
+              <React.Fragment key={feature.label}>
+                {index === 0 ? null : <View style={styles.featureRule} />}
+                <View style={styles.feature}>
+                  <View style={styles.featureTile}>
+                    <feature.Icon
+                      size={24}
+                      color={Colors.primaryDark}
+                      strokeWidth={2}
+                    />
+                  </View>
+                  <Text style={styles.featureLabel}>{feature.label}</Text>
+                </View>
+              </React.Fragment>
             ))}
           </View>
 
-          <Pressable
-            onPress={onDownload}
-            accessibilityRole="button"
-            accessibilityLabel={STORE_LABEL[STORE]}
-            accessibilityState={{ disabled: !available }}
-            accessibilityHint={
-              available
-                ? undefined
-                : `Not published yet. Launching soon on ${STORE_NAME[STORE]}.`
-            }
-            style={({ pressed }) => [
-              styles.storeBtn,
-              available ? styles.storeBtnLive : styles.storeBtnOff,
-              pressed && available && styles.pressed,
-            ]}
-          >
-            <Text
-              style={[
-                styles.storeBtnText,
-                available ? styles.storeBtnTextLive : styles.storeBtnTextOff,
+          {/* ── Get notified ── */}
+          <View style={styles.notify}>
+            <Bell size={28} color={Colors.primaryDark} strokeWidth={2} />
+            <View style={styles.notifyRule} />
+
+            <View style={styles.notifyCopy}>
+              <Text style={styles.notifyTitle}>Get Notified</Text>
+              <Text style={styles.notifyBody}>
+                Be the first to know when this feature is available.
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={onNotifyMe}
+              accessibilityRole="button"
+              accessibilityLabel="Notify me when Spiritual Tours launches"
+              style={({ pressed }) => [
+                styles.notifyBtn,
+                pressed && styles.pressed,
               ]}
-              numberOfLines={1}
             >
-              {STORE_LABEL[STORE]}
-            </Text>
-            <ChevronRight
-              size={19}
-              color={available ? Colors.surface : Colors.textSecondary}
-              strokeWidth={2.5}
-            />
-          </Pressable>
+              <Text style={styles.notifyBtnText}>Notify Me</Text>
+            </Pressable>
+          </View>
 
-          {available ? null : (
-            <Text style={styles.launchNote}>
-              Launching soon on {STORE_NAME[STORE]}.
-            </Text>
-          )}
-        </View>
-
-        {/* ── Info strip ─────────────────────────────────────── */}
-        <View style={styles.infoStrip}>
-          <Info size={22} color={Colors.primaryDark} strokeWidth={2} />
-          <View style={styles.infoRule} />
-          <Text style={styles.infoText}>
-            Spiritual Tours is a separate app by Urban Cruise, focused on
-            pilgrimage and spiritual travel experiences.
-          </Text>
+          {/* Pale wash at the foot of the sheet. Decorative. */}
+          <View
+            style={styles.wave}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
         </View>
       </ScrollView>
     </View>
@@ -334,59 +340,47 @@ export default SpiritualToursScreen;
  * Styles
  * ================================================================ */
 
-const CARD_INSET = Spacing.xl;
-/** How far the card rises into the hero. */
-const CARD_LIFT = 28;
-const APP_ICON_SIZE = 86;
+const SIDE = Spacing.xl;
+const ARTWORK_HEIGHT = 264;
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     // Matches the hero so an over-scroll bounce at the top shows
     // green, not a white flash.
-    backgroundColor: HERO_TOP,
+    backgroundColor: HERO_BG,
   },
   scroll: {
     flex: 1,
     backgroundColor: Colors.background,
   },
-  scrollContent: {
-    // The hero paints its own top inset; nothing else needs padding
-    // until the card, which carries its own margins.
-    paddingTop: 0,
-  },
 
   /* ── Hero ── */
   hero: {
-    backgroundColor: HERO_BOTTOM,
-    paddingHorizontal: CARD_INSET,
-    // Room for the card to overlap without covering the subtitle.
-    paddingBottom: CARD_LIFT + Spacing.xxl,
-    borderBottomLeftRadius: Radius.xxxl,
-    borderBottomRightRadius: Radius.xxxl,
+    backgroundColor: HERO_BG,
+    paddingHorizontal: SIDE,
+    // The sheet lifts into this space.
+    paddingBottom: Spacing.xxxxl,
     overflow: 'hidden',
   },
-  arc: {
+  heroHalo: {
     position: 'absolute',
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: HERO_ARC,
-    // A flat tint over the gradient's darker end; cheaper than a
-    // real gradient and indistinguishable at this opacity.
-    backgroundColor: HERO_TOP,
-    opacity: 0.55,
-  },
-  arcSmall: {
-    width: 300,
-    height: 300,
+    width: 360,
+    height: 360,
     right: -110,
-    top: -120,
+    top: -70,
+    borderRadius: Radius.pill,
+    backgroundColor: HERO_TINT,
   },
-  arcLarge: {
-    width: 420,
-    height: 420,
-    right: -180,
-    top: -80,
+  heroHaloSmall: {
+    position: 'absolute',
+    width: 190,
+    height: 190,
+    right: -55,
+    top: 120,
+    borderRadius: Radius.pill,
+    backgroundColor: HERO_TINT,
+    opacity: 0.8,
   },
   heroTopRow: {
     flexDirection: 'row',
@@ -407,9 +401,9 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     ...Typography.h1,
-    marginTop: Spacing.xxl,
-    fontSize: 36,
-    lineHeight: 40,
+    marginTop: Spacing.xl,
+    fontSize: 38,
+    lineHeight: 42,
     fontWeight: '800',
     color: Colors.surface,
   },
@@ -417,146 +411,183 @@ const styles = StyleSheet.create({
     ...Typography.body,
     marginTop: Spacing.md,
     lineHeight: 22,
+    // Keeps the subtitle clear of the temple on a narrow phone.
+    paddingRight: Spacing.xxxxl,
     color: HERO_SUBTITLE,
   },
   pressed: {
     opacity: 0.85,
   },
 
-  /* ── Download card ── */
-  card: {
-    marginTop: -CARD_LIFT,
-    marginHorizontal: CARD_INSET,
-    padding: Spacing.xl,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
+  /* ── White sheet ── */
+  sheet: {
+    // Lifts over the hero's lower edge.
+    marginTop: -Spacing.xxl,
+    paddingHorizontal: SIDE,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xxl,
+    borderTopLeftRadius: Radius.xxxl,
+    borderTopRightRadius: Radius.xxxl,
     backgroundColor: Colors.surface,
-    ...Shadows.lg,
-  },
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.lg,
-  },
-  appIcon: {
-    width: APP_ICON_SIZE,
-    height: APP_ICON_SIZE,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    ...Shadows.sm,
-  },
-  appIconBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.primary,
-  },
-  appIconBadgeText: {
-    ...Typography.caption,
-    fontSize: 10,
-    fontWeight: '800',
-    color: Colors.surface,
-  },
-  cardCopy: {
-    flex: 1,
-    gap: Spacing.xs,
-  },
-  cardTitle: {
-    ...Typography.subtitle,
-    fontSize: 17,
-    lineHeight: 21,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-  },
-  cardBody: {
-    ...Typography.caption,
-    lineHeight: 18,
-    color: Colors.textSecondary,
+    overflow: 'hidden',
   },
 
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
+  /* ── Artwork ── */
+  artwork: {
+    height: ARTWORK_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  artworkImage: {
+    width: '100%',
+    height: ARTWORK_HEIGHT,
+  },
+  glow: {
+    position: 'absolute',
+    width: 212,
+    height: 212,
+    top: 0,
+    borderRadius: Radius.pill,
+    backgroundColor: GLOW,
+  },
+  cardTemple: {
+    // Sits inside the halo with a margin all round, so the steps at
+    // its base are never clipped by the halo's curve.
+    width: 180,
+    height: 180,
     marginTop: Spacing.lg,
   },
-  chip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.primaryTint,
-  },
-  chipText: {
-    ...Typography.caption,
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: Colors.primaryDark,
-  },
-
-  /* ── Store button ── */
-  storeBtn: {
+  ribbon: {
+    position: 'absolute',
+    // Clear of the temple. The previous value put the ribbon over
+    // the temple's base and cut its steps off, which is what made
+    // the artwork unreadable.
+    bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: Spacing.sm,
-    minHeight: 56,
-    marginTop: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
     borderRadius: Radius.pill,
-    borderWidth: 1.5,
+    borderWidth: 2.5,
+    borderColor: GOLD,
+    backgroundColor: HERO_BG,
+    ...Shadows.md,
   },
-  storeBtnLive: {
-    backgroundColor: Colors.primaryDark,
-    borderColor: Colors.primaryDark,
-  },
-  storeBtnOff: {
-    backgroundColor: Colors.backgroundSecondary,
-    borderColor: Colors.borderLight,
-  },
-  storeBtnText: {
-    ...Typography.body,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  storeBtnTextLive: {
+  ribbonText: {
+    ...Typography.subtitle,
+    fontSize: 20,
+    fontWeight: '800',
     color: Colors.surface,
   },
-  storeBtnTextOff: {
-    color: Colors.textSecondary,
+
+  /* ── Copy ── */
+  comingTitle: {
+    ...Typography.h1,
+    marginTop: Spacing.lg,
+    fontSize: 27,
+    lineHeight: 33,
+    fontWeight: '800',
+    textAlign: 'center',
+    color: HERO_BG,
   },
-  launchNote: {
-    ...Typography.caption,
+  comingBody: {
+    ...Typography.body,
+    marginTop: Spacing.md,
+    lineHeight: 23,
     textAlign: 'center',
     color: Colors.textSecondary,
-    marginTop: Spacing.md,
   },
 
-  /* ── Info strip ── */
-  infoStrip: {
+  /* ── Features ── */
+  features: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: Spacing.xxl,
+  },
+  feature: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  featureRule: {
+    width: StyleSheet.hairlineWidth,
+    // Shorter than the column so it reads as a separator, not a box
+    // edge.
+    height: 56,
+    alignSelf: 'center',
+    backgroundColor: Colors.border,
+  },
+  featureTile: {
+    width: 50,
+    height: 50,
+    borderRadius: Radius.md,
+    backgroundColor: FEATURE_TILE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureLabel: {
+    ...Typography.bodySmall,
+    fontWeight: '700',
+    lineHeight: 18,
+    textAlign: 'center',
+    color: Colors.textPrimary,
+  },
+
+  /* ── Get notified ── */
+  notify: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.lg,
-    marginTop: Spacing.xl,
-    marginHorizontal: CARD_INSET,
+    gap: Spacing.md,
+    marginTop: Spacing.xxl,
     padding: Spacing.lg,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.primaryTint,
+    borderRadius: Radius.xl,
+    backgroundColor: NOTIFY_BG,
   },
-  infoRule: {
+  notifyRule: {
     width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
     backgroundColor: Colors.primary,
   },
-  infoText: {
+  notifyCopy: {
     flex: 1,
-    ...Typography.bodySmall,
-    lineHeight: 20,
+  },
+  notifyTitle: {
+    ...Typography.subtitle,
+    fontSize: 16,
+    fontWeight: '800',
     color: Colors.textPrimary,
+  },
+  notifyBody: {
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+    lineHeight: 16,
+    color: Colors.textSecondary,
+  },
+  notifyBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.md,
+    backgroundColor: HERO_BG,
+    ...Shadows.sm,
+  },
+  notifyBtnText: {
+    ...Typography.body,
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.surface,
+  },
+
+  /* ── Foot wash ── */
+  wave: {
+    position: 'absolute',
+    left: -80,
+    right: -80,
+    bottom: -150,
+    height: 220,
+    borderRadius: Radius.pill,
+    backgroundColor: WAVE,
+    zIndex: -1,
   },
 });

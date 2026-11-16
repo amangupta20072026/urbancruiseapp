@@ -170,6 +170,7 @@ import {
 import { SafeScreen, ScreenHeader } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { makePhoneCall, openWhatsApp, sendEmail } from '@services/contact';
+import { logEvent } from '@services/telemetry';
 import type { CustomerStackParamList } from '@navigation/types';
 import {
   TripNotesCard,
@@ -189,6 +190,8 @@ import {
 import { narrowChargesToVehicle } from '../utils/otherCharges';
 import { VehicleOptionCard } from '../components/VehicleOptionCard';
 import { NeedChangesSheet } from '../components/NeedChangesSheet';
+import { BookingProcessFab } from '../components/BookingProcessFab';
+import { BookingProcessSheet } from '../components/BookingProcessSheet';
 import { ContinueToBookingSheet } from '../components/ContinueToBookingSheet';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
@@ -291,6 +294,7 @@ const QuotationDetailScreen: React.FC = () => {
    * declarative visible-prop approach. */
   const needChangesRef = useRef<BottomSheetModal>(null);
   const confirmationRef = useRef<BottomSheetModal>(null);
+  const bookingProcessRef = useRef<BottomSheetModal>(null);
 
   /* -------- Auto-open ContinueToBookingSheet on landing -------- *
    *
@@ -392,6 +396,15 @@ const QuotationDetailScreen: React.FC = () => {
     needChangesRef.current?.present();
   }, []);
 
+  /* Read-only explainer — no state to reset, so it is simply
+     presented. `logEvent` records that the customer needed it:
+     a high rate here says the quotation screen is not explaining
+     itself well enough on its own. */
+  const onOpenBookingProcess = useCallback(() => {
+    logEvent('quotation.booking_process_opened', { status });
+    bookingProcessRef.current?.present();
+  }, [status]);
+
   const onConfirmAccept = useCallback(() => {
     // Belt-and-braces guard. `BottomBar` also refuses to fire this
     // when `acceptDisabled` is true (the Pressable is disabled and
@@ -456,33 +469,41 @@ const QuotationDetailScreen: React.FC = () => {
         />
       </View>
 
-      <ScrollView
-        style={styles.scrollBg}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <MetaCard detail={detail} />
-        <QuotationTripCard detail={detail} />
-        {status === 'pending' ? (
-          <ChooseVehicleSection
-            quotationId={route.params.quotationId}
-            selection={vehicleSelection}
-            onChangeSelection={setVehicleSelection}
-            pendingSelectOptionId={route.params.selectVehicleOptionId}
-            onPendingSelectConsumed={onPendingSelectConsumed}
+      {/* The scroll and the floating pill share this wrapper. It
+          ends exactly where the sticky BottomBar begins, so the
+          pill keeps a fixed gap above the bar without anyone
+          hardcoding the bar's height. */}
+      <View style={styles.scrollArea}>
+        <ScrollView
+          style={styles.scrollBg}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <MetaCard detail={detail} />
+          <QuotationTripCard detail={detail} />
+          {status === 'pending' ? (
+            <ChooseVehicleSection
+              quotationId={route.params.quotationId}
+              selection={vehicleSelection}
+              onChangeSelection={setVehicleSelection}
+              pendingSelectOptionId={route.params.selectVehicleOptionId}
+              onPendingSelectConsumed={onPendingSelectConsumed}
+            />
+          ) : (
+            <VehicleCard detail={detail} />
+          )}
+          <AdvanceToBookCard
+            amount={detail.amount}
+            advanceAmount={detail.advanceAmount}
           />
-        ) : (
-          <VehicleCard detail={detail} />
-        )}
-        <AdvanceToBookCard
-          amount={detail.amount}
-          advanceAmount={detail.advanceAmount}
-        />
-        <TripChargesSection
-          detail={detail}
-          selectedOption={selectedVehicleOption}
-        />
-      </ScrollView>
+          <TripChargesSection
+            detail={detail}
+            selectedOption={selectedVehicleOption}
+          />
+        </ScrollView>
+
+        <BookingProcessFab onPress={onOpenBookingProcess} />
+      </View>
 
       <BottomBar
         status={status}
@@ -512,6 +533,9 @@ const QuotationDetailScreen: React.FC = () => {
           navigation.navigate('CustomerTabs', { screen: 'Home' })
         }
       />
+      {/* Read-only explainer. Carries no screen data, so it takes
+          no props beyond its ref. */}
+      <BookingProcessSheet ref={bookingProcessRef} />
       <ContinueToBookingSheet
         ref={confirmationRef}
         mode={status === 'pending' ? 'accept' : 'booking'}
@@ -1312,13 +1336,22 @@ const styles = StyleSheet.create({
   },
 
   /* Scroll */
+  scrollArea: {
+    flex: 1,
+    // The floating pill is positioned against this box, so it must
+    // establish the containing block for it.
+    position: 'relative',
+  },
   scrollBg: {
     flex: 1,
     backgroundColor: Colors.background,
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xxxxl,
+    // Was Spacing.xxxxl. Raised so the floating "Booking process"
+    // pill (52 dp tall, Spacing.lg from the bottom) can never rest
+    // on top of the last card once the customer scrolls to the end.
+    paddingBottom: Spacing.xxxxl + 52 + Spacing.lg,
     gap: Spacing.md,
   },
 

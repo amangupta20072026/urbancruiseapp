@@ -91,7 +91,15 @@ export type EventName =
   // actually reaches the store ({ store: 'android' | 'ios' }) — the
   // gap between the two is how many people find it unpublished.
   | 'home.spiritual_tours_opened'
-  | 'spiritual_tours.store_opened'
+  // Spiritual Tours now ships INSIDE this app, so there is no store
+  // to send anyone to. `notify_me_tapped` counts how many customers
+  // asked to hear when it launches.
+  | 'spiritual_tours.notify_me_tapped'
+  // The "Booking process" explainer on Quotation Details.
+  // Properties: { status } — the quotation's state when opened.
+  // A high rate on pending quotations says the screen is not
+  // explaining itself well enough on its own.
+  | 'quotation.booking_process_opened'
 
   // ── Customer feedback ─────────────────────────────────
   // Booking-scoped post-trip feedback flow. `_started` fires when

@@ -29,7 +29,6 @@ export {
   useBrochures,
   useBrochureFor,
   useGroupedBrochures,
-  BROCHURE_STALE_TIME_MS,
 } from './hooks/useBrochures';
 export type {
   BrochureForResult,

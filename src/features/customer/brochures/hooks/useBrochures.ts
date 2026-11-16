@@ -7,11 +7,39 @@
  *   useBrochureFor(lookup)  one vehicle's brochure (cards, Compare)
  *   useGroupedBrochures()   type → seater → tier tree (Brochures screen)
  *
- * Caching:
+ * Caching — stale-while-revalidate:
  *   - Persisted to MMKV by the app's PersistQueryClientProvider (no
  *     `meta.persist: false`), so warm starts and offline show the last
  *     catalog instantly.
- *   - staleTime 1 hour: the catalog changes only on a backend deploy.
+ *   - `staleTime: 0` + the default `refetchOnMount`, so every brochure
+ *     surface revalidates as it opens.
+ *
+ *   WHY NOT A LONG staleTime
+ *     This used to be `staleTime: 1 hour`, on the reasoning that the
+ *     catalog only changes on a backend deploy. True, but the saved
+ *     copy ALSO survives app restarts (persister maxAge 24 h), so a
+ *     device that had fetched the catalog simply never asked again —
+ *     a video added by ops stayed invisible for up to an hour, and
+ *     closing the app did not help. The backend was never even hit:
+ *     no /config/brochures line appeared in its log at all.
+ *
+ *   WHY THIS IS CHEAP
+ *     The catalog is six entries, and GET /config/brochures sets a
+ *     strong ETag with `Cache-Control: max-age=60,
+ *     stale-while-revalidate=300`. The platform HTTP cache (OkHttp on
+ *     Android, NSURLSession on iOS) revalidates with If-None-Match on
+ *     its own, so an unchanged catalog comes back 304 with no body.
+ *     A revalidation costs a few hundred bytes.
+ *
+ *   WHAT THE CUSTOMER SEES
+ *     Nothing. The cached catalog renders immediately, `isLoading`
+ *     stays false because there is already data, and the refetch runs
+ *     in the background. Screens read `isLoading`, never `isFetching`,
+ *     so no spinner appears.
+ *
+ *   NOT a job for QUERY_CACHE_BUSTER: that exists for data-SHAPE
+ *   changes between builds. Using it for content would mean an app
+ *   release every time ops adds a video.
  *
  * Errors:
  *   - `meta.silent` — no global toast. The quotation screen hides its
@@ -31,8 +59,6 @@ import type {
   BrochureVehicleTypeGroup,
 } from '../types';
 
-export const BROCHURE_STALE_TIME_MS = 60 * 60 * 1000;
-
 const EMPTY: readonly BrochureEntry[] = [];
 
 /**
@@ -43,7 +69,9 @@ export function useBrochures(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: queryKeys.customer.brochures.catalog(),
     queryFn: fetchBrochureCatalog,
-    staleTime: BROCHURE_STALE_TIME_MS,
+    // Always revalidate on mount; the persisted copy still renders
+    // first, so this is invisible. See the header note.
+    staleTime: 0,
     meta: { silent: true },
     enabled: options.enabled ?? true,
   });
