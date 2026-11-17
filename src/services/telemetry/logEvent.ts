@@ -93,27 +93,18 @@ export type EventName =
   // Against 'home.spiritual_tours_opened' this gives the browse-to-
   // open rate, and which regions earn their place on the screen.
   | 'spiritual_tours.tour_opened'
-  // "Enquire / Book Now" on a tour's detail screen. Properties:
-  // { tourId }. The step that turns interest into an enquiry, so it
-  // is the number that says whether the section pays for itself.
-  | 'spiritual_tours.quotation_requested'
-  // The heart on a tour. Properties: { tourId, saved }. NOTE: the
-  // heart does not persist yet, so `saved` only describes the tap,
-  // not a durable preference — do not report it as "tours saved"
-  // until a store or an endpoint is behind it.
-  | 'spiritual_tours.save_toggled'
-  // The share sheet opened from a tour. Properties: { tourId }.
-  // Fired on open, not on completion: the OS does not reliably tell
-  // us which target was chosen, or whether the sheet was cancelled.
-  | 'spiritual_tours.shared'
-  // "Talk to a Travel Advisor". Properties: { from } — 'list' or
-  // 'detail'. The screen's only action besides opening a tour, so
-  // this against 'home.spiritual_tours_opened' is the whole funnel.
+  // "Talk to a Travel Advisor" (list) or "Talk to Travel Advisory"
+  // (a tour's detail). Properties: { from } — 'list' or 'detail' —
+  // plus { tourId } from the detail screen. The only action on either
+  // screen besides opening a tour, so this against
+  // 'home.spiritual_tours_opened' is the whole funnel.
   | 'spiritual_tours.advisor_called'
-  // "Need Help? Talk to our Travel Expert". Properties: { tourId }.
-  // A high rate against quotation_requested says the tabs are not
-  // answering the questions people actually have.
-  | 'spiritual_tours.help_tapped'
+  // REMOVED: 'spiritual_tours.quotation_requested', '.save_toggled',
+  // '.shared' and '.help_tapped' belonged to the detail screen's old
+  // Enquire / Book Now button, heart, share icon and Need Help block,
+  // none of which exist in the current design. Events already
+  // recorded under those names stay in Firebase; nothing in the app
+  // emits them now.
   // REMOVED: 'spiritual_tours.notify_me_tapped' belonged to the
   // Coming Soon page, which no longer exists. Historical events
   // already recorded under that name stay in Firebase; nothing in

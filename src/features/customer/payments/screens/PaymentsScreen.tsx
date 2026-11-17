@@ -41,6 +41,12 @@ import { Search, SlidersHorizontal } from 'lucide-react-native';
 import { SafeScreen } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
 import type { CustomerStackParamList } from '@navigation/types';
+// Same chip colour rule as the Bookings tab and the UC screens: one
+// colour per chip, solid when selected, tint when not.
+import type {
+  StatusChipPalette,
+  StatusChipTone,
+} from '@features/uc/_shared/components/StatusFilterChips';
 
 import type {
   CustomerPaymentDetail,
@@ -65,6 +71,23 @@ const FILTERS: readonly { key: PaymentFilter; label: string }[] = [
   { key: 'pending', label: 'Pending' },
   { key: 'failed', label: 'Failed' },
 ];
+
+/**
+ * One colour per chip. Paid / Pending / Failed use the same colours as
+ * the status pills on PaymentCard, so chip and card cannot disagree.
+ * "All" has no card, so it takes the brand royal purple, as on every
+ * UC status strip.
+ *
+ * Pending's solid is `pendingDark`, not `pending`: white text on the
+ * lighter amber measures 2.15:1, on `pendingDark` 5.02:1 (card
+ * amounts already use `pendingDark` for the same reason).
+ */
+const PAYMENT_CHIP_PALETTE: StatusChipPalette<PaymentFilter> = Object.freeze({
+  all: { solid: Colors.royal, tint: Colors.royalTint },
+  paid: { solid: Colors.primaryDark, tint: Colors.primaryTint },
+  pending: { solid: Colors.pendingDark, tint: Colors.warningTint },
+  failed: { solid: Colors.error, tint: Colors.errorTint },
+});
 
 /* ================================================================
  * Screen
@@ -168,6 +191,7 @@ const PaymentsScreen: React.FC = () => {
           <FilterChip
             key={chip.key}
             label={chip.label}
+            tone={PAYMENT_CHIP_PALETTE[chip.key]}
             active={filter === chip.key}
             onPress={() => setFilter(chip.key)}
           />
@@ -254,31 +278,45 @@ const PaymentsScreen: React.FC = () => {
 export default PaymentsScreen;
 
 /* ================================================================
- * Local FilterChip — same look as the Quotations / Bookings chips
- * (white outlined pill, soft-green tint when active), no count badge.
- * Keep the three in sync if any is restyled.
+ * Local FilterChip — keeps this screen's chip shape (equal-width,
+ * height 40, Radius.md, no count badge) with per-status COLOURS,
+ * using the same rule as UC's StatusFilterChips:
+ *   selected   → solid fill, white label
+ *   unselected → tint fill, label in the solid colour
  * ================================================================ */
 
 const FilterChip: React.FC<{
   label: string;
+  tone: StatusChipTone;
   active: boolean;
   onPress: () => void;
-}> = ({ label, active, onPress }) => (
-  <Pressable
-    onPress={onPress}
-    style={({ pressed }) => [
-      styles.chip,
-      active && styles.chipActive,
-      pressed && styles.pressed,
-    ]}
-    accessibilityRole="button"
-    accessibilityState={{ selected: active }}
-  >
-    <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
-      {label}
-    </Text>
-  </Pressable>
-);
+}> = ({ label, tone, active, onPress }) => {
+  const fill = active ? tone.solid : tone.tint;
+  const labelColor = active ? Colors.textInverse : tone.text ?? tone.solid;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        { backgroundColor: fill, borderColor: fill },
+        pressed && styles.pressed,
+      ]}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+    >
+      <Text
+        style={[
+          styles.chipLabel,
+          { color: labelColor },
+          active && styles.chipLabelActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+};
 
 /* ================================================================
  * Styles
@@ -316,23 +354,15 @@ const styles = StyleSheet.create({
     height: 40,
     paddingHorizontal: Spacing.sm,
     borderRadius: Radius.md,
-    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  chipActive: {
-    backgroundColor: Colors.primaryTint,
-    borderColor: Colors.primaryTint,
   },
   chipLabel: {
     ...Typography.bodySmall,
-    color: Colors.textPrimary,
     fontWeight: '600',
     includeFontPadding: false,
     textAlignVertical: 'center',
   },
   chipLabelActive: {
-    color: Colors.primaryDark,
     fontWeight: '700',
   },
 

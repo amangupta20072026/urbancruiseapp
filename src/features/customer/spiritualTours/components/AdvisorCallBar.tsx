@@ -1,6 +1,6 @@
 /**
  * ------------------------------------------------------------------
- * AdvisorCallBar — the one action on the Spiritual Tours list
+ * AdvisorCallBar — the one action on the Spiritual Tours screens
  * ------------------------------------------------------------------
  * Pinned above the home indicator, so it is reachable by thumb at
  * every scroll position rather than only at the bottom of the list.
@@ -30,9 +30,15 @@ type Props = {
   /** Null hides the bar entirely — see the note above. */
   onPress: (() => void) | null;
   bottomInset: number;
+  /** Button text. The list and the detail screen word it differently. */
+  label?: string;
 };
 
-export const AdvisorCallBar: React.FC<Props> = ({ onPress, bottomInset }) => {
+export const AdvisorCallBar: React.FC<Props> = ({
+  onPress,
+  bottomInset,
+  label = 'Talk to a Travel Advisor',
+}) => {
   if (!onPress) return null;
 
   return (
@@ -40,7 +46,7 @@ export const AdvisorCallBar: React.FC<Props> = ({ onPress, bottomInset }) => {
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel="Talk to a travel advisor"
+        accessibilityLabel={label}
         accessibilityHint="Calls our team"
         style={({ pressed }) => [styles.button, pressed && styles.pressed]}
       >
@@ -50,7 +56,7 @@ export const AdvisorCallBar: React.FC<Props> = ({ onPress, bottomInset }) => {
           numberOfLines={1}
           maxFontSizeMultiplier={1.3}
         >
-          Talk to a Travel Advisor
+          {label}
         </Text>
       </Pressable>
     </View>

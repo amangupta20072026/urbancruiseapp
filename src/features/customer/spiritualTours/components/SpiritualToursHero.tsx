@@ -157,7 +157,7 @@ export const SpiritualToursHero: React.FC<Props> = ({ onBack, topInset }) => (
     />
 
     <Text style={styles.subtitle} maxFontSizeMultiplier={1.6}>
-      Embark on sacred journeys to India&rsquo;s most revered destinations.
+      Explore India’s divine heritage and spiritual destinations with us!
     </Text>
   </View>
 );

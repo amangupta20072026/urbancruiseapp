@@ -90,11 +90,45 @@ type Nav = NativeStackNavigationProp<CustomerStackParamList>;
  * Filter chips — static config
  * ================================================================ */
 
-const FILTERS: readonly { key: QuotationFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'accepted', label: 'Accepted' },
-  { key: 'expired', label: 'Expired' },
+/**
+ * Each chip owns one colour so the four states can be told apart at a
+ * glance: `accent` fills the count badge (always) and outlines the
+ * chip when selected; `tint` is the selected chip's background.
+ * Every accent clears 4.5:1 against the badge's white digits.
+ *
+ *   All      blue   — neutral "everything", distinct from every state
+ *   Pending  red    — needs attention
+ *   Accepted green  — done / confirmed
+ *   Expired  grey   — inactive; kept off red so it cannot be mistaken
+ *                     for Pending
+ */
+type ChipTone = { accent: string; tint: string };
+
+const FILTERS: readonly {
+  key: QuotationFilter;
+  label: string;
+  tone: ChipTone;
+}[] = [
+  {
+    key: 'all',
+    label: 'All',
+    tone: { accent: Colors.completed, tint: Colors.completedTint },
+  },
+  {
+    key: 'pending',
+    label: 'Pending',
+    tone: { accent: Colors.error, tint: Colors.errorTint },
+  },
+  {
+    key: 'accepted',
+    label: 'Accepted',
+    tone: { accent: Colors.primaryDark, tint: Colors.primaryTint },
+  },
+  {
+    key: 'expired',
+    label: 'Expired',
+    tone: { accent: Colors.textSecondary, tint: Colors.surfaceMuted },
+  },
 ];
 
 /**
@@ -260,8 +294,8 @@ const QuotationsScreen: React.FC = () => {
         </Pressable>
       </View>
 
-      {/* Filter chip strip — solid-fill active, count badge on
-          every chip. Horizontal scroll so future filters can be
+      {/* Filter chip strip — one colour per chip (see FILTERS),
+          count badge on every chip. Horizontal scroll so future filters can be
           added without a layout rethink; today's four fit on a
           typical phone screen. */}
       <ScrollView
@@ -277,7 +311,7 @@ const QuotationsScreen: React.FC = () => {
             count={counts[chip.key]}
             active={filter === chip.key}
             onPress={() => setFilter(chip.key)}
-            badgeColor={chip.key === 'expired' ? Colors.error : undefined}
+            tone={chip.tone}
           />
         ))}
       </ScrollView>
@@ -370,15 +404,13 @@ const FilterChip: React.FC<{
   count: number;
   active: boolean;
   onPress: () => void;
-  /** Overrides the badge fill for chips that need a fixed semantic
-   * color (e.g. "Expired" is always red) regardless of active state. */
-  badgeColor?: string;
-}> = ({ label, count, active, onPress, badgeColor }) => (
+  tone: ChipTone;
+}> = ({ label, count, active, onPress, tone }) => (
   <Pressable
     onPress={onPress}
     style={({ pressed }) => [
       styles.chip,
-      active && styles.chipActive,
+      active && { backgroundColor: tone.tint, borderColor: tone.accent },
       pressed && styles.pressed,
     ]}
     accessibilityRole="button"
@@ -388,16 +420,8 @@ const FilterChip: React.FC<{
     <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
       {label}
     </Text>
-    <View
-      style={[
-        styles.countBadge,
-        active && styles.countBadgeActive,
-        badgeColor ? { backgroundColor: badgeColor } : null,
-      ]}
-    >
-      <Text style={[styles.countText, active && styles.countTextActive]}>
-        {count}
-      </Text>
+    <View style={[styles.countBadge, { backgroundColor: tone.accent }]}>
+      <Text style={styles.countText}>{count}</Text>
     </View>
   </Pressable>
 );
@@ -502,10 +526,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  chipActive: {
-    backgroundColor: Colors.primaryTint,
-    borderColor: Colors.primaryTint,
-  },
   chipLabel: {
     ...Typography.bodySmall,
     color: Colors.textPrimary,
@@ -514,7 +534,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
   },
   chipLabelActive: {
-    color: Colors.primaryDark,
     fontWeight: '700',
   },
   countBadge: {
@@ -522,12 +541,8 @@ const styles = StyleSheet.create({
     height: 22,
     paddingHorizontal: 6,
     borderRadius: Radius.circle,
-    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  countBadgeActive: {
-    backgroundColor: Colors.primaryDark,
   },
   countText: {
     ...Typography.caption,
@@ -535,9 +550,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     includeFontPadding: false,
     lineHeight: 14,
-  },
-  countTextActive: {
-    color: Colors.textOnPrimary,
   },
 
   /* List */

@@ -1,6 +1,6 @@
 /**
  * ------------------------------------------------------------------
- * TourFactStrip — Duration · Travel Mode · Best Season · Difficulty
+ * TourFactStrip — Duration · Travel Mode · Difficulty · Best Season
  * ------------------------------------------------------------------
  * A pale green band of four labelled facts separated by hairlines.
  *
@@ -19,7 +19,6 @@ import {
   BarChart3,
   CalendarDays,
   CarFront,
-  UsersRound,
   type LucideProps,
 } from 'lucide-react-native';
 
@@ -56,20 +55,20 @@ export const TourFactStrip: React.FC<Props> = ({ facts }) => {
             Icon: CarFront,
           }
         : null,
-      facts.bestSeason
-        ? {
-            key: 'bestSeason',
-            label: 'Best Season',
-            value: facts.bestSeason,
-            Icon: UsersRound,
-          }
-        : null,
       facts.difficulty
         ? {
             key: 'difficulty',
             label: 'Difficulty',
             value: facts.difficulty,
             Icon: BarChart3,
+          }
+        : null,
+      facts.bestSeason
+        ? {
+            key: 'bestSeason',
+            label: 'Best Season',
+            value: facts.bestSeason,
+            Icon: CalendarDays,
           }
         : null,
     ];

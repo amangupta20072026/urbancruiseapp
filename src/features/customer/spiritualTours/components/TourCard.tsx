@@ -8,16 +8,15 @@
  *   │ └────┘                                       │
  *   └──────────────────────────────────────────────┘
  *
- * TITLE ON ONE LINE
+ * TITLE ON ONE LINE, SUBTITLE IN FULL
  *   The title truncates rather than wrapping, with `titleNote` inline
  *   at the SAME size — "Shakti Peeth Tour (North, MP)" is one name,
- *   not a name plus a footnote. This is what makes the row a fixed
- *   76 pt and lets all six tours sit on one screen; the previous card
- *   wrapped titles mid-word and fitted three.
- *
- *   The trade-off is real: "Jyotirlinga Tours (Maharashtra + Gujarat)"
- *   clips on a narrow phone. The full name is announced to screen
+ *   not a name plus a footnote. The full name is announced to screen
  *   readers and shown unclipped on the detail screen.
+ *
+ *   The subtitle is never truncated: it wraps onto as many lines as
+ *   the stops need, so rows are as tall as their content rather than
+ *   a fixed height. The tile and chevron stay vertically centred.
  *
  * THE PICTURE, IN ORDER OF PREFERENCE
  *   1. `imageUrl` from the backend — so ops can replace artwork
@@ -123,11 +122,7 @@ export const TourCard: React.FC<Props> = ({ tour, onPress }) => {
         </Text>
 
         {subtitle !== '' ? (
-          <Text
-            style={styles.subtitle}
-            numberOfLines={1}
-            maxFontSizeMultiplier={1.4}
-          >
+          <Text style={styles.subtitle} maxFontSizeMultiplier={1.4}>
             {subtitle}
           </Text>
         ) : null}

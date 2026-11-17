@@ -7,13 +7,13 @@
  *   │ Spiritual Tours                        │
  *   │ ───                                    │
  *   ╭────────────────────────────────────────╮
- *   │ ⛰ NORTH TOURS                          │
+ *   │ NORTH TOURS                            │
  *   │  🛕 Char Dham Yatra                 ›  │
  *   │     Yamunotri · Gangotri · Kedar…      │
  *   │  🛕 Ayodhya-Prayagraj-Varanasi      ›  │
  *   │  🔱 Shakti peeth Tour (North, MP)   ›  │
  *   │                                        │
- *   │ ☀ WEST TOURS                           │
+ *   │ WEST TOURS                             │
  *   │  ॐ Ujjain-Omkareshwar               ›  │
  *   │  🐘 Ashtvinayak Yatra               ›  │
  *   │  🕉 Jyotirlinga Tours (Mah. + Guj.) ›  │
@@ -21,16 +21,13 @@
  *   │ [ 🎧 Talk to a Travel Advisor ]        │  pinned
  *   └────────────────────────────────────────┘
  *
- * TWO LINES PER TOUR, AND NO MORE
+ * TWO PIECES OF TEXT PER TOUR, AND NO MORE
  *   Artwork, name, stops. No duration, no season, no price, no
  *   rating — those belong on the detail screen, one tap away.
  *
- *   The constraint is the point and it is easy to erode: every extra
- *   line makes the six tours look more alike and pushes the last one
- *   off the bottom. At a fixed 76 pt per row all six fit a 390x844
- *   phone with almost no scrolling; the version before this one
- *   wrapped titles mid-word and fitted three. Adding a line to
- *   TourCard spends that. Don't.
+ *   The stops line is shown in full and wraps, so row height follows
+ *   the content. Keep it to the stops: every extra kind of line makes
+ *   the tours look more alike and pushes the last one off the bottom.
  *
  * ONE ACTION
  *   Tapping a row opens the detail. The only other thing on the
@@ -41,6 +38,14 @@
  *   GET /config/spiritual-tours, cached and revalidated by
  *   useSpiritualTours. Nothing here is hard-coded, so ops adds a
  *   service with a backend deploy and no app release.
+ *
+ * FIXED HEADER, SCROLLING LIST
+ *   The hero and the call bar are fixed; only the white sheet between
+ *   them scrolls, and its content starts at the NORTH TOURS band.
+ *   The sheet is a plain View that owns the rounded top corners and
+ *   clips (`overflow: 'hidden'`), and the ScrollView sits inside it.
+ *   The corners must belong to this fixed wrapper: put them on the
+ *   scroll content and they would scroll away with it.
  *
  * LAYOUT NOTE — why SafeScreen is not used
  *   SafeScreen paints BOTH insets with one colour. This screen needs
@@ -130,14 +135,21 @@ const SpiritualToursScreen: React.FC = () => {
         translucent={false}
       />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <SpiritualToursHero onBack={onBack} topInset={insets.top} />
+      {/* Fixed: stays put while the list scrolls. */}
+      <SpiritualToursHero onBack={onBack} topInset={insets.top} />
 
-        <View style={styles.sheet}>
+      {/* The sheet clips and rounds; the list scrolls inside it. */}
+      <View style={styles.sheet}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            // With no call bar the list is the last thing on screen,
+            // so it must clear the home indicator itself.
+            !support?.phone && { paddingBottom: Spacing.xl + insets.bottom },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {isLoading ? <SkeletonList /> : null}
 
           {!isLoading && isError ? (
@@ -157,7 +169,7 @@ const SpiritualToursScreen: React.FC = () => {
 
           {sections.map(section => (
             <View key={section.region} style={styles.section}>
-              <RegionHeader label={section.label} region={section.region} />
+              <RegionHeader label={section.label} />
 
               <View style={styles.rows}>
                 {section.tours.map(tour => (
@@ -166,8 +178,8 @@ const SpiritualToursScreen: React.FC = () => {
               </View>
             </View>
           ))}
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <AdvisorCallBar
         onPress={support?.phone ? onCallAdvisor : null}
@@ -186,26 +198,26 @@ const styles = StyleSheet.create({
     // green, not a white flash.
     backgroundColor: HERO_BG,
   },
-  scroll: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scrollContent: {
-    // The call bar is a sibling, not an overlay, so the scroll needs
-    // no padding for it — only a little breathing room at the end.
-    paddingBottom: Spacing.xl,
-  },
   sheet: {
-    // Lifts over the hero's lower edge.
+    flex: 1,
+    // Lifts over the hero's lower edge. Later sibling, so it paints
+    // above the hero.
     marginTop: -Spacing.xxl,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     backgroundColor: Colors.surface,
-    // Without an explicit minimum the sheet collapses to the hero's
-    // curve while loading, showing a green band under the skeletons.
-    minHeight: 460,
+    // Clips the scrolling rows to the rounded corners.
+    overflow: 'hidden',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    // The call bar is a sibling, not an overlay, so the scroll needs
+    // no padding for it — only a little breathing room at the end.
+    paddingBottom: Spacing.xl,
   },
   section: {
     marginBottom: Spacing.xl,

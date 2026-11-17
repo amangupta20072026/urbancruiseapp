@@ -57,6 +57,10 @@ import { SafeScreen } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
 import { notifyComingSoon } from '@services/comingSoon';
 import type { CustomerStackParamList } from '@navigation/types';
+// Same chip colours as the UC Bookings tab (its default palette), so
+// the two screens cannot drift apart.
+import { TRIP_HISTORY_CHIP_PALETTE } from '@features/uc/customers/components/HistoryFilterChips';
+import type { StatusChipTone } from '@features/uc/_shared/components/StatusFilterChips';
 
 import type { BookingFilter, CustomerBookingListItem } from '../types';
 import { MOCK_CUSTOMER_BOOKINGS } from '../mocks';
@@ -191,8 +195,8 @@ const BookingsScreen: React.FC = () => {
         </Text>
       </View>
 
-      {/* Filter chip strip — tinted active (matches Quotations, no
-          count badge), height-capped (see
+      {/* Filter chip strip — per-status colours from the UC Bookings
+          palette, no count badge, height-capped (see
           NotificationCentreScreen for the flex quirk this guards
           against). */}
       <ScrollView
@@ -205,6 +209,7 @@ const BookingsScreen: React.FC = () => {
           <FilterChip
             key={chip.key}
             label={chip.label}
+            tone={TRIP_HISTORY_CHIP_PALETTE[chip.key]}
             active={filter === chip.key}
             onPress={() => setFilter(chip.key)}
           />
@@ -286,31 +291,45 @@ const BookingsScreen: React.FC = () => {
 export default BookingsScreen;
 
 /* ================================================================
- * Local FilterChip — same look as the QuotationsScreen chip
- * (white outlined pill, soft-green tint when active) but WITHOUT
- * the count badge. Keep the two in sync if either is restyled.
+ * Local FilterChip — keeps this screen's chip shape (height 40,
+ * Radius.md, no count badge) but takes its COLOURS from the UC
+ * Bookings palette, with the same rule as UC's StatusFilterChips:
+ *   selected   → solid fill, white label
+ *   unselected → tint fill, label in the solid colour
  * ================================================================ */
 
 const FilterChip: React.FC<{
   label: string;
+  tone: StatusChipTone;
   active: boolean;
   onPress: () => void;
-}> = ({ label, active, onPress }) => (
-  <Pressable
-    onPress={onPress}
-    style={({ pressed }) => [
-      styles.chip,
-      active && styles.chipActive,
-      pressed && styles.pressed,
-    ]}
-    accessibilityRole="button"
-    accessibilityState={{ selected: active }}
-  >
-    <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
-      {label}
-    </Text>
-  </Pressable>
-);
+}> = ({ label, tone, active, onPress }) => {
+  const fill = active ? tone.solid : tone.tint;
+  const labelColor = active ? Colors.textInverse : tone.text ?? tone.solid;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        { backgroundColor: fill, borderColor: fill },
+        pressed && styles.pressed,
+      ]}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+    >
+      <Text
+        style={[
+          styles.chipLabel,
+          { color: labelColor },
+          active && styles.chipLabelActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+};
 
 /* ================================================================
  * Styles
@@ -352,23 +371,15 @@ const styles = StyleSheet.create({
     height: 40,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.md,
-    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  chipActive: {
-    backgroundColor: Colors.primaryTint,
-    borderColor: Colors.primaryTint,
   },
   chipLabel: {
     ...Typography.bodySmall,
-    color: Colors.textPrimary,
     fontWeight: '600',
     includeFontPadding: false,
     textAlignVertical: 'center',
   },
   chipLabelActive: {
-    color: Colors.primaryDark,
     fontWeight: '700',
   },
 

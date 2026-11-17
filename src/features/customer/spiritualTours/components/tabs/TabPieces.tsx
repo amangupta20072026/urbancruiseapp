@@ -12,8 +12,9 @@
  *   Overview was designed and only Char Dham is written up. The copy
  *   says the detail is being prepared and points at the team, which
  *   is true and useful. It deliberately does NOT say "coming soon" —
- *   this is a tour the customer can enquire about today, and the CTA
- *   at the foot of the screen still works.
+ *   this is a tour the customer can enquire about today, and the
+ *   Talk to Travel Advisory button at the foot of the screen still
+ *   works.
  * ------------------------------------------------------------------ */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -37,8 +38,8 @@ export const TabEmpty: React.FC<{ message: string }> = ({ message }) => (
   <View style={styles.empty}>
     <Text style={styles.emptyText}>{message}</Text>
     <Text style={styles.emptyHint}>
-      Use Enquire / Book Now below and our team will share the full detail for
-      your dates.
+      Tap Talk to Travel Advisory below and our team will share the full detail
+      for your dates.
     </Text>
   </View>
 );

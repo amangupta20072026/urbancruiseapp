@@ -16,11 +16,11 @@ export { RegionHeader } from './components/RegionHeader';
 export { SpiritualToursHero, HERO_BG } from './components/SpiritualToursHero';
 
 /* ---- Detail screen ---- */
-export { TourHeroCarousel } from './components/TourHeroCarousel';
-export { DestinationTiles } from './components/DestinationTiles';
+export { TourDetailHeader } from './components/TourDetailHeader';
+export { TourTitleBlock } from './components/TourTitleBlock';
 export { TourFactStrip } from './components/TourFactStrip';
 export { TourHighlights } from './components/TourHighlights';
-export { TourDetailFooter } from './components/TourDetailFooter';
+export { PlacesCovered } from './components/PlacesCovered';
 export {
   TourTabBar,
   TOUR_TABS,
@@ -32,6 +32,7 @@ export { ItineraryTab } from './components/tabs/ItineraryTab';
 export { ListTab } from './components/tabs/ListTab';
 export { PricingTab } from './components/tabs/PricingTab';
 export { SectionHeading, TabEmpty } from './components/tabs/TabPieces';
+export { IconSection } from './components/tabs/IconSection';
 
 /* ---- Data ---- */
 export {
