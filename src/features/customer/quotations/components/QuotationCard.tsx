@@ -173,13 +173,6 @@ export function summariseRoute(stops: readonly string[]): {
  * Formatting helpers
  * ================================================================ */
 
-function formatDateShort(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-  });
-}
-
 function formatDateFull(iso: string): string {
   return new Date(iso).toLocaleDateString('en-IN', {
     day: '2-digit',
@@ -322,7 +315,7 @@ export const QuotationCard: React.FC<Props> = ({
         <View style={styles.metaItem}>
           <Calendar size={14} color={Colors.textSecondary} strokeWidth={2} />
           <Text style={styles.metaText}>
-            {formatDateShort(item.travelDateStart)} –{' '}
+            {formatDateFull(item.travelDateStart)} –{' '}
             {formatDateFull(item.travelDateEnd)}
           </Text>
         </View>

@@ -145,6 +145,21 @@ function formatPassengers(n: number): string {
   return `${n} ${n === 1 ? 'Passenger' : 'Passengers'}`;
 }
 
+/**
+ * Dynamically calculates the font size for the whole route row to ensure
+ * it fits on one single line without wrapping or truncating (...).
+ */
+function getRouteFontSize(cities: readonly string[]): number {
+  // Calculate total characters. We add ~4 chars per arrow/space gap between cities.
+  const totalChars = cities.join('').length + (cities.length - 1) * 4;
+
+  if (totalChars <= 15) return 24; // Very short (e.g., "Pune -> Mumbai")
+  if (totalChars <= 22) return 20; // Standard (e.g., "Bengaluru -> Mysuru")
+  if (totalChars <= 28) return 18; // Medium (e.g., "Mumbai -> Pune -> Mumbai")
+  if (totalChars <= 34) return 16; // Long (e.g., "Mumbai -> Trimbakeshwar -> Mumbai")
+  return 14; // Very long
+}
+
 /* ================================================================
  * Card
  * ================================================================ */
@@ -173,6 +188,8 @@ export const BookingCard: React.FC<Props> = ({
   const isUpcoming = item.status === 'upcoming';
 
   const cities = getRouteCities(item);
+  const routeFontSize = getRouteFontSize(cities);
+
   const startDate = formatCardDate(item.travelDate);
   const endDate = formatCardDate(item.endDate);
   const days = formatTripDays(tripDayCount(item.travelDate, item.endDate));
@@ -271,8 +288,7 @@ export const BookingCard: React.FC<Props> = ({
 
         {/* Body */}
         <View style={styles.body}>
-          {/* Dates | days | price. The date range may wrap onto two
-              lines on narrow phones rather than being cut off. */}
+          {/* Dates | days | price. */}
           <View style={styles.summaryRow}>
             <View style={styles.dateCell}>
               <Calendar
@@ -293,6 +309,7 @@ export const BookingCard: React.FC<Props> = ({
               />
               <Text style={styles.daysText}>{days}</Text>
             </View>
+            <View style={styles.vDivider} />
             <View style={styles.amountCol}>
               <Text style={styles.amount}>
                 {formatRupees(item.totalAmount)}
@@ -303,21 +320,35 @@ export const BookingCard: React.FC<Props> = ({
 
           <View style={styles.hDivider} />
 
-          {/* Cities — "A → B", or "A → via → A" when a trip starts and
-              ends in the same city. Wraps instead of truncating; the
-              arrow travels with the city it leads to. */}
+          {/* Cities — forced onto a single line with dynamic font sizing */}
           <View style={styles.routeRow}>
             {cities.map((city, i) => (
               <View key={`${i}-${city}`} style={styles.cityItem}>
                 {i > 0 ? (
                   <ArrowRight
-                    size={18}
+                    size={routeFontSize - 2} // Scale arrow slightly with text
                     color={Colors.textSecondary}
                     strokeWidth={2.5}
                   />
-                ) : null}
-                <MapPin size={18} color={Colors.primary} strokeWidth={2.2} />
-                <Text style={styles.cityText}>{city}</Text>
+                ) : (
+                  <MapPin
+                    size={routeFontSize - 2}
+                    color={Colors.primary}
+                    strokeWidth={2.2}
+                  />
+                )}
+                <Text
+                  style={[
+                    styles.cityText,
+                    {
+                      fontSize: routeFontSize,
+                      lineHeight: routeFontSize * 1.2,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {city}
+                </Text>
               </View>
             ))}
           </View>
@@ -373,10 +404,7 @@ export const BookingCard: React.FC<Props> = ({
 
 /* ================================================================
  * Action-row renderer — one branch per status
- * ================================================================ *
- * Kept in a function (not inline JSX) because the branching gets
- * noisy and this keeps the card body readable.
- */
+ * ================================================================ */
 
 function renderActions(a: {
   status: BookingStatus;
@@ -451,19 +479,16 @@ function renderActions(a: {
 
 /* ================================================================
  * ActionButton — small variant-driven button
- * ================================================================ *
- * Keeps callers declarative and centralises the paint. If a variant
- * grows past this file's needs, promote to a shared Button.
- */
+ * ================================================================ */
 
 type ActionVariant =
-  | 'primary' // solid green (Modify Booking)
-  | 'outline' // white with green border (View Details on Upcoming)
-  | 'outlineNeutral' // white with grey border
-  | 'secondary' // white with gold border + text (View Details on Ongoing / Completed / Cancelled)
-  | 'info' // white with blue border, blue text (Track Vehicle)
-  | 'successOutline' // white with green border + text (Book Again, Completed)
-  | 'dangerOutline'; // white with red border + text (Book Again, Cancelled)
+  | 'primary'
+  | 'outline'
+  | 'outlineNeutral'
+  | 'secondary'
+  | 'info'
+  | 'successOutline'
+  | 'dangerOutline';
 
 const ActionButton: React.FC<{
   label: string;
@@ -512,8 +537,6 @@ const VARIANT: Record<
     border: Colors.border,
     text: Colors.textPrimary,
   },
-  // secondaryDark (not secondary) for both border and text: the lighter
-  // gold is too faint as text on white.
   secondary: {
     bg: Colors.surface,
     border: Colors.secondaryDark,
@@ -541,8 +564,6 @@ const VARIANT: Record<
  * ================================================================ */
 
 const styles = StyleSheet.create({
-  /* Outer card — white, bordered in the status tint, carries the
-   * shadow. The tinted band lives in `clip` so its corners round. */
   card: {
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -553,8 +574,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg - 1,
     overflow: 'hidden',
   },
-
-  /* Header band — pill + trip type | booking id */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -562,9 +581,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
-  /* Status pill + trip type tag. flex: 1 lets the pair wrap onto a
-   * second line on narrow phones instead of squeezing the booking id.
-   * Tag styles mirror QuotationCard so the two badges look identical. */
   tagsRow: {
     flex: 1,
     flexDirection: 'row',
@@ -630,8 +646,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     includeFontPadding: false,
   },
-
-  /* Body */
   body: {
     padding: Spacing.md,
     gap: Spacing.sm,
@@ -645,8 +659,6 @@ const styles = StyleSheet.create({
     height: 28,
     backgroundColor: Colors.border,
   },
-
-  /* Dates | days | price */
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -697,27 +709,23 @@ const styles = StyleSheet.create({
   /* Cities */
   routeRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap', // Forces single line
     alignItems: 'center',
-    columnGap: 8,
-    rowGap: 4,
+    columnGap: 6, // Slightly tighter gap
   },
   cityItem: {
-    flexShrink: 1,
+    // Removed flexShrink so it doesn't try to truncate internally
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   cityText: {
     ...Typography.subtitle,
     color: Colors.textPrimary,
     fontWeight: '800',
-    fontSize: 20,
-    lineHeight: 24,
-    flexShrink: 1,
+    // fontSize and lineHeight are overridden dynamically
   },
 
-  /* Passengers | vehicle */
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -746,8 +754,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '500',
   },
-
-  /* Bottom actions */
   actionsRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -767,7 +773,6 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     fontWeight: '700',
   },
-
   pressed: {
     opacity: 0.85,
   },
