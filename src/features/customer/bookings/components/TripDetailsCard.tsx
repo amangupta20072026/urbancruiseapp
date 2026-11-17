@@ -61,18 +61,11 @@ import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import { getTripTypeOption } from '@features/customer/quotations';
 
 import type { CustomerBookingDetail } from '../types';
+import { formatTripDays, isoDayToUtc, tripDayCount } from '../utils/tripDates';
 
 /* ================================================================
  * Helpers
  * ================================================================ */
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** "2026-09-15" → UTC midnight, so day maths ignores the device TZ. */
-function isoDayToUtc(iso: string): number {
-  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
-  return Date.UTC(y, m - 1, d);
-}
 
 /** "2026-09-15" → "15 Sept 2026". */
 function formatTripDate(iso: string): string {
@@ -84,14 +77,10 @@ function formatTripDate(iso: string): string {
   });
 }
 
-/** Inclusive day count: 15 → 17 Sept is "3 Days", same day is "1 Day". */
+/** Inclusive day count: 15 → 17 Sept is "3 Days", same day is "1 Day".
+ *  Same maths as the Bookings list card (utils/tripDates). */
 function formatDuration(startIso: string, endIso: string): string {
-  const days =
-    Math.max(
-      0,
-      Math.round((isoDayToUtc(endIso) - isoDayToUtc(startIso)) / DAY_MS),
-    ) + 1;
-  return `${days} ${days === 1 ? 'Day' : 'Days'}`;
+  return formatTripDays(tripDayCount(startIso, endIso));
 }
 
 /* ================================================================

@@ -29,7 +29,9 @@
  *
  * STATUS drives the pill and the second button:
  *   accepted → Book Now      (green)  → onBookNow
- *   pending  → (none — View Details only, full width)
+ *   pending  → (none — View Details only, on the RIGHT, the left
+ *                half left empty so it is exactly as wide as the
+ *                View Details of the other statuses)
  *   expired  → Request Again (red)    → onRequestAgain
  * View Details (gold) is always present.
  *
@@ -129,7 +131,9 @@ type SecondaryAction = {
 
 /**
  * Second button per status. Same outline paint as BookingCard.
- * `null` means no second button: View Details takes the full row.
+ * `null` means no second button: View Details keeps the same
+ * half-row size as on the other statuses and sits on the right,
+ * with an empty half on the left (see the actions row).
  */
 const SECONDARY_ACTION: Record<QuotationStatus, SecondaryAction | null> = {
   accepted: {
@@ -342,6 +346,16 @@ export const QuotationCard: React.FC<Props> = ({
 
       {/* Row 4 — actions */}
       <View style={styles.actionsRow}>
+        {/* No second button: an empty flex-1 half on the left, so
+            View Details is exactly as wide as when two buttons
+            share the row, and sits on the right. */}
+        {!secondary && (
+          <View
+            style={styles.actionSpacer}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+        )}
         <ActionButton
           label="View Details"
           Icon={Eye}
@@ -539,6 +553,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.sm,
     marginTop: 2,
+  },
+  /* Empty left half of the row when there is no second button. Same
+   * flex as actionBtn, so the gap and widths match a two-button row. */
+  actionSpacer: {
+    flex: 1,
   },
   actionBtn: {
     flex: 1,

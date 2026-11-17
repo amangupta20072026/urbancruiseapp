@@ -13,6 +13,8 @@
 import { asBookingId } from '@app-types/ids';
 import type { BookingId } from '@app-types/ids';
 import type { TripCharge } from '@shared/components/TripCharges';
+import { pickViaCity } from './utils/route';
+import { isoDayToUtc } from './utils/tripDates';
 import type {
   BookingProgressTimeline,
   BookingVehicleOption,
@@ -32,6 +34,8 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
     from: 'Mumbai',
     to: 'Mumbai',
     travelDate: '2026-11-09',
+    endDate: '2026-11-15',
+    viaCity: 'Trimbakeshwar',
     pickupTime: '06:30 AM',
     passengers: 17,
     vehicleType: 'Force Urbania',
@@ -54,6 +58,8 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
     from: 'Bengaluru',
     to: 'Bengaluru',
     travelDate: '2026-10-24',
+    endDate: '2026-10-26',
+    viaCity: 'Mysuru',
     pickupTime: '10:30 AM',
     passengers: 8,
     vehicleType: 'Tempo Traveller',
@@ -74,6 +80,8 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
     from: 'Delhi',
     to: 'Jaipur',
     travelDate: '2026-09-15',
+    endDate: '2026-09-17',
+    viaCity: null,
     pickupTime: '09:00 AM',
     passengers: 20,
     vehicleType: 'Tempo Traveller',
@@ -94,6 +102,8 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
     from: 'Gurugram',
     to: 'Gurugram',
     travelDate: '2026-09-12',
+    endDate: '2026-09-12',
+    viaCity: 'Agra',
     pickupTime: '07:30 AM',
     passengers: 4,
     vehicleType: 'Force Traveller',
@@ -114,6 +124,8 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
     from: 'Mumbai',
     to: 'Mumbai',
     travelDate: '2026-09-05',
+    endDate: '2026-09-05',
+    viaCity: 'Pune',
     pickupTime: '08:00 AM',
     passengers: 12,
     vehicleType: 'Force Urbania',
@@ -134,6 +146,8 @@ export const MOCK_CUSTOMER_BOOKINGS: readonly CustomerBookingListItem[] = [
     from: 'Noida',
     to: 'Noida',
     travelDate: '2026-08-18',
+    endDate: '2026-08-20',
+    viaCity: 'Rishikesh',
     pickupTime: '06:00 AM',
     passengers: 6,
     vehicleType: 'Force Traveller',
@@ -172,7 +186,6 @@ type DetailOverride = {
   timeline: BookingProgressTimeline;
   payment: CustomerBookingDetail['payment'];
   cancellation: CustomerBookingDetail['cancellation'];
-  endDate: CustomerBookingDetail['endDate'];
   itinerary: CustomerBookingDetail['itinerary'];
   returnPickupTime: CustomerBookingDetail['returnPickupTime'];
   vehicleOption: CustomerBookingDetail['vehicleOption'];
@@ -199,7 +212,6 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
     payment: { status: 'partial', method: 'UPI' },
     cancellation: null,
-    endDate: '2026-11-15',
     itinerary: [
       { city: 'Mumbai', place: 'Chhatrapati Shivaji Maharaj Intl Airport' },
       { city: 'Trimbakeshwar', place: 'Trimbakeshwar Jyotirlinga Temple' },
@@ -232,7 +244,6 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
     payment: { status: 'partial', method: 'UPI' },
     cancellation: null,
-    endDate: '2026-10-26',
     itinerary: [
       {
         city: 'Bengaluru',
@@ -272,7 +283,6 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
     payment: { status: 'partial', method: 'UPI' },
     cancellation: null,
-    endDate: '2026-09-17',
     itinerary: [
       { city: 'Delhi', place: 'Indira Gandhi International Airport, Delhi' },
       { city: 'Agra', place: 'Agra Fort, Agra' },
@@ -306,7 +316,6 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
     payment: { status: 'paid', method: 'Card' },
     cancellation: null,
-    endDate: '2026-09-12',
     itinerary: [
       { city: 'Gurugram', place: 'Sector 29, Gurugram' },
       { city: 'Agra', place: 'Taj East Gate, Agra' },
@@ -340,7 +349,6 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
     },
     payment: { status: 'paid', method: 'UPI' },
     cancellation: null,
-    endDate: '2026-09-05',
     itinerary: [
       { city: 'Mumbai', place: 'Bandra Kurla Complex, Mumbai' },
       { city: 'Pune', place: 'Shivajinagar, Pune' },
@@ -365,7 +373,6 @@ const DETAIL_OVERRIDES: Readonly<Record<string, DetailOverride>> = {
       refundAmount: 0,
       refundNote: 'No refund applicable',
     },
-    endDate: '2026-08-20',
     itinerary: [
       { city: 'Noida', place: 'Sector 62, Noida' },
       { city: 'Rishikesh', place: 'Laxman Jhula, Rishikesh', stay: true },
@@ -502,7 +509,6 @@ export function getCustomerBookingDetail(
     timeline: {},
     payment: null,
     cancellation: null,
-    endDate: base.travelDate,
     itinerary: [
       { city: base.from, place: null },
       { city: base.to, place: null },
@@ -524,11 +530,16 @@ export function getCustomerBookingDetail(
  *
  * The card's "from → to" must match the itinerary on Booking Details:
  * `from` is the first stop, `to` is the last stop, and round trips /
- * pickup & drop trips end where they started. Runs once at module
- * load in development only; production bundles pay nothing. */
+ * pickup & drop trips end where they started. Also: a trip never ends
+ * before it starts, and `viaCity` is exactly what `pickViaCity` picks
+ * from the itinerary. Runs once at module load in development only;
+ * production bundles pay nothing. */
 if (__DEV__) {
   for (const b of MOCK_CUSTOMER_BOOKINGS) {
     const tag = `[bookings/mocks] ${b.bookingNumber}`;
+    if (isoDayToUtc(b.endDate) < isoDayToUtc(b.travelDate)) {
+      throw new Error(`${tag}: endDate ${b.endDate} is before ${b.travelDate}`);
+    }
     if (b.tripType !== 'one_way' && b.to !== b.from) {
       throw new Error(`${tag}: ${b.tripType} must end at its origin`);
     }
@@ -540,6 +551,13 @@ if (__DEV__) {
       throw new Error(
         `${tag}: card route ${b.from} → ${b.to} does not match itinerary ` +
           `${first} → ${last}`,
+      );
+    }
+    const via = pickViaCity(itinerary);
+    if (via !== b.viaCity) {
+      throw new Error(
+        `${tag}: viaCity ${String(b.viaCity)} does not match the itinerary ` +
+          `(expected ${String(via)})`,
       );
     }
   }

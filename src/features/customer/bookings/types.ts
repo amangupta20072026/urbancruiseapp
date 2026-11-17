@@ -76,10 +76,21 @@ export type CustomerBookingListItem = {
    * (e.g. Mumbai → Mumbai), matching the quotation card. */
   from: string;
   to: string;
-  /** ISO date of travel. */
+  /** ISO date the trip starts, e.g. "2026-09-15". */
   travelDate: string;
-  /** Pickup wall-clock time e.g. "09:00 AM". Kept as string so the
-   *  card doesn't have to parse it back into a Date to render. */
+  /** Last day of the trip (ISO date, "2026-09-17"). Equals
+   *  `travelDate` for a same-day trip. Together with `travelDate` it
+   *  drives the card's "start – end" dates and "N Days" count, and
+   *  the Start → End panel on Booking Details. */
+  endDate: string;
+  /** The ONE city the card shows between `from` and `to` when they
+   *  are the same ("Mumbai → Pune → Mumbai"); null when the trip
+   *  ends in a different city, or has no other city. Chosen by
+   *  `pickViaCity` (utils/route.ts): the stay stop if there is one,
+   *  otherwise the first stop in a different city. */
+  viaCity: string | null;
+  /** Pickup wall-clock time of the first leg, e.g. "09:00 AM". Shown
+   *  on Booking Details, not on the list card. */
   pickupTime: string;
   passengers: number;
 
@@ -272,10 +283,6 @@ export type BookingItineraryStop = {
 export type CustomerBookingDetail = CustomerBookingListItem & {
   /** Populated only for cancelled bookings; null otherwise. */
   cancellation: BookingCancellation | null;
-  /** Last day of the trip (ISO date, "2026-09-17"). Equals
-   *  `travelDate` for a same-day trip. Together with `travelDate` it
-   *  drives the Start → End panel and the "3 Days" duration pill. */
-  endDate: string;
   /** Every stop in travel order — first entry is the pickup, last is
    *  the final drop (so it replaces the old pickup/drop fields).
    *  Always at least two entries. Rendered as the horizontal Travel

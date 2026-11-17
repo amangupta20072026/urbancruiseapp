@@ -2,37 +2,44 @@
  * ------------------------------------------------------------------
  * BookingCard
  * ------------------------------------------------------------------
- * One row in the Customer Bookings list. Composition:
+ * One row in the Customer Bookings list. Two-tone card: a status-
+ * tinted header band over a white body.
  *
  *   ┌───────────────────────────────────────────────────────┐
- *   │ [status pill] [trip type]                  Booking ID │
- *   │ ┌────────┐ Delhi  →  Jaipur         BK-2026-001234 📋 │
- *   │ │  🚌   │  📅 15 Sep  🕐 09:00 AM  👥 20 Passengers  │
- *   │ │ image │  Tempo Traveller               ₹18,500      │
- *   │ └────────┘ 17 Seater | AC              Total Amount   │
- *   │ ─────────────────────────────────────────────────── │
- *   │  (upcoming only) BookingProgressTracker              │
- *   │ [           View Details           ]                 │
+ *   │ [status pill] [trip type]    │          Booking ID    │  ← tinted band
+ *   │                              │     BK-2026-001248  📋 │
+ *   ├───────────────────────────────────────────────────────┤
+ *   │ 📅 09 Nov 2026 – 12 Nov 2026 │ 📅 4 Days │  ₹30,000    │
+ *   │ ───────────────────────────────────────── Total Amount │
+ *   │ 📍 Mumbai  →  📍 Pune                                  │
+ *   │ ───────────────────────────────────────────────────── │
+ *   │ 👥 17 Passengers │ 🚌 Force Urbania (16 Seater)        │
+ *   │ ───────────────────────────────────────────────────── │
+ *   │  (upcoming only) BookingProgressTracker                │
+ *   │ [           View Details           ]                   │
  *   └───────────────────────────────────────────────────────┘
  *
- * Trip type badge — the same One Way / Round Trip / Pickup & Drop
- * tag as QuotationCard (icon + label from `getTripTypeOption`), shown
- * next to the status pill. Round trips and pickup & drop trips read
- * "X → X" in the route row, also matching QuotationCard.
+ * What the card shows, and where it comes from:
+ *   status, trip type   item.status, item.tripType
+ *   booking id          item.bookingNumber (tap the icon to copy)
+ *   dates + days        item.travelDate – item.endDate, and the
+ *                       inclusive day count (utils/tripDates), the
+ *                       same count Booking Details shows
+ *   cities              from → to; with ONE city between them when a
+ *                       trip starts and ends in the same city
+ *                       (utils/route, item.viaCity)
+ *   passengers, vehicle item.passengers, item.vehicleModel ??
+ *                       item.vehicleType, item.seater
+ *   price               item.totalAmount
+ *
+ * The pickup date and time are not on the card (they are on Booking
+ * Details).
  *
  * Status drives:
- *   1. status pill (colour + label + optional icon)
- *   2. vehicle image tile background tint
+ *   1. status pill (colour + label + icon)
+ *   2. the header band + card border tint
  *   3. bottom action buttons (which ones + their colours)
  *   4. whether the progress tracker renders (upcoming only)
- *   5. the outer card background (upcoming = primaryTint hero-card)
- *
- * Vehicle imagery — the mockup renders a small photo of the vehicle
- * in a tinted square. Real photos aren't in-repo, so this card
- * falls back to a lucide glyph inside the tinted tile using the
- * vehicle-type → icon mapping. When photo assets ship, swap the
- * <Icon /> for an <Image source={vehiclePhoto(item.vehicleType)} />
- * — the tile size / tint stays.
  * ------------------------------------------------------------------
  */
 
@@ -46,11 +53,12 @@ import {
 } from 'react-native';
 import {
   ArrowRight,
+  Bus,
   Calendar,
   Check,
-  Clock,
   Copy,
   Eye,
+  MapPin,
   Navigation,
   RotateCw,
   Users,
@@ -64,6 +72,12 @@ import {
   type BookingStatusVisual,
 } from '@shared/bookings';
 import type { BookingStatus, CustomerBookingListItem } from '../types';
+import { getRouteCities } from '../utils/route';
+import {
+  formatCardDate,
+  formatTripDays,
+  tripDayCount,
+} from '../utils/tripDates';
 import { BookingProgressTracker } from './BookingProgressTracker';
 
 /* ================================================================
@@ -80,13 +94,13 @@ type IconComp = React.ComponentType<{
 /**
  * Pill label, icon and colours come from BOOKING_STATUS_VISUAL
  * (features/shared/bookings), shared with every booking surface.
- * The whole-card wash + border stay here: only this card uses them.
+ * The header-band tint + card border stay here: only this card uses them.
  */
 type StatusStyle = BookingStatusVisual & {
   /**
-   * Whole-card wash + border, one per status (same approach as
-   * QuotationCard). Lighter than the pill's `bg` so the pill still
-   * stands out and the white outline buttons read as raised.
+   * Header-band tint + card border, one per status. Lighter than the
+   * pill's `bg` so the pill still stands out against the band; the
+   * body below the band is always white.
    */
   cardBg: string;
   cardBorder: string;
@@ -121,18 +135,14 @@ const STATUS_STYLE: Record<BookingStatus, StatusStyle> = {
  * Formatting helpers
  * ================================================================ */
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 /** ₹18,500 — Indian grouping. */
 function formatRupees(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+/** "1 Passenger" / "17 Passengers". */
+function formatPassengers(n: number): string {
+  return `${n} ${n === 1 ? 'Passenger' : 'Passengers'}`;
 }
 
 /* ================================================================
@@ -162,7 +172,13 @@ export const BookingCard: React.FC<Props> = ({
   const TripIcon = tripType.Icon;
   const isUpcoming = item.status === 'upcoming';
 
-  /* -------- Copy Booking ID -------- *
+  const cities = getRouteCities(item);
+  const startDate = formatCardDate(item.travelDate);
+  const endDate = formatCardDate(item.endDate);
+  const days = formatTripDays(tripDayCount(item.travelDate, item.endDate));
+  const vehicleName = item.vehicleModel ?? item.vehicleType;
+
+  /* -------- Copy Booking ID --------
    *
    * Same Clipboard + flash-checkmark pattern as QuotationCard.
    * `e.stopPropagation()` stops the tap from also firing the card's
@@ -193,126 +209,163 @@ export const BookingCard: React.FC<Props> = ({
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: style.cardBg, borderColor: style.cardBorder },
+        { borderColor: style.cardBorder },
         pressed && styles.pressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Booking ${item.bookingNumber}, ${style.label}, ${tripType.label}, ${item.from} to ${item.to}`}
+      accessibilityLabel={`Booking ${item.bookingNumber}, ${style.label}, ${
+        tripType.label
+      }, ${cities.join(' to ')}, ${startDate} to ${endDate}, ${days}`}
     >
-      {/* Row 1 — status pill + trip type (left), booking id (right) */}
-      <View style={styles.headerRow}>
-        <View style={styles.tagsRow}>
-          <View style={[styles.pill, { backgroundColor: style.bg }]}>
-            <style.Icon size={12} color={style.fg} strokeWidth={2.5} />
-            <Text style={[styles.pillText, { color: style.fg }]}>
-              {style.label}
-            </Text>
+      {/* Inner view clips the tinted band to the rounded corners; the
+          Pressable itself can't (overflow would also clip its shadow
+          on iOS). */}
+      <View style={styles.clip}>
+        {/* Header band — status pill + trip type | booking id */}
+        <View style={[styles.header, { backgroundColor: style.cardBg }]}>
+          <View style={styles.tagsRow}>
+            <View style={[styles.pill, { backgroundColor: style.bg }]}>
+              <style.Icon size={12} color={style.fg} strokeWidth={2.5} />
+              <Text style={[styles.pillText, { color: style.fg }]}>
+                {style.label}
+              </Text>
+            </View>
+            <View style={styles.tripTag}>
+              <TripIcon
+                size={12}
+                color={Colors.textSecondary}
+                strokeWidth={2.5}
+              />
+              <Text style={styles.tripTagText}>{tripType.label}</Text>
+            </View>
           </View>
-          <View style={styles.tripTag}>
-            <TripIcon
-              size={12}
-              color={Colors.textSecondary}
-              strokeWidth={2.5}
-            />
-            <Text style={styles.tripTagText}>{tripType.label}</Text>
-          </View>
-        </View>
-        <View style={styles.idBlock}>
-          <Text style={styles.idLabel}>Booking ID</Text>
-          <View style={styles.idRow}>
-            <Text style={styles.idValue}>{item.bookingNumber}</Text>
-            <Pressable
-              onPress={onCopyId}
-              hitSlop={8}
-              style={({ pressed }) => [
-                styles.copyBtn,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={`Copy booking ID ${item.bookingNumber}`}
-            >
-              {copied ? (
-                <Check size={13} color={Colors.success} strokeWidth={2.5} />
-              ) : (
-                <Copy size={13} color={Colors.textTertiary} strokeWidth={2} />
-              )}
-            </Pressable>
-          </View>
-        </View>
-      </View>
-
-      {/* Row 2 — route (flex-1, full width) + amount (right) */}
-      <View style={styles.routeAmountRow}>
-        <View style={styles.routeCol}>
-          <Text style={styles.routeText} numberOfLines={1}>
-            {item.from}
-          </Text>
-          <ArrowRight
-            size={18}
-            color={Colors.textSecondary}
-            strokeWidth={2.5}
+          <View
+            style={[
+              styles.headerDivider,
+              { backgroundColor: style.cardBorder },
+            ]}
           />
-          <Text style={styles.routeText} numberOfLines={1}>
-            {item.to}
-          </Text>
+          <View style={styles.idBlock}>
+            <Text style={styles.idLabel}>Booking ID</Text>
+            <View style={styles.idRow}>
+              <Text style={styles.idValue}>{item.bookingNumber}</Text>
+              <Pressable
+                onPress={onCopyId}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.copyBtn,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`Copy booking ID ${item.bookingNumber}`}
+              >
+                {copied ? (
+                  <Check size={13} color={Colors.success} strokeWidth={2.5} />
+                ) : (
+                  <Copy size={13} color={Colors.textTertiary} strokeWidth={2} />
+                )}
+              </Pressable>
+            </View>
+          </View>
         </View>
-        <View style={styles.amountCol}>
-          <Text style={styles.amount}>{formatRupees(item.totalAmount)}</Text>
-          <Text style={styles.amountLabel}>Total Amount</Text>
-        </View>
-      </View>
 
-      {/* Row 3 — inline meta (date · time · pax). With no image tile
-          eating horizontal space, these fit on one line on any
-          phone width; `flexWrap` is kept as a safety net for very
-          narrow devices / long localised numbers. */}
-      <View style={styles.metaRow}>
-        <View style={styles.metaItem}>
-          <Calendar size={14} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.metaText}>{formatDate(item.travelDate)}</Text>
-        </View>
-        <View style={styles.metaItem}>
-          <Clock size={14} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.metaText}>{item.pickupTime}</Text>
-        </View>
-        <View style={styles.metaItem}>
-          <Users size={14} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.metaText}>{item.passengers} Passengers</Text>
-        </View>
-      </View>
+        {/* Body */}
+        <View style={styles.body}>
+          {/* Dates | days | price. The date range may wrap onto two
+              lines on narrow phones rather than being cut off. */}
+          <View style={styles.summaryRow}>
+            <View style={styles.dateCell}>
+              <Calendar
+                size={16}
+                color={Colors.textSecondary}
+                strokeWidth={2}
+              />
+              <Text style={styles.dateText}>
+                {startDate} – {endDate}
+              </Text>
+            </View>
+            <View style={styles.vDivider} />
+            <View style={styles.daysCell}>
+              <Calendar
+                size={16}
+                color={Colors.textSecondary}
+                strokeWidth={2}
+              />
+              <Text style={styles.daysText}>{days}</Text>
+            </View>
+            <View style={styles.amountCol}>
+              <Text style={styles.amount}>
+                {formatRupees(item.totalAmount)}
+              </Text>
+              <Text style={styles.amountLabel}>Total Amount</Text>
+            </View>
+          </View>
 
-      {/* Row 4 — vehicle on a single line */}
-      <Text style={styles.vehicleText}>
-        <Text style={styles.vehicleName}>
-          {item.vehicleModel ?? item.vehicleType}
-        </Text>
-        <Text style={styles.vehicleSub}>
-          {(() => {
-            const bits = [
-              item.seater ? `${item.seater} Seater` : item.vehicleType,
-            ].filter(Boolean);
-            return bits.length > 0 ? `  ·  ${bits.join(' | ')}` : '';
-          })()}
-        </Text>
-      </Text>
+          <View style={styles.hDivider} />
 
-      {/* Progress tracker — upcoming only */}
-      {isUpcoming ? (
-        <>
-          <View style={styles.trackerDivider} />
-          <BookingProgressTracker currentStep={item.progressStep} />
-        </>
-      ) : null}
+          {/* Cities — "A → B", or "A → via → A" when a trip starts and
+              ends in the same city. Wraps instead of truncating; the
+              arrow travels with the city it leads to. */}
+          <View style={styles.routeRow}>
+            {cities.map((city, i) => (
+              <View key={`${i}-${city}`} style={styles.cityItem}>
+                {i > 0 ? (
+                  <ArrowRight
+                    size={18}
+                    color={Colors.textSecondary}
+                    strokeWidth={2.5}
+                  />
+                ) : null}
+                <MapPin size={18} color={Colors.primary} strokeWidth={2.2} />
+                <Text style={styles.cityText}>{city}</Text>
+              </View>
+            ))}
+          </View>
 
-      {/* Bottom actions — status-specific pairing */}
-      <View style={styles.actionsRow}>
-        {renderActions({
-          status: item.status,
-          onViewDetails,
-          onModifyBooking,
-          onTrackVehicle,
-          onBookAgain,
-        })}
+          <View style={styles.hDivider} />
+
+          {/* Passengers | vehicle */}
+          <View style={styles.infoRow}>
+            <View style={styles.paxCell}>
+              <Users size={16} color={Colors.textSecondary} strokeWidth={2} />
+              <Text style={styles.infoText}>
+                {formatPassengers(item.passengers)}
+              </Text>
+            </View>
+            <View style={styles.vDivider} />
+            <View style={styles.vehicleCell}>
+              <Bus size={16} color={Colors.textSecondary} strokeWidth={2} />
+              <Text style={styles.infoText}>
+                <Text style={styles.vehicleName}>{vehicleName}</Text>
+                {item.seater ? (
+                  <Text style={styles.vehicleSeater}>
+                    {' '}
+                    ({item.seater} Seater)
+                  </Text>
+                ) : null}
+              </Text>
+            </View>
+          </View>
+
+          {/* Progress tracker — upcoming only */}
+          {isUpcoming ? (
+            <>
+              <View style={styles.hDivider} />
+              <BookingProgressTracker currentStep={item.progressStep} />
+            </>
+          ) : null}
+
+          {/* Bottom actions — status-specific pairing */}
+          <View style={styles.actionsRow}>
+            {renderActions({
+              status: item.status,
+              onViewDetails,
+              onModifyBooking,
+              onTrackVehicle,
+              onBookAgain,
+            })}
+          </View>
+        </View>
       </View>
     </Pressable>
   );
@@ -488,21 +541,36 @@ const VARIANT: Record<
  * ================================================================ */
 
 const styles = StyleSheet.create({
+  /* Outer card — white, bordered in the status tint, carries the
+   * shadow. The tinted band lives in `clip` so its corners round. */
   card: {
-    padding: Spacing.md,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
-    gap: 6,
+    backgroundColor: Colors.surface,
     ...Shadows.xs,
   },
+  clip: {
+    borderRadius: Radius.lg - 1,
+    overflow: 'hidden',
+  },
 
-  /* Row 1 — pill + booking id */
-  headerRow: {
+  /* Header band — pill + trip type | booking id */
+  header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  /* Status pill + trip type tag. flex: 1 lets the pair wrap onto a
+   * second line on narrow phones instead of squeezing the booking id.
+   * Tag styles mirror QuotationCard so the two badges look identical. */
+  tagsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
   },
   pill: {
     flexDirection: 'row',
@@ -516,16 +584,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontWeight: '700',
     includeFontPadding: false,
-  },
-  /* Status pill + trip type tag. flex: 1 lets the pair wrap onto a
-   * second line on narrow phones instead of squeezing the booking id.
-   * Tag styles mirror QuotationCard so the two badges look identical. */
-  tagsRow: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 6,
   },
   tripTag: {
     flexDirection: 'row',
@@ -543,6 +601,10 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '600',
     includeFontPadding: false,
+  },
+  headerDivider: {
+    width: 1,
+    alignSelf: 'stretch',
   },
   idBlock: {
     alignItems: 'flex-end',
@@ -569,27 +631,53 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  /* Row 2 — route + amount */
-  routeAmountRow: {
+  /* Body */
+  body: {
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  hDivider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+  },
+  vDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: Colors.border,
+  },
+
+  /* Dates | days | price */
+  summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
-  routeCol: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  routeText: {
-    ...Typography.subtitle,
-    color: Colors.textPrimary,
-    fontWeight: '800',
-    fontSize: 20,
-    lineHeight: 24,
+  dateCell: {
     flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dateText: {
+    ...Typography.caption,
+    color: Colors.textPrimary,
+    fontWeight: '500',
+    flexShrink: 1,
+    includeFontPadding: false,
+  },
+  daysCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  daysText: {
+    ...Typography.caption,
+    color: Colors.textPrimary,
+    fontWeight: '700',
+    includeFontPadding: false,
   },
   amountCol: {
+    flex: 1,
     alignItems: 'flex-end',
   },
   amount: {
@@ -606,42 +694,57 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  /* Row 3 — inline meta */
-  metaRow: {
+  /* Cities */
+  routeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
+    alignItems: 'center',
+    columnGap: 8,
+    rowGap: 4,
   },
-  metaItem: {
+  cityItem: {
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
   },
-  metaText: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    includeFontPadding: false,
+  cityText: {
+    ...Typography.subtitle,
+    color: Colors.textPrimary,
+    fontWeight: '800',
+    fontSize: 20,
+    lineHeight: 24,
+    flexShrink: 1,
   },
 
-  /* Row 4 — vehicle */
-  vehicleText: {
+  /* Passengers | vehicle */
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  paxCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  vehicleCell: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  infoText: {
     ...Typography.bodySmall,
     color: Colors.textPrimary,
+    flexShrink: 1,
   },
   vehicleName: {
     fontWeight: '700',
   },
-  vehicleSub: {
+  vehicleSeater: {
     color: Colors.textSecondary,
     fontWeight: '500',
-  },
-
-  /* Tracker divider — appears above the tracker in upcoming cards. */
-  trackerDivider: {
-    height: 1,
-    backgroundColor: Colors.primary + '22',
-    marginTop: 2,
   },
 
   /* Bottom actions */
