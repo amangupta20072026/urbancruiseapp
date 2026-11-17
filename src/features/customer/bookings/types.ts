@@ -9,10 +9,18 @@
  *
  * When the /customer/bookings endpoint lands, this file is the DTO
  * contract; only enum mappings may need a tiny client-side adapter.
+ *
+ * ONE BOOKING, ONE OR MORE TRIPS
+ *   A booking (one Booking ID, one total amount) holds one or more
+ *   trips. Trips can share a route or not, and each has its own
+ *   status, dates, route, passengers and vehicle
+ *   (`CustomerBookingTrip`). The Bookings list card shows the FIRST
+ *   trip plus the booking's full amount; a booking with more than one
+ *   trip opens the list of its trips (BookingTripsScreen).
  * ------------------------------------------------------------------
  */
 
-import type { BookingId } from '@app-types/ids';
+import type { BookingId, TripId } from '@app-types/ids';
 import type { BookingStatus } from '@shared/bookings';
 import type { TripType } from '@features/customer/quotations';
 import type { TripCharge } from '@shared/components/TripCharges';
@@ -53,10 +61,14 @@ export type BookingProgressStep =
   | 'started'
   | 'completed';
 
-export type CustomerBookingListItem = {
-  id: BookingId;
-  /** Human-facing booking id, e.g. "BK-2026-001234". */
-  bookingNumber: string;
+/**
+ * One trip inside a booking. Everything here belongs to the trip, not
+ * the booking: a booking with two trips can have one trip completed
+ * and the other upcoming. The amount is NOT here — it belongs to the
+ * booking (`CustomerBookingListItem.totalAmount`).
+ */
+export type CustomerBookingTrip = {
+  tripId: TripId;
   /** Human-facing trip id shown on Booking Details, e.g.
    *  "TR-2026-735204". Format: TR-<year>-<6 random digits>. */
   tripNumber: string;
@@ -102,19 +114,37 @@ export type CustomerBookingListItem = {
   seater: number | null;
   hasAC: boolean;
 
-  /** Total booking amount in the smallest unit? No — plain rupees
-   *  for the demo. When the backend lands, swap to Money and format
-   *  through `rupeesToMoney` like the rest of the app. */
-  totalAmount: number;
-
-  /* Progress tracker fields — populated for every booking, not just
+  /* Progress tracker fields — populated for every trip, not just
    * 'upcoming', so a completed card could optionally show the full
-   * timeline in QuotationDetail later without refetching. */
-  bookedDate: string; // ISO
+   * timeline later without refetching. */
   /** The step the cursor is on right now. */
   progressStep: BookingProgressStep;
   /** Optional short label under the current step, e.g. "Pending". */
   progressNote: string | null;
+};
+
+/**
+ * One row of the Bookings list: the booking, with its FIRST trip's
+ * fields at the top level (that is what the card shows — status,
+ * dates, route, passengers, vehicle, tracker, and which filter chip
+ * the booking falls under).
+ */
+export type CustomerBookingListItem = CustomerBookingTrip & {
+  id: BookingId;
+  /** Human-facing booking id, e.g. "BK-2026-001234". */
+  bookingNumber: string;
+
+  /** Full booking amount — all trips together. Plain rupees for the
+   *  demo. When the backend lands, swap to Money and format through
+   *  `rupeesToMoney` like the rest of the app. */
+  totalAmount: number;
+
+  bookedDate: string; // ISO
+
+  /** Every trip of the booking, in trip order. Always at least one;
+   *  `trips[0]` is the first trip, whose fields are also at the top
+   *  level. More than one → the card offers "View All Trips". */
+  trips: readonly CustomerBookingTrip[];
 };
 
 /* ------------------------------------------------------------------
@@ -280,6 +310,12 @@ export type BookingItineraryStop = {
   stay?: boolean;
 };
 
+/**
+ * Booking Details for ONE trip of a booking: the top-level trip fields
+ * are the opened trip's (the first trip unless a trip id was given),
+ * while `totalAmount`, `fareBreakdown` and `payment` stay the
+ * booking's.
+ */
 export type CustomerBookingDetail = CustomerBookingListItem & {
   /** Populated only for cancelled bookings; null otherwise. */
   cancellation: BookingCancellation | null;

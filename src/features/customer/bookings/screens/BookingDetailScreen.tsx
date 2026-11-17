@@ -3,7 +3,9 @@
  * BookingDetailScreen (Customer)
  * ------------------------------------------------------------------
  * Opens from any "View Details" tap on a BookingCard (or a deep-link
- * on the BookingDetail route).
+ * on the BookingDetail route). Shows ONE trip of the booking:
+ * `route.params.tripId`, or the first trip when it is omitted. The
+ * amount, payment and fare split are the booking's.
  *
  * TWO RENDER PATHS
  * ------------------------------------------------------------------
@@ -202,8 +204,8 @@ const BookingDetailScreen: React.FC = () => {
   const route = useRoute<Route>();
 
   const detail = useMemo<CustomerBookingDetail | null>(
-    () => getCustomerBookingDetail(route.params.bookingId),
-    [route.params.bookingId],
+    () => getCustomerBookingDetail(route.params.bookingId, route.params.tripId),
+    [route.params.bookingId, route.params.tripId],
   );
 
   const handleBack = useCallback(() => navigation.goBack(), [navigation]);

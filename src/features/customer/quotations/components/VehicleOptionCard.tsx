@@ -2,7 +2,16 @@
  * ------------------------------------------------------------------
  * VehicleOptionCard  — one row of "Choose Your Vehicle"
  * ------------------------------------------------------------------
- * Layout (all content always visible — no accordion):
+ * Each card can be collapsed or expanded. It starts COLLAPSED.
+ *
+ * Collapsed (tap anywhere on it, or "View all", to expand):
+ *
+ *   ┌───────────────────────────────────────────────┐
+ *   │ [TIER] Model                ₹15,800  View all ⌄│
+ *   │                          per vehicle           │
+ *   └───────────────────────────────────────────────┘
+ *
+ * Expanded (exactly the full card, with "Collapse ⌃" at the bottom):
  *
  *   ┌───────────────────────────────────────────────┐
  *   │(1)┌──────┐ [TIER]              [★ Most popular]│
@@ -25,17 +34,23 @@
  *     colour only when this card is selected. So at most one purple
  *     card is ever on screen, and it's the one the customer picked.
  *
- * Stateless: quantity and selection are owned by ChooseVehicleSection.
+ * Quantity and selection are owned by ChooseVehicleSection. The only
+ * state here is `expanded`, which is purely visual: collapsing a card
+ * keeps its quantity and selection, and a selected card that is
+ * collapsed still shows the selected border and a "Selected" tick.
  * ------------------------------------------------------------------
  */
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import {
   AppWindow,
   Armchair,
   Bus,
   Check,
+  ChevronDown,
+  ChevronUp,
   Minus,
   Music,
   Plus,
@@ -132,17 +147,92 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
     const accent = selected ? tierPalette : GREEN;
     const tierLabel = VEHICLE_TIER_LABELS[option.tier];
     const maxQty = option.maxQuantity ?? DEFAULT_MAX_VEHICLE_QUANTITY;
+    const vehicleName = `${tierLabel} ${option.model}`;
 
+    const [expanded, setExpanded] = useState(false);
+    const expand = useCallback(() => setExpanded(true), []);
+    const collapse = useCallback(() => setExpanded(false), []);
+
+    const cardStyle = [
+      styles.card,
+      selected && {
+        borderColor: accent.solid,
+        backgroundColor: accent.wash,
+      },
+    ];
+
+    /* ── Collapsed: tier · name · price · View all ────────── */
+    if (!expanded) {
+      return (
+        <Pressable
+          onPress={expand}
+          style={({ pressed }) => [
+            ...cardStyle,
+            styles.collapsedCard,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: false, selected }}
+          accessibilityLabel={`${vehicleName}, ${formatAmount(
+            option.pricePerVehicle,
+          )} per vehicle${selected ? ', selected' : ''}. View all details`}
+        >
+          <View style={styles.collapsedIdentity}>
+            <View style={styles.collapsedPillRow}>
+              <View
+                style={[
+                  styles.tierPill,
+                  { backgroundColor: tierPalette.solid },
+                ]}
+              >
+                <Text style={styles.tierPillText}>{tierLabel}</Text>
+              </View>
+              {selected ? (
+                <View
+                  style={[
+                    styles.selectedTag,
+                    { backgroundColor: accent.solid },
+                  ]}
+                >
+                  <Check
+                    size={11}
+                    color={Colors.textOnPrimary}
+                    strokeWidth={3}
+                  />
+                  <Text style={styles.selectedTagText}>Selected</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.model} numberOfLines={1}>
+              {option.model}
+            </Text>
+          </View>
+
+          <View style={styles.collapsedPrice}>
+            <Text
+              style={[styles.collapsedPriceText, { color: accent.solid }]}
+              numberOfLines={1}
+            >
+              {formatAmount(option.pricePerVehicle)}
+            </Text>
+            <Text style={styles.priceUnit}>per vehicle</Text>
+          </View>
+
+          <View style={styles.toggle}>
+            <Text style={styles.toggleText}>View all</Text>
+            <ChevronDown
+              size={16}
+              color={Colors.primaryDark}
+              strokeWidth={2.5}
+            />
+          </View>
+        </Pressable>
+      );
+    }
+
+    /* ── Expanded: the full card ──────────────────────────── */
     return (
-      <View
-        style={[
-          styles.card,
-          selected && {
-            borderColor: accent.solid,
-            backgroundColor: accent.wash,
-          },
-        ]}
-      >
+      <Animated.View entering={FadeIn.duration(180)} style={cardStyle}>
         {/* ── Top: image + identity ─────────────────────────── */}
         <View style={styles.topRow}>
           <View>
@@ -228,7 +318,7 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
             min={1}
             max={maxQty}
             onChange={onChangeQuantity}
-            vehicleName={`${tierLabel} ${option.model}`}
+            vehicleName={vehicleName}
           />
 
           <Pressable
@@ -242,10 +332,10 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
             accessibilityState={{ selected }}
             accessibilityLabel={
               selected
-                ? `${tierLabel} ${option.model} selected, ${quantity} vehicle${
+                ? `${vehicleName} selected, ${quantity} vehicle${
                     quantity > 1 ? 's' : ''
                   }`
-                : `Select ${tierLabel} ${option.model}`
+                : `Select ${vehicleName}`
             }
           >
             {selected ? (
@@ -261,7 +351,24 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
             </Text>
           </Pressable>
         </View>
-      </View>
+
+        {/* ── Collapse ──────────────────────────────────────── */}
+        <Pressable
+          onPress={collapse}
+          hitSlop={6}
+          style={({ pressed }) => [
+            styles.toggle,
+            styles.collapseBtn,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: true }}
+          accessibilityLabel={`Collapse ${vehicleName}`}
+        >
+          <Text style={styles.toggleText}>Collapse</Text>
+          <ChevronUp size={16} color={Colors.primaryDark} strokeWidth={2.5} />
+        </Pressable>
+      </Animated.View>
     );
   },
 );
@@ -354,6 +461,62 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.75,
+  },
+
+  /* Collapsed */
+  collapsedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm + 2,
+  },
+  collapsedIdentity: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  collapsedPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  selectedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  selectedTagText: {
+    ...Typography.caption,
+    fontWeight: '700',
+    color: Colors.textOnPrimary,
+    includeFontPadding: false,
+  },
+  collapsedPrice: {
+    alignItems: 'flex-end',
+  },
+  collapsedPriceText: {
+    ...Typography.subtitle,
+    fontWeight: '800',
+  },
+
+  /* View all / Collapse toggle */
+  toggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  collapseBtn: {
+    alignSelf: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: Spacing.sm,
+  },
+  toggleText: {
+    ...Typography.caption,
+    fontWeight: '700',
+    color: Colors.primaryDark,
   },
 
   /* Top row */

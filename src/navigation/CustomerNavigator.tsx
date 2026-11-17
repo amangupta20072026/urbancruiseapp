@@ -45,7 +45,10 @@ import {
   SpiritualToursScreen,
   SpiritualTourDetailScreen,
 } from '@features/customer/spiritualTours';
-import { BookingDetailScreen } from '@features/customer/bookings';
+import {
+  BookingDetailScreen,
+  BookingTripsScreen,
+} from '@features/customer/bookings';
 import {
   QuotationDetailScreen,
   RequestQuotationScreen,
@@ -101,15 +104,22 @@ const CustomerNavigator: React.FC = () => {
         name="QuotationSuccess"
         component={QuotationSuccessScreen}
       />
-      {/* Brand images before QuotationDetail. No iOS swipe-back:
-          the customer must watch (Android back is blocked in the
-          screen itself). */}
+      {/* Brand images before QuotationDetail — used for deep links and
+          Pay Now; in-app card taps play them over the list instead
+          (HighlightsStoryHost). No iOS swipe-back: the customer must
+          watch (Android back is blocked in HighlightsStory). */}
       <Stack.Screen
         name="QuotationHighlights"
         component={QuotationHighlightsScreen}
         options={{ gestureEnabled: false }}
       />
-      <Stack.Screen name="QuotationDetail" component={QuotationDetailScreen} />
+      {/* Quotation Details fades up from slightly below — after the
+          highlights, and when it opens directly (Expired). */}
+      <Stack.Screen
+        name="QuotationDetail"
+        component={QuotationDetailScreen}
+        options={{ animation: 'fade_from_bottom' }}
+      />
       {/* Vehicle brochures (reached from QuotationDetail) */}
       <Stack.Screen
         name="VehicleBrochures"
@@ -119,6 +129,7 @@ const CustomerNavigator: React.FC = () => {
       <Stack.Screen name="CompareVehicles" component={CompareVehiclesScreen} />
 
       {/* Bookings */}
+      <Stack.Screen name="BookingTrips" component={BookingTripsScreen} />
       <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <Stack.Screen name="Feedback" component={GiveFeedbackScreen} />
     </Stack.Navigator>

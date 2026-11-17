@@ -55,6 +55,9 @@ import { navigationRef } from './src/navigation/NavigationService';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from '@components/ErrorBoundary';
 import { PermissionSheetHost } from '@components/permissions';
+// Direct file import (not the quotations index) so App start-up does
+// not load every quotation screen; role navigators stay lazy.
+import { HighlightsStoryHost } from '@features/customer/quotations/highlights/HighlightsStoryHost';
 import { enableGlobalBlock } from '@services/screenshot';
 import { ensureCapability, startAppResumeWatcher } from '@services/permissions';
 import { Colors } from '@theme';
@@ -209,6 +212,15 @@ const App: React.FC = () => {
                     <RootNavigator />
                   </NavigationContainer>
                 </ErrorBoundary>
+                {/*
+                  HighlightsStoryHost plays the quotation brand images
+                  over the current screen (the first image flips down
+                  right over the quotation list). It sits right after
+                  the navigator so it covers every screen and the tab
+                  bar, but below sheets and toasts. Renders nothing
+                  unless the images are playing.
+                */}
+                <HighlightsStoryHost />
                 {/*
                   PermissionSheetHost sits inside BottomSheetModalProvider
                   (required for @gorhom to work) but OUTSIDE the

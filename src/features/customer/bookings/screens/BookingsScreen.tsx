@@ -12,7 +12,8 @@
  *   [ BookingCard × N ]
  *
  * NAVIGATION INTENTS:
- *   - Card tap / View Details → BookingDetail (ghost route until built)
+ *   - Card tap / View Details → BookingDetail (one-trip booking)
+ *   - Card tap / View All Trips → BookingTrips (booking with 2+ trips)
  *   - Modify Booking          → ModificationRequest (ghost)
  *   - Track Vehicle           → TripLive (ghost; ongoing bookings only)
  *   - Book Again              → RequestQuotation (pre-fills route later)
@@ -24,6 +25,11 @@
  *   two tabs read as one consistent list-screen language instead of
  *   Bookings using header icon buttons and Quotations using an
  *   inline bar. See QuotationsScreen for the sibling copy.
+ *
+ * ONE BOOKING, ONE OR MORE TRIPS:
+ *   Each card shows the booking's FIRST trip and the booking's full
+ *   amount. The filter chips and search work on that first trip too
+ *   (its status, its from / to cities).
  *
  * DATA:
  *   Local mock fixture in `../mocks.ts`. Swap for a TanStack Query
@@ -147,9 +153,14 @@ const BookingsScreen: React.FC = () => {
 
   /* -------- Handlers -------- */
 
-  const goToBookingDetail = useCallback(
+  /** One trip → its details; two or more → the list of its trips. */
+  const openBooking = useCallback(
     (item: CustomerBookingListItem) => {
-      navigation.navigate('BookingDetail', { bookingId: item.id });
+      if (item.trips.length > 1) {
+        navigation.navigate('BookingTrips', { bookingId: item.id });
+      } else {
+        navigation.navigate('BookingDetail', { bookingId: item.id });
+      }
     },
     [navigation],
   );
@@ -274,9 +285,15 @@ const BookingsScreen: React.FC = () => {
           visibleItems.map(item => (
             <BookingCard
               key={item.id}
-              item={item}
-              onPress={() => goToBookingDetail(item)}
-              onViewDetails={() => goToBookingDetail(item)}
+              trip={item}
+              mode={{
+                kind: 'booking',
+                bookingNumber: item.bookingNumber,
+                totalAmount: item.totalAmount,
+                tripCount: item.trips.length,
+              }}
+              onPress={() => openBooking(item)}
+              onViewDetails={() => openBooking(item)}
               onModifyBooking={() => onModifyBooking(item)}
               onTrackVehicle={() => onTrackVehicle(item)}
               onBookAgain={() => onBookAgain(item)}

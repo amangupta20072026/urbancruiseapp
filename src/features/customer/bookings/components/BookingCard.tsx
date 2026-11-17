@@ -2,7 +2,8 @@
  * ------------------------------------------------------------------
  * BookingCard
  * ------------------------------------------------------------------
- * One row in the Customer Bookings list. Two-tone card: a status-
+ * One row in the Customer Bookings list (mode 'booking'), or one trip
+ * on a booking's trips list (mode 'trip'). Two-tone card: a status-
  * tinted header band over a white body.
  *
  *   ┌───────────────────────────────────────────────────────┐
@@ -16,21 +17,33 @@
  *   │ 👥 17 Passengers │ 🚌 Force Urbania (16 Seater)        │
  *   │ ───────────────────────────────────────────────────── │
  *   │  (upcoming only) BookingProgressTracker                │
+ *   │ ───────────────────────────────────────────────────── │
+ *   │ (2+ trips only) [+1 more trip]   Tap to see all 2 trips│
  *   │ [           View Details           ]                   │
  *   └───────────────────────────────────────────────────────┘
  *
+ * MODES
+ *   booking — the Bookings list. Shows the booking's FIRST trip (the
+ *             `trip` prop), the Booking ID and the booking's full
+ *             amount. With more than one trip it adds the "+N more
+ *             trip" row and the main button reads "View All Trips".
+ *   trip    — BookingTripsScreen. Shows one trip: a numbered badge,
+ *             the Trip ID instead of the Booking ID, and no amount
+ *             (the amount belongs to the booking).
+ *
  * What the card shows, and where it comes from:
- *   status, trip type   item.status, item.tripType
- *   booking id          item.bookingNumber (tap the icon to copy)
- *   dates + days        item.travelDate – item.endDate, and the
+ *   status, trip type   trip.status, trip.tripType
+ *   booking / trip id   mode.bookingNumber / trip.tripNumber (tap the
+ *                       icon to copy)
+ *   dates + days        trip.travelDate – trip.endDate, and the
  *                       inclusive day count (utils/tripDates), the
  *                       same count Booking Details shows
  *   cities              from → to; with ONE city between them when a
  *                       trip starts and ends in the same city
- *                       (utils/route, item.viaCity)
- *   passengers, vehicle item.passengers, item.vehicleModel ??
- *                       item.vehicleType, item.seater
- *   price               item.totalAmount
+ *                       (utils/route, trip.viaCity)
+ *   passengers, vehicle trip.passengers, trip.vehicleModel ??
+ *                       trip.vehicleType, trip.seater
+ *   price               mode.totalAmount (booking mode only)
  *
  * The pickup date and time are not on the card (they are on Booking
  * Details).
@@ -61,6 +74,7 @@ import {
   MapPin,
   Navigation,
   RotateCw,
+  Route,
   Users,
 } from 'lucide-react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -71,7 +85,7 @@ import {
   BOOKING_STATUS_VISUAL,
   type BookingStatusVisual,
 } from '@shared/bookings';
-import type { BookingStatus, CustomerBookingListItem } from '../types';
+import type { BookingStatus, CustomerBookingTrip } from '../types';
 import { getRouteCities } from '../utils/route';
 import {
   formatCardDate,
@@ -104,6 +118,12 @@ type StatusStyle = BookingStatusVisual & {
    */
   cardBg: string;
   cardBorder: string;
+  /**
+   * Solid fill of the trip-number circle (trip mode), with white text.
+   * Not the pill's `fg`: for Upcoming that is white (white text on a
+   * green pill), which would draw a white number on a white circle.
+   */
+  badgeBg: string;
 };
 
 const STATUS_STYLE: Record<BookingStatus, StatusStyle> = {
@@ -111,11 +131,13 @@ const STATUS_STYLE: Record<BookingStatus, StatusStyle> = {
     ...BOOKING_STATUS_VISUAL.upcoming,
     cardBg: '#EAF7EE', // green hero (unchanged)
     cardBorder: '#C8EBD3',
+    badgeBg: Colors.primaryDark,
   },
   ongoing: {
     ...BOOKING_STATUS_VISUAL.ongoing,
     cardBg: '#F0F8FE', // blue wash
     cardBorder: '#CBE6F7',
+    badgeBg: Colors.info,
   },
   completed: {
     ...BOOKING_STATUS_VISUAL.completed,
@@ -123,11 +145,13 @@ const STATUS_STYLE: Record<BookingStatus, StatusStyle> = {
     // wash, and two green cards side by side are hard to tell apart.
     cardBg: '#F6F7F9',
     cardBorder: '#E1E4E9',
+    badgeBg: Colors.primary,
   },
   cancelled: {
     ...BOOKING_STATUS_VISUAL.cancelled,
     cardBg: '#FEF6F6', // red wash (same as expired quotations)
     cardBorder: '#FAD5D5',
+    badgeBg: Colors.error,
   },
 };
 
@@ -164,8 +188,26 @@ function getRouteFontSize(cities: readonly string[]): number {
  * Card
  * ================================================================ */
 
+/** What the card is showing — see MODES in the header comment. */
+export type BookingCardMode =
+  | {
+      kind: 'booking';
+      bookingNumber: string;
+      /** Full booking amount (all trips). */
+      totalAmount: number;
+      /** Number of trips in the booking (1 or more). */
+      tripCount: number;
+    }
+  | {
+      kind: 'trip';
+      /** 1-based position of this trip in its booking. */
+      position: number;
+    };
+
 type Props = {
-  item: CustomerBookingListItem;
+  /** The trip to show. In booking mode: the booking's first trip. */
+  trip: CustomerBookingTrip;
+  mode: BookingCardMode;
   onPress: () => void;
   onViewDetails: () => void;
   onModifyBooking: () => void;
@@ -174,7 +216,8 @@ type Props = {
 };
 
 export const BookingCard: React.FC<Props> = ({
-  item,
+  trip: item,
+  mode,
   onPress,
   onViewDetails,
   onModifyBooking,
@@ -195,7 +238,14 @@ export const BookingCard: React.FC<Props> = ({
   const days = formatTripDays(tripDayCount(item.travelDate, item.endDate));
   const vehicleName = item.vehicleModel ?? item.vehicleType;
 
-  /* -------- Copy Booking ID --------
+  const isBooking = mode.kind === 'booking';
+  const idLabel = isBooking ? 'Booking ID' : 'Trip ID';
+  const idValue = isBooking ? mode.bookingNumber : item.tripNumber;
+  /** Trips after the first (booking mode only); 0 hides the row. */
+  const moreTrips = isBooking ? Math.max(0, mode.tripCount - 1) : 0;
+  const viewLabel = moreTrips > 0 ? 'View All Trips' : 'View Details';
+
+  /* -------- Copy Booking ID / Trip ID --------
    *
    * Same Clipboard + flash-checkmark pattern as QuotationCard.
    * `e.stopPropagation()` stops the tap from also firing the card's
@@ -213,12 +263,12 @@ export const BookingCard: React.FC<Props> = ({
   const onCopyId = useCallback(
     (e: GestureResponderEvent) => {
       e.stopPropagation();
-      Clipboard.setString(item.bookingNumber);
+      Clipboard.setString(idValue);
       setCopied(true);
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
     },
-    [item.bookingNumber],
+    [idValue],
   );
 
   return (
@@ -230,17 +280,26 @@ export const BookingCard: React.FC<Props> = ({
         pressed && styles.pressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Booking ${item.bookingNumber}, ${style.label}, ${
-        tripType.label
-      }, ${cities.join(' to ')}, ${startDate} to ${endDate}, ${days}`}
+      accessibilityLabel={`${
+        isBooking ? `Booking ${idValue}` : `Trip ${mode.position}, ${idValue}`
+      }, ${style.label}, ${tripType.label}, ${cities.join(
+        ' to ',
+      )}, ${startDate} to ${endDate}, ${days}${
+        moreTrips > 0 ? `, ${moreTrips + 1} trips` : ''
+      }`}
     >
       {/* Inner view clips the tinted band to the rounded corners; the
           Pressable itself can't (overflow would also clip its shadow
           on iOS). */}
       <View style={styles.clip}>
-        {/* Header band — status pill + trip type | booking id */}
+        {/* Header band — (trip no.) status pill + trip type | id */}
         <View style={[styles.header, { backgroundColor: style.cardBg }]}>
           <View style={styles.tagsRow}>
+            {mode.kind === 'trip' ? (
+              <View style={[styles.tripNo, { backgroundColor: style.badgeBg }]}>
+                <Text style={styles.tripNoText}>{mode.position}</Text>
+              </View>
+            ) : null}
             <View style={[styles.pill, { backgroundColor: style.bg }]}>
               <style.Icon size={12} color={style.fg} strokeWidth={2.5} />
               <Text style={[styles.pillText, { color: style.fg }]}>
@@ -263,9 +322,9 @@ export const BookingCard: React.FC<Props> = ({
             ]}
           />
           <View style={styles.idBlock}>
-            <Text style={styles.idLabel}>Booking ID</Text>
+            <Text style={styles.idLabel}>{idLabel}</Text>
             <View style={styles.idRow}>
-              <Text style={styles.idValue}>{item.bookingNumber}</Text>
+              <Text style={styles.idValue}>{idValue}</Text>
               <Pressable
                 onPress={onCopyId}
                 hitSlop={8}
@@ -274,7 +333,7 @@ export const BookingCard: React.FC<Props> = ({
                   pressed && styles.pressed,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel={`Copy booking ID ${item.bookingNumber}`}
+                accessibilityLabel={`Copy ${idLabel} ${idValue}`}
               >
                 {copied ? (
                   <Check size={13} color={Colors.success} strokeWidth={2.5} />
@@ -288,7 +347,7 @@ export const BookingCard: React.FC<Props> = ({
 
         {/* Body */}
         <View style={styles.body}>
-          {/* Dates | days | price. */}
+          {/* Dates | days | price (booking mode only). */}
           <View style={styles.summaryRow}>
             <View style={styles.dateCell}>
               <Calendar
@@ -309,13 +368,17 @@ export const BookingCard: React.FC<Props> = ({
               />
               <Text style={styles.daysText}>{days}</Text>
             </View>
-            <View style={styles.vDivider} />
-            <View style={styles.amountCol}>
-              <Text style={styles.amount}>
-                {formatRupees(item.totalAmount)}
-              </Text>
-              <Text style={styles.amountLabel}>Total Amount</Text>
-            </View>
+            {isBooking ? (
+              <>
+                <View style={styles.vDivider} />
+                <View style={styles.amountCol}>
+                  <Text style={styles.amount}>
+                    {formatRupees(mode.totalAmount)}
+                  </Text>
+                  <Text style={styles.amountLabel}>Total Amount</Text>
+                </View>
+              </>
+            ) : null}
           </View>
 
           <View style={styles.hDivider} />
@@ -386,10 +449,29 @@ export const BookingCard: React.FC<Props> = ({
             </>
           ) : null}
 
+          {/* More trips — booking mode, 2+ trips only */}
+          {moreTrips > 0 ? (
+            <>
+              <View style={styles.hDivider} />
+              <View style={styles.moreTripsRow}>
+                <View style={styles.moreTripsPill}>
+                  <Route size={12} color={Colors.royal} strokeWidth={2.5} />
+                  <Text style={styles.moreTripsPillText}>
+                    +{moreTrips} more {moreTrips === 1 ? 'trip' : 'trips'}
+                  </Text>
+                </View>
+                <Text style={styles.moreTripsHint}>
+                  Tap to see all {moreTrips + 1} trips
+                </Text>
+              </View>
+            </>
+          ) : null}
+
           {/* Bottom actions — status-specific pairing */}
           <View style={styles.actionsRow}>
             {renderActions({
               status: item.status,
+              viewLabel,
               onViewDetails,
               onModifyBooking,
               onTrackVehicle,
@@ -408,6 +490,8 @@ export const BookingCard: React.FC<Props> = ({
 
 function renderActions(a: {
   status: BookingStatus;
+  /** "View Details", or "View All Trips" for a booking with 2+ trips. */
+  viewLabel: string;
   onViewDetails: () => void;
   onModifyBooking: () => void;
   onTrackVehicle: () => void;
@@ -417,7 +501,7 @@ function renderActions(a: {
     case 'upcoming':
       return (
         <ActionButton
-          label="View Details"
+          label={a.viewLabel}
           variant="outline"
           LeadingIcon={Eye}
           onPress={a.onViewDetails}
@@ -433,7 +517,7 @@ function renderActions(a: {
             onPress={a.onTrackVehicle}
           />
           <ActionButton
-            label="View Details"
+            label={a.viewLabel}
             variant="secondary"
             LeadingIcon={Eye}
             onPress={a.onViewDetails}
@@ -444,7 +528,7 @@ function renderActions(a: {
       return (
         <>
           <ActionButton
-            label="View Details"
+            label={a.viewLabel}
             variant="secondary"
             LeadingIcon={Eye}
             onPress={a.onViewDetails}
@@ -461,7 +545,7 @@ function renderActions(a: {
       return (
         <>
           <ActionButton
-            label="View Details"
+            label={a.viewLabel}
             variant="secondary"
             LeadingIcon={Eye}
             onPress={a.onViewDetails}
@@ -599,6 +683,21 @@ const styles = StyleSheet.create({
   pillText: {
     ...Typography.caption,
     fontWeight: '700',
+    includeFontPadding: false,
+  },
+  tripNo: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tripNoText: {
+    ...Typography.caption,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
+    color: Colors.textOnPrimary,
     includeFontPadding: false,
   },
   tripTag: {
@@ -754,6 +853,37 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '500',
   },
+  /* More trips */
+  moreTripsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  moreTripsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.royalTint,
+  },
+  moreTripsPillText: {
+    ...Typography.caption,
+    color: Colors.royal,
+    fontWeight: '700',
+    includeFontPadding: false,
+  },
+  moreTripsHint: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    flexShrink: 1,
+    textAlign: 'right',
+    includeFontPadding: false,
+  },
+
   actionsRow: {
     flexDirection: 'row',
     gap: Spacing.sm,

@@ -7,10 +7,7 @@ export type {
   BrochureActionRowProps,
   BrochureVideoState,
 } from './components/BrochureActionRow';
-export {
-  ViewAllVehiclesLink,
-  WatchVehicleVideoButton,
-} from './components/BrochureLinks';
+export { WatchVehicleVideoButton } from './components/BrochureLinks';
 export { TierPill } from './components/TierPill';
 export {
   BrochurePlayer,

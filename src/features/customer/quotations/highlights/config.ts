@@ -5,7 +5,12 @@
  * Three full-screen brand images shown, in this order, before the
  * Quotation Details screen opens. Product decisions (confirmed):
  *
- *   - Shown EVERY time, for 5 seconds per image.
+ *   - Shown EVERY time, for 5 seconds per image (after its flip).
+ *   - Every image, the first included, flips down from its top edge;
+ *     in-app the first one flips down right over the quotation list
+ *     (HighlightsStoryHost). Going to the previous image is instant.
+ *   - Closing: Quotation Details fades up (set in CustomerNavigator).
+ *   - Reduce Motion on: no flips.
  *   - No Skip button; progress bars only.
  *   - Hold 0.3 s = pause, release = continue from the same point.
  *   - Tap left 1/3 = previous image (nothing on the first);
@@ -29,8 +34,25 @@ import type { ImageSourcePropType } from 'react-native';
 
 import type { QuotationStatus } from '../types';
 
-/** How long each image stays on screen. */
+/**
+ * How long each image stays on screen. Counted from the moment the
+ * image is fully shown, i.e. AFTER its page-flip has finished.
+ */
 export const HIGHLIGHT_SLIDE_DURATION_MS = 5000;
+
+/* ---------------- Animations (product decisions) ---------------- */
+
+/**
+ * "Page flip down": each image swings down from its top edge, like
+ * turning a notepad page. Going back to the previous image is instant.
+ */
+export const HIGHLIGHT_FLIP_DURATION_MS = 1800;
+
+/** The overlay's fade-out after the last image, over QuotationDetail. */
+export const HIGHLIGHT_OVERLAY_FADE_OUT_MS = 250;
+
+/** Height of one progress bar. */
+export const HIGHLIGHT_BAR_HEIGHT = 3;
 
 /**
  * Safety net, not a feature: if an image never reports onLoad or

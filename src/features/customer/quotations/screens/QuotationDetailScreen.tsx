@@ -196,7 +196,6 @@ import { ContinueToBookingSheet } from '../components/ContinueToBookingSheet';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   BrochureActionRow,
-  ViewAllVehiclesLink,
   WatchVehicleVideoButton,
   findBrochure,
   findBrochureByGroupKey,
@@ -883,11 +882,10 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
  *   Tapping Select on the selected card again deselects it.
  *
  * BROCHURES:
- *   Each card gets a "Watch Video / Compare" row, and a "View all
- *   vehicles" link sits under the header. They come from the brochure
- *   catalog; while it loads or if it fails, the video button and the
- *   link are hidden and the picker works as before (Compare stays —
- *   prices and seats need no catalog).
+ *   Each card gets a "Watch Video / Compare" row. Videos come from the
+ *   brochure catalog; while it loads or if it fails, the video button
+ *   is hidden and the picker works as before (Compare stays — prices
+ *   and seats need no catalog).
  *
  *   `pendingSelectOptionId` is a selection made on VehicleVideo or
  *   CompareVehicles. It is applied with that card's own quantity,
@@ -969,7 +967,7 @@ const ChooseVehicleSection: React.FC<{
   }, [pendingSelectOptionId]);
 
   /* -------- Brochures -------- */
-  const { data: brochureEntries, isSuccess: brochuresReady } = useBrochures();
+  const { data: brochureEntries } = useBrochures();
 
   const brochureByOption = useMemo(() => {
     const map = new Map<string, BrochureEntry>();
@@ -1016,15 +1014,6 @@ const ChooseVehicleSection: React.FC<{
     [navigation, quotationId],
   );
 
-  const onViewAll = useCallback(() => {
-    navigation.navigate('VehicleBrochures', { quotationId });
-  }, [navigation, quotationId]);
-
-  const showViewAll =
-    brochuresReady &&
-    brochureEntries !== undefined &&
-    brochureEntries.length > 0;
-
   return (
     <View style={styles.chooseVehicleBlock}>
       <View style={styles.chooseVehicleHeader}>
@@ -1038,8 +1027,6 @@ const ChooseVehicleSection: React.FC<{
           </Text>
         </View>
       </View>
-
-      {showViewAll ? <ViewAllVehiclesLink onPress={onViewAll} /> : null}
 
       {VEHICLE_OPTIONS.map((option, i) => (
         <VehicleOptionCard

@@ -1,6 +1,6 @@
 // src/navigation/types.ts
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import type { BookingId, QuotationId } from '@app-types/ids';
+import type { BookingId, QuotationId, TripId } from '@app-types/ids';
 import type { UserRole } from '@rbac/roles';
 import type { SharedScreensFor } from '@rbac/screenAccess';
 import type { VehicleTierKey } from '@features/customer/quotations/vehicleTierOptions';
@@ -190,7 +190,11 @@ export type CustomerStackParamList = {
   /** Every vehicle option side by side; `focusOptionId` is highlighted. */
   CompareVehicles: { quotationId: QuotationId; focusOptionId: string };
 
-  BookingDetail: { bookingId: BookingId };
+  /** Booking Details for one trip. `tripId` omitted → the booking's
+   *  first trip (one-trip bookings, deep links). */
+  BookingDetail: { bookingId: BookingId; tripId?: TripId };
+  /** Every trip of a booking that has more than one trip. */
+  BookingTrips: { bookingId: BookingId };
   Feedback: { bookingId: BookingId };
   // General customer feedback (from More sheet — no booking scope).
   // Distinct from booking-scoped `Feedback` above.
