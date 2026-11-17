@@ -30,7 +30,7 @@ import { Colors } from '@theme';
 export type ServiceMode = 'car_bus' | 'spiritual_tour';
 
 export const SERVICE_MODE_LABEL: Record<ServiceMode, string> = {
-  car_bus: 'Car & Bus Rental',
+  car_bus: 'Vehicle Rental',
   spiritual_tour: 'Spiritual Tours',
 };
 

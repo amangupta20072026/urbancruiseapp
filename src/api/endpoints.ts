@@ -24,6 +24,12 @@ export const endpoints = {
   config: {
     /** Vehicle brochure catalog: YouTube ids, grouping, specs. */
     brochures: () => '/config/brochures',
+    /**
+     * Spiritual tour catalog: the tours, their region, places and
+     * card photography. Public and cached like brochures, so ops can
+     * add a tour with a backend deploy and no app release.
+     */
+    spiritualTours: () => '/config/spiritual-tours',
   },
 
   auth: {

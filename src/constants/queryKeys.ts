@@ -91,6 +91,15 @@ export const queryKeys = {
       all: () => ['customer', 'brochures'] as const,
       catalog: () => ['customer', 'brochures', 'catalog'] as const,
     },
+    /**
+     * Spiritual tour catalog (GET /config/spiritual-tours). Same for
+     * every user, so the key carries no userId. Both the list and the
+     * detail screen read this one entry.
+     */
+    spiritualTours: {
+      all: () => ['customer', 'spiritual-tours'] as const,
+      catalog: () => ['customer', 'spiritual-tours', 'catalog'] as const,
+    },
     feedback: {
       all: () => ['customer', 'feedback'] as const,
       /** List of already-submitted feedback for the My Feedback tab. */

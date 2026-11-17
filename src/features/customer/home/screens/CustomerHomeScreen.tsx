@@ -98,13 +98,14 @@ const CustomerHomeScreen: React.FC = () => {
 
   const { mode, change: changeServiceMode } = useServiceMode();
 
-  /* Spiritual Tours is a SEPARATE app, not a filter on this screen —
+  /* Spiritual Tours is its own SECTION, not a filter on this screen —
    * so its tile behaves as a button, not a tab. Tapping it pushes the
-   * download screen and leaves `mode` on Car & Bus, because every
-   * card below is car-and-bus content: leaving the tile highlighted
-   * would promise a themed home screen that does not exist.
+   * tours screen and leaves `mode` on Vehicle Rental (the
+   * 'car_bus' key), because every card below is vehicle-rental
+   * content: leaving the tile highlighted would promise a themed
+   * home screen that does not exist.
    *
-   * Car & Bus still goes through the hook, keeping its existing
+   * Vehicle Rental still goes through the hook, keeping its existing
    * no-op-on-reselect and analytics behaviour. */
   const onServiceModeChange = useCallback(
     (next: ServiceMode) => {

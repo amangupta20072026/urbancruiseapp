@@ -126,11 +126,18 @@ export type CustomerStackParamList = {
   RequestQuotation: undefined;
   QuotationSuccess: { requestId: string };
   /**
-   * Download page for the SEPARATE Spiritual Tours app, opened from the
-   * "Spiritual Tours" tile on Customer Home. Customer-only, so it lives
-   * here rather than in SharedStackParamList.
+   * The in-app Spiritual Tours catalog, opened from the "Spiritual Tours"
+   * tile on Customer Home. Customer-only, so it lives here rather than in
+   * SharedStackParamList.
    */
   SpiritualTours: undefined;
+  /**
+   * One tour from that catalog. `tourId` is the catalog's slug (e.g.
+   * "char-dham-yatra"), NOT an index: the screen looks it up in the same
+   * cached catalog the list used, so an id that ops has since removed
+   * shows a "no longer listed" state rather than the wrong tour.
+   */
+  SpiritualTourDetail: { tourId: string };
   /**
    * Three brand images (5 s each) shown before QuotationDetail for
    * Pending / Accepted quotations. Takes exactly the QuotationDetail
