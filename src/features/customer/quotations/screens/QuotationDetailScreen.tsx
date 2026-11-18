@@ -149,7 +149,9 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import {
+  ArrowLeftRight,
   Bus,
   Calendar,
   CarFront,
@@ -183,12 +185,21 @@ import { QuotationTripCard } from '../components/QuotationTripCard';
 import {
   VEHICLE_OPTIONS,
   VEHICLE_TIER_LABELS,
+  VEHICLE_TIER_NAMES,
   findVehicleOption,
   type VehicleOption,
   type VehicleSelection,
+  type VehicleTierKey,
 } from '../vehicleTierOptions';
 import { narrowChargesToVehicle } from '../utils/otherCharges';
-import { VehicleOptionCard } from '../components/VehicleOptionCard';
+import {
+  TIER_PALETTE,
+  VehicleOptionCard,
+} from '../components/VehicleOptionCard';
+import {
+  VehicleTierTabs,
+  type VehicleTierTab,
+} from '../components/VehicleTierTabs';
 import { NeedChangesSheet } from '../components/NeedChangesSheet';
 import { BookingProcessFab } from '../components/BookingProcessFab';
 import { BookingProcessSheet } from '../components/BookingProcessSheet';
@@ -870,6 +881,31 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
  *                         VehicleCard while a quotation is `pending`
  *                         (the vehicle isn't locked in yet).
  *
+ * LAYOUT: one card, like Trip Details.
+ *   ┌──────────────────────────────────────────┐
+ *   │ 🚐 Choose Your Vehicle                    │
+ *   │    Select the vehicle that best suits …   │
+ *   │ [Economy 1|Premium 1|█Royal 2█|VIP 3]     │  VehicleTierTabs
+ *   │ ┌ vehicle card (View all ⌄) ───────────┐ │
+ *   │ └──────────────────────────────────────┘ │
+ *   │        ⇄ Compare all 7 vehicles          │
+ *   └──────────────────────────────────────────┘
+ *
+ * TIER TABS:
+ *   Only the active tier's vehicles show. Economy is open when the
+ *   screen loads. Switching tabs fades the new list in. The tab of the
+ *   tier holding the selected vehicle shows a dot while another tab
+ *   is open (VehicleTierTabs). A selection made on VehicleVideo /
+ *   CompareVehicles switches to that vehicle's tier, so the customer
+ *   lands looking at what they just chose.
+ *
+ *   Card numbers (the corner badge) stay the vehicle's position in the
+ *   full list, so they match the Compare screen.
+ *
+ * COMPARE ALL:
+ *   Opens CompareVehicles focused on the selected vehicle, or on the
+ *   first vehicle of the open tab when nothing is selected yet.
+ *
  * STATE:
  *   `selection` ({ optionId, quantity } | null) is lifted to the
  *   screen so the sticky BottomBar can gate "Accept & Continue".
@@ -892,6 +928,18 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
  *   exactly like tapping its Select, then consumed.
  * ================================================================ */
 
+/** Tabs in tier order; a tier with no vehicles gets no tab. */
+const TIER_TABS: readonly VehicleTierTab[] = (
+  ['economy', 'premium', 'royal', 'royal_vip'] as const
+)
+  .map(key => ({
+    key,
+    label: VEHICLE_TIER_NAMES[key],
+    count: VEHICLE_OPTIONS.filter(o => o.tier === key).length,
+    color: TIER_PALETTE[key].solid,
+  }))
+  .filter(tab => tab.count > 0);
+
 const ChooseVehicleSection: React.FC<{
   quotationId: CustomerQuotationDetail['id'];
   selection: VehicleSelection | null;
@@ -907,6 +955,9 @@ const ChooseVehicleSection: React.FC<{
 }) => {
   const navigation = useNavigation<Nav>();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [activeTier, setActiveTier] = useState<VehicleTierKey>(
+    TIER_TABS[0]?.key ?? 'economy',
+  );
 
   const qtyFor = useCallback(
     (id: string): number =>
@@ -957,11 +1008,13 @@ const ChooseVehicleSection: React.FC<{
   useEffect(() => {
     if (pendingSelectOptionId === undefined) return;
     const deps = pendingSelectDeps.current;
-    if (VEHICLE_OPTIONS.some(o => o.id === pendingSelectOptionId)) {
+    const picked = VEHICLE_OPTIONS.find(o => o.id === pendingSelectOptionId);
+    if (picked) {
       deps.onChangeSelection({
-        optionId: pendingSelectOptionId,
-        quantity: deps.qtyFor(pendingSelectOptionId),
+        optionId: picked.id,
+        quantity: deps.qtyFor(picked.id),
       });
+      setActiveTier(picked.tier);
     }
     deps.onPendingSelectConsumed();
   }, [pendingSelectOptionId]);
@@ -1014,11 +1067,28 @@ const ChooseVehicleSection: React.FC<{
     [navigation, quotationId],
   );
 
+  /* -------- Tier tabs -------- */
+  const tierOptions = useMemo(
+    () => VEHICLE_OPTIONS.filter(o => o.tier === activeTier),
+    [activeTier],
+  );
+
+  const selectedTier =
+    selection !== null
+      ? findVehicleOption(selection.optionId)?.tier ?? null
+      : null;
+
+  const onCompareAll = useCallback(() => {
+    const focusOptionId = selection?.optionId ?? tierOptions[0]?.id;
+    if (!focusOptionId) return;
+    navigation.navigate('CompareVehicles', { quotationId, focusOptionId });
+  }, [navigation, quotationId, selection, tierOptions]);
+
   return (
-    <View style={styles.chooseVehicleBlock}>
+    <View style={styles.card}>
       <View style={styles.chooseVehicleHeader}>
         <View style={styles.chooseVehicleIcon}>
-          <CarFront size={22} color={Colors.primaryDark} strokeWidth={2} />
+          <CarFront size={20} color={Colors.primaryDark} strokeWidth={2} />
         </View>
         <View style={styles.chooseVehicleHeaderText}>
           <Text style={styles.sectionTitle}>Choose Your Vehicle</Text>
@@ -1028,27 +1098,62 @@ const ChooseVehicleSection: React.FC<{
         </View>
       </View>
 
-      {VEHICLE_OPTIONS.map((option, i) => (
-        <VehicleOptionCard
-          key={option.id}
-          option={option}
-          index={i + 1}
-          selected={selection?.optionId === option.id}
-          quantity={qtyFor(option.id)}
-          onChangeQuantity={next => onChangeQuantity(option.id, next)}
-          onSelect={() => onSelect(option.id)}
-          actions={
-            <BrochureActionRow
-              videoState={videoStateFor(option.id)}
-              onWatchVideo={() => onWatchVideo(option)}
-              onCompare={() => onCompare(option)}
-              vehicleName={`${VEHICLE_TIER_LABELS[option.tier]} ${
-                option.model
-              }`}
-            />
-          }
+      <VehicleTierTabs
+        tabs={TIER_TABS}
+        value={activeTier}
+        onChange={setActiveTier}
+        markedKey={selectedTier}
+      />
+
+      {/* Keyed by tier: a tab switch remounts the list, which fades
+          the new tier's vehicles in. */}
+      <Animated.View
+        key={activeTier}
+        entering={FadeIn.duration(220)}
+        style={styles.chooseVehicleList}
+      >
+        {tierOptions.map(option => (
+          <VehicleOptionCard
+            key={option.id}
+            option={option}
+            index={VEHICLE_OPTIONS.indexOf(option) + 1}
+            selected={selection?.optionId === option.id}
+            quantity={qtyFor(option.id)}
+            onChangeQuantity={next => onChangeQuantity(option.id, next)}
+            onSelect={() => onSelect(option.id)}
+            actions={
+              <BrochureActionRow
+                videoState={videoStateFor(option.id)}
+                onWatchVideo={() => onWatchVideo(option)}
+                onCompare={() => onCompare(option)}
+                vehicleName={`${VEHICLE_TIER_LABELS[option.tier]} ${
+                  option.model
+                }`}
+              />
+            }
+          />
+        ))}
+      </Animated.View>
+
+      <Pressable
+        onPress={onCompareAll}
+        hitSlop={8}
+        style={({ pressed }) => [
+          styles.compareAll,
+          pressed && styles.compareAllPressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`Compare all ${VEHICLE_OPTIONS.length} vehicles`}
+      >
+        <ArrowLeftRight
+          size={16}
+          color={Colors.primaryDark}
+          strokeWidth={2.2}
         />
-      ))}
+        <Text style={styles.compareAllText}>
+          Compare all {VEHICLE_OPTIONS.length} vehicles
+        </Text>
+      </Pressable>
     </View>
   );
 };
@@ -1604,25 +1709,18 @@ const styles = StyleSheet.create({
   },
 
   /* ── Choose Your Vehicle (pending quotations only) ──
-   * Option cards render directly in the scroll (not nested inside a
-   * card shell) so each one gets the full width. */
-  chooseVehicleBlock: {
-    gap: Spacing.md,
-  },
+   * One card (styles.card), like Trip Details: header, tier tabs,
+   * the open tier's vehicle cards, and the Compare-all link. */
   chooseVehicleHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.backgroundSecondary,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   chooseVehicleIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: Radius.circle,
     backgroundColor: Colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1635,6 +1733,28 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: Colors.textSecondary,
     fontWeight: '500',
+  },
+  chooseVehicleList: {
+    gap: Spacing.sm + 2,
+    marginTop: Spacing.md,
+  },
+  compareAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    gap: Spacing.xs + 2,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+  },
+  compareAllPressed: {
+    opacity: 0.6,
+  },
+  compareAllText: {
+    ...Typography.label,
+    fontWeight: '700',
+    color: Colors.primaryDark,
   },
 
   /* Advance-to-book card (scrollable content, between Vehicle

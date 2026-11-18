@@ -7,8 +7,9 @@
  * Collapsed (tap anywhere on it, or "View all", to expand):
  *
  *   ┌───────────────────────────────────────────────┐
- *   │ [TIER] Model                ₹15,800  View all ⌄│
- *   │                          per vehicle           │
+ *   │ [TIER] [★ Most popular]     ₹17,000  View all ⌄│
+ *   │ Model (✓)                per vehicle           │
+ *   │ 13 seats                                       │
  *   └───────────────────────────────────────────────┘
  *
  * Expanded (exactly the full card, with "Collapse ⌃" at the bottom):
@@ -37,13 +38,25 @@
  * Quantity and selection are owned by ChooseVehicleSection. The only
  * state here is `expanded`, which is purely visual: collapsing a card
  * keeps its quantity and selection, and a selected card that is
- * collapsed still shows the selected border and a "Selected" tick.
+ * collapsed still shows the selected border and the ✓.
+ *
+ * ANIMATION:
+ *   - Expand / collapse: the card's height animates (layout
+ *     transition on the card itself, so the cards below it slide
+ *     smoothly too) and the new content fades in.
+ *   - Select: a ✓ in the tier colour pops in (spring) beside the
+ *     model name, in both the collapsed and expanded card.
+ *   Reanimated follows the phone's Reduce Motion setting by itself.
  * ------------------------------------------------------------------
  */
 
 import React, { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  LinearTransition,
+  ZoomIn,
+} from 'react-native-reanimated';
 import {
   AppWindow,
   Armchair,
@@ -75,7 +88,7 @@ import {
  * Tier palette
  * ================================================================ */
 
-type TierPalette = { solid: string; tint: string; wash: string };
+export type TierPalette = { solid: string; tint: string; wash: string };
 
 const GREEN: TierPalette = {
   solid: Colors.primaryDark,
@@ -89,7 +102,8 @@ const ROYAL: TierPalette = {
   wash: Colors.royalWash,
 };
 
-const TIER_PALETTE: Readonly<Record<VehicleTierKey, TierPalette>> = {
+/** Exported so the tier tabs use exactly the same colours. */
+export const TIER_PALETTE: Readonly<Record<VehicleTierKey, TierPalette>> = {
   economy: GREEN,
   premium: GREEN,
   royal: ROYAL,
@@ -155,219 +169,205 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
 
     const cardStyle = [
       styles.card,
+      !expanded && styles.cardCollapsed,
       selected && {
         borderColor: accent.solid,
         backgroundColor: accent.wash,
       },
     ];
 
-    /* ── Collapsed: tier · name · price · View all ────────── */
-    if (!expanded) {
-      return (
-        <Pressable
-          onPress={expand}
-          style={({ pressed }) => [
-            ...cardStyle,
-            styles.collapsedCard,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: false, selected }}
-          accessibilityLabel={`${vehicleName}, ${formatAmount(
-            option.pricePerVehicle,
-          )} per vehicle${selected ? ', selected' : ''}. View all details`}
-        >
-          <View style={styles.collapsedIdentity}>
-            <View style={styles.collapsedPillRow}>
-              <View
-                style={[
-                  styles.tierPill,
-                  { backgroundColor: tierPalette.solid },
-                ]}
-              >
-                <Text style={styles.tierPillText}>{tierLabel}</Text>
-              </View>
-              {selected ? (
+    return (
+      // The layout transition animates this card's height change on
+      // expand / collapse, and moves the cards below it smoothly.
+      <Animated.View layout={LinearTransition.duration(240)} style={cardStyle}>
+        {expanded ? (
+          <Animated.View entering={FadeIn.duration(200)} style={styles.body}>
+            {/* ── Top: image + identity ─────────────────────── */}
+            <View style={styles.topRow}>
+              <View>
                 <View
-                  style={[
-                    styles.selectedTag,
-                    { backgroundColor: accent.solid },
-                  ]}
+                  style={[styles.imageWrap, { backgroundColor: accent.tint }]}
                 >
+                  {option.image ? (
+                    <Image
+                      source={option.image}
+                      style={styles.image}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Bus size={28} color={accent.solid} strokeWidth={1.75} />
+                  )}
+                </View>
+                <View
+                  style={[styles.indexBadge, { backgroundColor: accent.solid }]}
+                >
+                  <Text style={styles.indexText}>{index}</Text>
+                </View>
+              </View>
+
+              <View style={styles.identity}>
+                <View style={styles.pillRow}>
+                  <TierPill label={tierLabel} color={tierPalette.solid} />
+                  {option.popular ? (
+                    <PopularBadge color={tierPalette.solid} />
+                  ) : null}
+                </View>
+                <View style={styles.modelRow}>
+                  <Text style={styles.model} numberOfLines={1}>
+                    {option.model}
+                  </Text>
+                  {selected ? <SelectedTick color={accent.solid} /> : null}
+                </View>
+                <Text style={styles.description}>{option.description}</Text>
+              </View>
+            </View>
+
+            {/* ── Spec row ──────────────────────────────────── */}
+            <View style={styles.specRow}>
+              <SpecChip Icon={Armchair} label={`${option.seats} Seats`} />
+              {option.amenities.slice(0, MAX_AMENITY_CHIPS).map(a => (
+                <React.Fragment key={a.kind}>
+                  <View style={styles.specDivider} />
+                  <SpecChip Icon={AMENITY_ICON[a.kind]} label={a.label} />
+                </React.Fragment>
+              ))}
+            </View>
+
+            {actions ?? null}
+
+            {/* ── Footer: price · quantity · select ─────────── */}
+            <View style={styles.footer}>
+              <View style={styles.priceBlock}>
+                <Text
+                  style={[styles.price, { color: accent.solid }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {formatAmount(option.pricePerVehicle)}
+                </Text>
+                <Text style={styles.priceUnit}>per vehicle</Text>
+              </View>
+
+              <QuantityStepper
+                value={quantity}
+                min={1}
+                max={maxQty}
+                onChange={onChangeQuantity}
+                vehicleName={vehicleName}
+              />
+
+              <Pressable
+                onPress={onSelect}
+                style={({ pressed }) => [
+                  styles.selectBtn,
+                  {
+                    backgroundColor: selected ? accent.solid : Colors.secondary,
+                  },
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={
+                  selected
+                    ? `${vehicleName} selected, ${quantity} vehicle${
+                        quantity > 1 ? 's' : ''
+                      }`
+                    : `Select ${vehicleName}`
+                }
+              >
+                {selected ? (
                   <Check
-                    size={11}
+                    size={15}
                     color={Colors.textOnPrimary}
                     strokeWidth={3}
                   />
-                  <Text style={styles.selectedTagText}>Selected</Text>
-                </View>
-              ) : null}
-            </View>
-            <Text style={styles.model} numberOfLines={1}>
-              {option.model}
-            </Text>
-          </View>
-
-          <View style={styles.collapsedPrice}>
-            <Text
-              style={[styles.collapsedPriceText, { color: accent.solid }]}
-              numberOfLines={1}
-            >
-              {formatAmount(option.pricePerVehicle)}
-            </Text>
-            <Text style={styles.priceUnit}>per vehicle</Text>
-          </View>
-
-          <View style={styles.toggle}>
-            <Text style={styles.toggleText}>View all</Text>
-            <ChevronDown
-              size={16}
-              color={Colors.primaryDark}
-              strokeWidth={2.5}
-            />
-          </View>
-        </Pressable>
-      );
-    }
-
-    /* ── Expanded: the full card ──────────────────────────── */
-    return (
-      <Animated.View entering={FadeIn.duration(180)} style={cardStyle}>
-        {/* ── Top: image + identity ─────────────────────────── */}
-        <View style={styles.topRow}>
-          <View>
-            <View style={[styles.imageWrap, { backgroundColor: accent.tint }]}>
-              {option.image ? (
-                <Image
-                  source={option.image}
-                  style={styles.image}
-                  resizeMode="contain"
-                />
-              ) : (
-                <Bus size={28} color={accent.solid} strokeWidth={1.75} />
-              )}
-            </View>
-            <View
-              style={[styles.indexBadge, { backgroundColor: accent.solid }]}
-            >
-              <Text style={styles.indexText}>{index}</Text>
-            </View>
-          </View>
-
-          <View style={styles.identity}>
-            <View style={styles.pillRow}>
-              <View
-                style={[
-                  styles.tierPill,
-                  { backgroundColor: tierPalette.solid },
-                ]}
-              >
-                <Text style={styles.tierPillText}>{tierLabel}</Text>
-              </View>
-              {option.popular ? (
-                <View
+                ) : null}
+                <Text
                   style={[
-                    styles.popularBadge,
-                    { backgroundColor: tierPalette.solid },
+                    styles.selectText,
+                    !selected && styles.selectTextUnselected,
                   ]}
                 >
-                  <Star
-                    size={11}
-                    color={Colors.textOnPrimary}
-                    fill={Colors.textOnPrimary}
-                  />
-                  <Text style={styles.popularText}>Most popular</Text>
-                </View>
-              ) : null}
+                  {selected ? 'Selected' : 'Select'}
+                </Text>
+              </Pressable>
             </View>
-            <Text style={styles.model} numberOfLines={1}>
-              {option.model}
-            </Text>
-            <Text style={styles.description}>{option.description}</Text>
-          </View>
-        </View>
 
-        {/* ── Spec row ──────────────────────────────────────── */}
-        <View style={styles.specRow}>
-          <SpecChip Icon={Armchair} label={`${option.seats} Seats`} />
-          {option.amenities.slice(0, MAX_AMENITY_CHIPS).map(a => (
-            <React.Fragment key={a.kind}>
-              <View style={styles.specDivider} />
-              <SpecChip Icon={AMENITY_ICON[a.kind]} label={a.label} />
-            </React.Fragment>
-          ))}
-        </View>
-
-        {actions ?? null}
-
-        {/* ── Footer: price · quantity · select ─────────────── */}
-        <View style={styles.footer}>
-          <View style={styles.priceBlock}>
-            <Text
-              style={[styles.price, { color: accent.solid }]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-            >
-              {formatAmount(option.pricePerVehicle)}
-            </Text>
-            <Text style={styles.priceUnit}>per vehicle</Text>
-          </View>
-
-          <QuantityStepper
-            value={quantity}
-            min={1}
-            max={maxQty}
-            onChange={onChangeQuantity}
-            vehicleName={vehicleName}
-          />
-
-          <Pressable
-            onPress={onSelect}
-            style={({ pressed }) => [
-              styles.selectBtn,
-              { backgroundColor: selected ? accent.solid : Colors.secondary },
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            accessibilityLabel={
-              selected
-                ? `${vehicleName} selected, ${quantity} vehicle${
-                    quantity > 1 ? 's' : ''
-                  }`
-                : `Select ${vehicleName}`
-            }
-          >
-            {selected ? (
-              <Check size={15} color={Colors.textOnPrimary} strokeWidth={3} />
-            ) : null}
-            <Text
-              style={[
-                styles.selectText,
-                !selected && styles.selectTextUnselected,
+            {/* ── Collapse ──────────────────────────────────── */}
+            <Pressable
+              onPress={collapse}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.toggle,
+                styles.collapseBtn,
+                pressed && styles.pressed,
               ]}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: true }}
+              accessibilityLabel={`Collapse ${vehicleName}`}
             >
-              {selected ? 'Selected' : 'Select'}
-            </Text>
-          </Pressable>
-        </View>
+              <Text style={styles.toggleText}>Collapse</Text>
+              <ChevronUp
+                size={16}
+                color={Colors.primaryDark}
+                strokeWidth={2.5}
+              />
+            </Pressable>
+          </Animated.View>
+        ) : (
+          /* ── Collapsed: tier · name · seats · price · View all ── */
+          <Animated.View entering={FadeIn.duration(200)}>
+            <Pressable
+              onPress={expand}
+              style={({ pressed }) => [
+                styles.collapsedRow,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: false, selected }}
+              accessibilityLabel={`${vehicleName}, ${
+                option.seats
+              } seats, ${formatAmount(option.pricePerVehicle)} per vehicle${
+                selected ? ', selected' : ''
+              }. View all details`}
+            >
+              <View style={styles.collapsedIdentity}>
+                <View style={styles.collapsedPillRow}>
+                  <TierPill label={tierLabel} color={tierPalette.solid} />
+                  {option.popular ? (
+                    <PopularBadge color={tierPalette.solid} />
+                  ) : null}
+                </View>
+                <View style={styles.modelRow}>
+                  <Text style={styles.modelCollapsed} numberOfLines={1}>
+                    {option.model}
+                  </Text>
+                  {selected ? <SelectedTick color={accent.solid} /> : null}
+                </View>
+                <Text style={styles.seatsText}>{option.seats} seats</Text>
+              </View>
 
-        {/* ── Collapse ──────────────────────────────────────── */}
-        <Pressable
-          onPress={collapse}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.toggle,
-            styles.collapseBtn,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: true }}
-          accessibilityLabel={`Collapse ${vehicleName}`}
-        >
-          <Text style={styles.toggleText}>Collapse</Text>
-          <ChevronUp size={16} color={Colors.primaryDark} strokeWidth={2.5} />
-        </Pressable>
+              <View style={styles.collapsedPrice}>
+                <Text
+                  style={[styles.collapsedPriceText, { color: accent.solid }]}
+                  numberOfLines={1}
+                >
+                  {formatAmount(option.pricePerVehicle)}
+                </Text>
+                <Text style={styles.priceUnit}>per vehicle</Text>
+              </View>
+
+              <View style={styles.toggle}>
+                <Text style={styles.toggleText}>View all</Text>
+                <ChevronDown
+                  size={16}
+                  color={Colors.primaryDark}
+                  strokeWidth={2.5}
+                />
+              </View>
+            </Pressable>
+          </Animated.View>
+        )}
       </Animated.View>
     );
   },
@@ -377,6 +377,37 @@ VehicleOptionCard.displayName = 'VehicleOptionCard';
 /* ================================================================
  * Sub-components
  * ================================================================ */
+
+const TierPill: React.FC<{ label: string; color: string }> = ({
+  label,
+  color,
+}) => (
+  <View style={[styles.tierPill, { backgroundColor: color }]}>
+    <Text style={styles.tierPillText}>{label}</Text>
+  </View>
+);
+
+const PopularBadge: React.FC<{ color: string }> = ({ color }) => (
+  <View style={[styles.popularBadge, { backgroundColor: color }]}>
+    <Star size={11} color={Colors.textOnPrimary} fill={Colors.textOnPrimary} />
+    <Text style={styles.popularText}>Most popular</Text>
+  </View>
+);
+
+/**
+ * The ✓ beside the model name. Mounted only while selected, so the
+ * spring "pop" plays each time the customer selects this vehicle.
+ */
+const SelectedTick: React.FC<{ color: string }> = ({ color }) => (
+  <Animated.View
+    entering={ZoomIn.springify().damping(11).stiffness(220)}
+    style={[styles.tick, { backgroundColor: color }]}
+    accessibilityElementsHidden
+    importantForAccessibility="no-hide-descendants"
+  >
+    <Check size={11} color={Colors.textOnPrimary} strokeWidth={3.2} />
+  </Animated.View>
+);
 
 const SpecChip: React.FC<{ Icon: LucideIcon; label: string }> = ({
   Icon,
@@ -456,19 +487,23 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
     padding: Spacing.md,
-    gap: Spacing.md,
     ...Shadows.xs,
+  },
+  cardCollapsed: {
+    paddingVertical: Spacing.sm + 2,
+  },
+  body: {
+    gap: Spacing.md,
   },
   pressed: {
     opacity: 0.75,
   },
 
   /* Collapsed */
-  collapsedCard: {
+  collapsedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingVertical: Spacing.sm + 2,
   },
   collapsedIdentity: {
     flex: 1,
@@ -478,21 +513,18 @@ const styles = StyleSheet.create({
   collapsedPillRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: Spacing.xs,
   },
-  selectedTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Radius.pill,
+  modelCollapsed: {
+    ...Typography.subtitle,
+    flexShrink: 1,
+    fontWeight: '800',
+    color: Colors.textPrimary,
   },
-  selectedTagText: {
+  seatsText: {
     ...Typography.caption,
-    fontWeight: '700',
-    color: Colors.textOnPrimary,
-    includeFontPadding: false,
+    color: Colors.textSecondary,
   },
   collapsedPrice: {
     alignItems: 'flex-end',
@@ -593,10 +625,23 @@ const styles = StyleSheet.create({
     color: Colors.textOnPrimary,
     includeFontPadding: false,
   },
+  modelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+  },
   model: {
     ...Typography.subtitle,
+    flexShrink: 1,
     fontWeight: '800',
     color: Colors.textPrimary,
+  },
+  tick: {
+    width: 18,
+    height: 18,
+    borderRadius: Radius.circle,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   description: {
     ...Typography.caption,
