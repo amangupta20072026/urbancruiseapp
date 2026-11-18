@@ -47,8 +47,12 @@ const queryStore = createMMKV({ id: 'urbancruise-query-cache' });
  *   '5' — UC Directory (customers / vendors / drivers) now real API
  *         data: new shapes, no booking / trip counts. The customers
  *         list was saved to disk before; it no longer is (PII).
+ *   '6' — Spiritual Tours detail redesign: a tour's `facts` is now a
+ *         list of { icon, label, value, note }, `sections` replaces
+ *         itinerary / inclusions / exclusions / pricing / pricingNote,
+ *         and tagline / heroImages / highlights are gone.
  */
-export const QUERY_CACHE_BUSTER = '5';
+export const QUERY_CACHE_BUSTER = '6';
 
 /**
  * AsyncStorage-shaped adapter over the sync MMKV instance.

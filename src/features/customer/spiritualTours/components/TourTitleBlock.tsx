@@ -1,18 +1,17 @@
 /**
  * ------------------------------------------------------------------
- * TourTitleBlock — the tour's mark, name and stops
+ * TourTitleBlock — icon tile, tour name and its stops
  * ------------------------------------------------------------------
  *   ┌──────┐  Char Dham Yatra
  *   │  🛕  │  Yamunotri · Gangotri · Kedarnath · Badrinath
  *   └──────┘
  *
- * The line under the title is the SAME stops line the list card shows
- * (`subtitleFor`), so the two screens can never disagree. It is never
- * truncated: it wraps, and the mark stays vertically centred beside
- * however many lines result.
+ * The title wraps rather than truncating: this is the one place the
+ * full name is always shown. `titleNote` follows it in a smaller grey
+ * size, e.g. "Shakti peeth Tour (North, MP)".
  *
- * `titleNote` stays inline after the title, smaller, exactly as on
- * the list card: "Shakti peeth Tour (North, MP)" is one name.
+ * The second line is the same text the list card shows (`subtitleFor`):
+ * the joined stops, or the summary when a tour has no named stops.
  * ------------------------------------------------------------------ */
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -26,8 +25,13 @@ type Props = {
   tour: SpiritualTour;
 };
 
-const TILE = 84;
-const ICON = 48;
+/** The design's tile is a little wider than it is tall. */
+const TILE_W = 76;
+const TILE_H = 68;
+const ICON = 40;
+
+/** The design's deep green title (same as the list screen's hero). */
+const TITLE = '#1B5E20';
 
 export const TourTitleBlock: React.FC<Props> = ({ tour }) => {
   const subtitle = useMemo(() => subtitleFor(tour), [tour]);
@@ -71,9 +75,9 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
   },
   tile: {
-    width: TILE,
-    height: TILE,
-    borderRadius: Radius.xl,
+    width: TILE_W,
+    height: TILE_H,
+    borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primaryTint,
@@ -86,20 +90,21 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.h1,
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: '800',
-    color: Colors.primaryDark,
+    color: TITLE,
   },
   titleNote: {
     ...Typography.subtitle,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.textSecondary,
   },
   subtitle: {
     ...Typography.body,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
     color: Colors.textSecondary,
   },
 });

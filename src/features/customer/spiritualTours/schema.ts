@@ -12,9 +12,13 @@
  *   - One bad entry           → that entry is dropped, the rest load.
  *   - Unknown extra fields    → ignored (forward compatible).
  *   - A bad optional value    → safe default rather than a drop:
- *     an unknown icon becomes 'temple', a non-https or malformed
- *     image URL becomes null (the card draws its own tile), bad
- *     places entries are filtered out.
+ *     an unknown tour icon becomes 'temple', an unknown fact or
+ *     section icon becomes 'info', a non-https or malformed image
+ *     URL becomes null (the card draws its own tile), and a bad
+ *     place, fact, day or price row is filtered out on its own.
+ *   - A section of a kind this app does not know → that one row is
+ *     dropped, so the backend can add new kinds without breaking
+ *     older apps.
  *   - Duplicate id            → first one wins.
  *
  * An unknown REGION is a drop, not a default. Regions decide which
@@ -24,9 +28,10 @@
 import { z } from 'zod';
 import type {
   SpiritualTour,
-  SpiritualTourFacts,
+  SpiritualTourFactIcon,
   SpiritualTourIcon,
   SpiritualTourRegion,
+  SpiritualTourSectionIcon,
 } from './types';
 
 /** Thrown when the response is not a tour catalog at all. */
@@ -48,6 +53,26 @@ const REGIONS = [
 
 const ICONS = ['temple', 'trishul', 'om', 'ganesh', 'shivling'] as const;
 
+const FACT_ICONS = [
+  'calendar',
+  'users',
+  'vehicle',
+  'clock',
+  'map-pin',
+  'sun',
+  'mountain',
+  'info',
+] as const;
+
+const SECTION_ICONS = [
+  'itinerary',
+  'check',
+  'cross',
+  'rupee',
+  'info',
+  'list',
+] as const;
+
 /* Compile-time guards: the build fails if the union and the runtime
  * list drift apart in either direction. Same device as brochures'
  * TiersInSync. */
@@ -63,6 +88,30 @@ type MissingIcon = Exclude<SpiritualTourIcon, (typeof ICONS)[number]>;
 type ExtraIcon = Exclude<(typeof ICONS)[number], SpiritualTourIcon>;
 export type IconsInSync = AssertTrue<
   [MissingIcon, ExtraIcon] extends [never, never] ? true : false
+>;
+
+type MissingFactIcon = Exclude<
+  SpiritualTourFactIcon,
+  (typeof FACT_ICONS)[number]
+>;
+type ExtraFactIcon = Exclude<
+  (typeof FACT_ICONS)[number],
+  SpiritualTourFactIcon
+>;
+export type FactIconsInSync = AssertTrue<
+  [MissingFactIcon, ExtraFactIcon] extends [never, never] ? true : false
+>;
+
+type MissingSectionIcon = Exclude<
+  SpiritualTourSectionIcon,
+  (typeof SECTION_ICONS)[number]
+>;
+type ExtraSectionIcon = Exclude<
+  (typeof SECTION_ICONS)[number],
+  SpiritualTourSectionIcon
+>;
+export type SectionIconsInSync = AssertTrue<
+  [MissingSectionIcon, ExtraSectionIcon] extends [never, never] ? true : false
 >;
 
 /** Same rule as the backend: absolute https only. */
@@ -85,12 +134,6 @@ const StringList = z
       .filter(v => v.length > 0),
   );
 
-/** Keeps only absolute https URLs. */
-const UrlList = z
-  .array(z.unknown())
-  .catch([])
-  .transform(items => items.filter(isHttpsUrl));
-
 const PlaceSchema = z.object({
   name: DisplayText,
   imageUrl: z.unknown().transform(v => (isHttpsUrl(v) ? v : null)),
@@ -98,21 +141,12 @@ const PlaceSchema = z.object({
 
 const NullableText = DisplayText.nullable().catch(null);
 
-const EMPTY_FACTS: SpiritualTourFacts = {
-  duration: null,
-  travelMode: null,
-  bestSeason: null,
-  difficulty: null,
-};
-
-const FactsSchema = z
-  .object({
-    duration: NullableText,
-    travelMode: NullableText,
-    bestSeason: NullableText,
-    difficulty: NullableText,
-  })
-  .catch({ ...EMPTY_FACTS });
+const FactSchema = z.object({
+  icon: z.enum(FACT_ICONS).catch('info'),
+  label: DisplayText,
+  value: DisplayText,
+  note: NullableText,
+});
 
 const ItineraryDaySchema = z.object({
   dayLabel: DisplayText,
@@ -146,6 +180,52 @@ function rowList<T extends z.ZodTypeAny>(row: T) {
     });
 }
 
+const sectionBase = {
+  id: DisplayText,
+  title: DisplayText,
+  icon: z.enum(SECTION_ICONS).catch('info'),
+  emptyText: NullableText,
+};
+
+/**
+ * One section row. The union is keyed on `kind`; an unknown kind fails
+ * the union and rowList drops that one row.
+ */
+const InfoSectionSchema = z.discriminatedUnion('kind', [
+  z.object({
+    ...sectionBase,
+    kind: z.literal('itinerary'),
+    days: rowList(ItineraryDaySchema),
+  }),
+  z.object({
+    ...sectionBase,
+    kind: z.literal('list'),
+    marker: z.enum(['check', 'cross', 'dot']).catch('dot'),
+    items: StringList,
+  }),
+  z.object({
+    ...sectionBase,
+    kind: z.literal('pricing'),
+    rows: rowList(PriceSchema),
+    note: NullableText,
+  }),
+  z.object({
+    ...sectionBase,
+    kind: z.literal('text'),
+    body: NullableText,
+  }),
+]);
+
+/** Section ids must be unique per tour: React keys and sheet lookup. */
+const SectionList = rowList(InfoSectionSchema).transform(sections => {
+  const seen = new Set<string>();
+  return sections.filter(section => {
+    if (seen.has(section.id)) return false;
+    seen.add(section.id);
+    return true;
+  });
+});
+
 const EntrySchema = z.object({
   id: z.string().trim().min(1),
   region: z.enum(REGIONS),
@@ -158,16 +238,9 @@ const EntrySchema = z.object({
 
   // Detail screen. Every one has a safe empty default, so an older backend
   // that does not send them yet still produces a tour that lists and opens.
-  tagline: NullableText,
-  heroImages: UrlList,
-  facts: FactsSchema,
+  facts: rowList(FactSchema),
   overview: NullableText,
-  highlights: StringList,
-  itinerary: rowList(ItineraryDaySchema),
-  inclusions: StringList,
-  exclusions: StringList,
-  pricing: rowList(PriceSchema),
-  pricingNote: NullableText,
+  sections: SectionList,
 });
 
 const CatalogSchema = z.object({

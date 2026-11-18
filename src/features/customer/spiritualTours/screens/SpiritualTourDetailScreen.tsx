@@ -8,14 +8,30 @@
  *   │ ┌────┐ Char Dham Yatra                  │  ↑
  *   │ │ 🛕 │ Yamunotri · Gangotri · …         │  │
  *   │ └────┘                                  │  │
- *   │ 📅 Duration │ 🚗 Mode │ ▮ Difficulty │ 📅 │  │ scrolls
- *   │ (Overview) Itinerary Inclusions …       │  │
+ *   │ 📅 Duration │ 👥 Passengers │ 🚌 Vehicle │  │ scrolls
  *   │ (i) About the Tour                      │  │
- *   │ ★ Tour Highlights                       │  │
- *   │ ╭ 📍 Places Covered ───────────────────╮ │  ↓
+ *   │ ─────────────────────────────────────── │  │
+ *   │ 📅 Itinerary                         ›  │  │
+ *   │ ✓  Inclusions                        ›  │  │
+ *   │ ✕  Exclusions                        ›  │  │
+ *   │ ₹  Pricing                           ›  │  ↓
  *   ├─────────────────────────────────────────┤
- *   │ [ 🎧 Talk to Travel Advisory ]          │  pinned
+ *   │ [ 🎧 Talk to a Travel Advisor ]         │  pinned
  *   └─────────────────────────────────────────┘
+ *
+ * THE BACKEND DECIDES WHAT IS ON THIS SCREEN
+ *   The facts in the strip (labels, icons, values) and the rows under
+ *   About the Tour (titles, icons, order, content) all come from the
+ *   catalog. This screen only lays them out, so ops can add a fact, a
+ *   row or a whole new section without an app release. Each block is
+ *   drawn only when the catalog has something for it: no facts, no
+ *   strip; no overview, no About block.
+ *
+ * ROWS OPEN A BOTTOM SHEET
+ *   Tapping a row sets `openSection`; TourSectionSheet shows that
+ *   section's content laid out by its kind (itinerary, list, pricing
+ *   or text). A section with no content yet still shows its row, and
+ *   its sheet says "Details coming soon".
  *
  * NO SEPARATE REQUEST
  *   The tour comes from the SAME cached catalog query the list used,
@@ -23,17 +39,9 @@
  *   show a spinner after the list has loaded. A cold deep link into
  *   this route fetches the catalog once, like any other first read.
  *
- * ONLY CHAR DHAM IS WRITTEN UP
- *   It is the only tour with a facts strip, overview and highlights in
- *   the catalog. The other tours open to this same screen with empty
- *   tabs, which is why every section renders conditionally rather than
- *   assuming content exists. Filling the catalog in lights them up with
- *   no app change.
- *
- * ONE ACTION
- *   The only action besides browsing the tabs is the advisor call bar.
- *   It is hidden when app config carries no support number (see
- *   AdvisorCallBar), and the list then ends clear of the home
+ * THE CALL BAR
+ *   Hidden when app config carries no support number (see
+ *   AdvisorCallBar); the content then ends clear of the home
  *   indicator on its own.
  *
  * WHY SafeScreen IS NOT USED
@@ -59,21 +67,17 @@ import { useAppSelector } from '@store/hooks';
 import type { CustomerStackParamList } from '@navigation/types';
 
 import { AdvisorCallBar } from '../components/AdvisorCallBar';
+import { TourAbout } from '../components/TourAbout';
 import { TourDetailHeader } from '../components/TourDetailHeader';
 import { TourFactStrip } from '../components/TourFactStrip';
-import { TourTabBar, type TourTab } from '../components/TourTabBar';
+import { TourSectionRow } from '../components/TourSectionRow';
+import { TourSectionSheet } from '../components/TourSectionSheet';
 import { TourTitleBlock } from '../components/TourTitleBlock';
-import { ItineraryTab } from '../components/tabs/ItineraryTab';
-import { ListTab } from '../components/tabs/ListTab';
-import { OverviewTab } from '../components/tabs/OverviewTab';
-import { PricingTab } from '../components/tabs/PricingTab';
 import { useSpiritualTour } from '../hooks/useSpiritualTours';
+import type { SpiritualTourInfoSection } from '../types';
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList>;
 type Route = RouteProp<CustomerStackParamList, 'SpiritualTourDetail'>;
-
-/** The button's wording, as in the design. */
-const CALL_LABEL = 'Talk to Travel Advisory';
 
 const SpiritualTourDetailScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
@@ -85,7 +89,8 @@ const SpiritualTourDetailScreen: React.FC = () => {
     params.tourId,
   );
 
-  const [tab, setTab] = useState<TourTab>('overview');
+  const [openSection, setOpenSection] =
+    useState<SpiritualTourInfoSection | null>(null);
 
   const phone = support?.phone;
   // The bar only exists on a loaded tour with a number to call.
@@ -98,6 +103,14 @@ const SpiritualTourDetailScreen: React.FC = () => {
   const onRetry = useCallback(() => {
     refetch();
   }, [refetch]);
+
+  const onSectionPress = useCallback((section: SpiritualTourInfoSection) => {
+    setOpenSection(section);
+  }, []);
+
+  const onSheetClose = useCallback(() => {
+    setOpenSection(null);
+  }, []);
 
   const onCallAdvisor = useCallback(() => {
     if (!phone) return;
@@ -124,7 +137,7 @@ const SpiritualTourDetailScreen: React.FC = () => {
     <View style={styles.root}>
       {/* Dark icons on the white header. RN keeps a stack of these:
           unmounting this screen pops the entry and the list screen
-          underneath gets its light-content bar back automatically. */}
+          underneath gets its own bar back automatically. */}
       <StatusBar
         barStyle="dark-content"
         backgroundColor={Colors.surface}
@@ -145,10 +158,12 @@ const SpiritualTourDetailScreen: React.FC = () => {
       >
         {isLoading ? (
           <View style={styles.skeletonWrap}>
-            <Skeleton width="100%" height={84} radius={20} />
             <Skeleton width="100%" height={72} radius={16} />
+            <Skeleton width="100%" height={84} radius={20} />
             <Skeleton width="60%" height={26} />
             <Skeleton width="90%" height={16} />
+            <Skeleton width="100%" height={60} />
+            <Skeleton width="100%" height={60} />
           </View>
         ) : null}
 
@@ -173,47 +188,43 @@ const SpiritualTourDetailScreen: React.FC = () => {
           <>
             <TourTitleBlock tour={tour} />
 
-            <View style={styles.block}>
-              <TourFactStrip facts={tour.facts} />
-            </View>
+            {tour.facts.length > 0 ? (
+              <View style={styles.block}>
+                <TourFactStrip facts={tour.facts} />
+              </View>
+            ) : null}
 
-            <View style={styles.block}>
-              <TourTabBar value={tab} onChange={setTab} />
-            </View>
+            {tour.overview ? (
+              <View style={styles.blockLarge}>
+                <TourAbout body={tour.overview} />
+              </View>
+            ) : null}
 
-            <View style={styles.block}>
-              {tab === 'overview' ? (
-                <OverviewTab
-                  overview={tour.overview}
-                  highlights={tour.highlights}
-                  places={tour.places}
-                  icon={tour.icon}
-                />
-              ) : null}
-              {tab === 'itinerary' ? (
-                <ItineraryTab itinerary={tour.itinerary} />
-              ) : null}
-              {tab === 'inclusions' ? (
-                <ListTab items={tour.inclusions} variant="included" />
-              ) : null}
-              {tab === 'exclusions' ? (
-                <ListTab items={tour.exclusions} variant="excluded" />
-              ) : null}
-              {tab === 'pricing' ? (
-                <PricingTab pricing={tour.pricing} note={tour.pricingNote} />
-              ) : null}
-            </View>
+            {tour.sections.length > 0 ? (
+              <View style={styles.blockLarge}>
+                {tour.sections.map((section, index) => (
+                  <TourSectionRow
+                    key={section.id}
+                    section={section}
+                    onPress={onSectionPress}
+                    isLast={index === tour.sections.length - 1}
+                  />
+                ))}
+              </View>
+            ) : null}
           </>
         ) : null}
       </ScrollView>
 
       {hasCallBar ? (
-        <AdvisorCallBar
-          label={CALL_LABEL}
-          onPress={onCallAdvisor}
-          bottomInset={insets.bottom}
-        />
+        <AdvisorCallBar onPress={onCallAdvisor} bottomInset={insets.bottom} />
       ) : null}
+
+      <TourSectionSheet
+        section={openSection}
+        onClose={onSheetClose}
+        bottomInset={insets.bottom}
+      />
     </View>
   );
 };
@@ -230,7 +241,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.lg,
     // The call bar is a sibling, not an overlay, so the scroll needs
     // no padding for it — only a little breathing room at the end.
     paddingBottom: Spacing.xl,
@@ -240,5 +251,8 @@ const styles = StyleSheet.create({
   },
   block: {
     marginTop: Spacing.xl,
+  },
+  blockLarge: {
+    marginTop: Spacing.xxl,
   },
 });

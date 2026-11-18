@@ -11,8 +11,7 @@
  * the screen needs no SafeScreen wrapper.
  *
  * The wordmark sits straight on the white page, with no plate behind
- * it: on a light background the brand-green lettering is readable,
- * unlike on the list screen's dark hero.
+ * it, and the back chevron is brand green, as in the design.
  * ------------------------------------------------------------------ */
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -39,7 +38,7 @@ export const TourDetailHeader: React.FC<Props> = ({ onBack, topInset }) => (
       accessibilityLabel="Go back"
       style={({ pressed }) => [styles.side, pressed && styles.pressed]}
     >
-      <ChevronLeft size={28} color={Colors.textPrimary} strokeWidth={2.4} />
+      <ChevronLeft size={28} color={Colors.primaryDark} strokeWidth={2.4} />
     </Pressable>
 
     <BrandLockup width={LOGO_WIDTH} variant="wordmark" />

@@ -1,114 +1,110 @@
 /**
  * ------------------------------------------------------------------
- * TourFactStrip — Duration · Travel Mode · Difficulty · Best Season
+ * TourFactStrip — the tinted strip of facts under the title
  * ------------------------------------------------------------------
- * A pale green band of four labelled facts separated by hairlines.
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │ 📅 Duration      │ 👥 Passengers    │ 🚌 Vehicle          │
+ *   │    10 – 12 Days  │    Up to 26      │    Tempo Traveller  │
+ *   │                  │                  │    9 – 26 Seater    │
+ *   └──────────────────────────────────────────────────────────┘
  *
- * Any fact the catalog leaves null is DROPPED, not printed as a dash:
- * "Difficulty —" reads as a mistake, while three facts read as three
- * facts. The dividers are drawn between whatever survives, so there
- * is never a trailing rule. With nothing at all the strip does not
- * render.
+ * BACKEND-DRIVEN
+ *   Which facts appear, in what order, with which label and icon, all
+ *   come from the catalog (`tour.facts`). The app only lays them out
+ *   in equal columns with a hairline between them, so ops can rename
+ *   "Passengers" or add a fourth fact with no app release. At most
+ *   MAX_FACTS are drawn (the backend enforces the same limit); with
+ *   none, the strip is not drawn at all.
  *
- * Each fact is one accessibility node ("Duration, 10 – 12 Days") so
- * the reader does not announce eight disconnected fragments.
+ *   Values are printed exactly as sent. Long ones wrap inside their
+ *   column instead of being cut, so nothing ops writes is hidden.
+ *
+ * ACCESSIBILITY
+ *   Each column is read as one item: "Duration, 10 – 12 Days".
  * ------------------------------------------------------------------ */
-import React, { useMemo } from 'react';
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import {
-  BarChart3,
-  CalendarDays,
-  CarFront,
-  type LucideProps,
+  Bus,
+  Calendar,
+  Clock,
+  Info,
+  MapPin,
+  Mountain,
+  Sun,
+  Users,
 } from 'lucide-react-native';
 
 import { Colors, Radius, Spacing, Typography } from '@theme';
-import type { SpiritualTourFacts } from '../types';
+import type { SpiritualTourFact, SpiritualTourFactIcon } from '../types';
 
 type Props = {
-  facts: SpiritualTourFacts;
+  facts: readonly SpiritualTourFact[];
 };
 
-type Fact = {
-  key: string;
-  label: string;
-  value: string;
-  Icon: React.ComponentType<LucideProps>;
+/** The strip has room for four columns at most. */
+const MAX_FACTS = 4;
+
+const ICON_SIZE = 24;
+
+type IconComponent = React.ComponentType<{
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
+}>;
+
+const FACT_ICON: Record<SpiritualTourFactIcon, IconComponent> = {
+  calendar: Calendar,
+  users: Users,
+  vehicle: Bus,
+  clock: Clock,
+  'map-pin': MapPin,
+  sun: Sun,
+  mountain: Mountain,
+  info: Info,
 };
+
+/** Soft green fill and divider, as in the design. */
+const STRIP_BG = '#EEF7EF';
+const DIVIDER = '#CFE3D1';
 
 export const TourFactStrip: React.FC<Props> = ({ facts }) => {
-  const items = useMemo<Fact[]>(() => {
-    const all: Array<Fact | null> = [
-      facts.duration
-        ? {
-            key: 'duration',
-            label: 'Duration',
-            value: facts.duration,
-            Icon: CalendarDays,
-          }
-        : null,
-      facts.travelMode
-        ? {
-            key: 'travelMode',
-            label: 'Travel Mode',
-            value: facts.travelMode,
-            Icon: CarFront,
-          }
-        : null,
-      facts.difficulty
-        ? {
-            key: 'difficulty',
-            label: 'Difficulty',
-            value: facts.difficulty,
-            Icon: BarChart3,
-          }
-        : null,
-      facts.bestSeason
-        ? {
-            key: 'bestSeason',
-            label: 'Best Season',
-            value: facts.bestSeason,
-            Icon: CalendarDays,
-          }
-        : null,
-    ];
-    return all.filter((f): f is Fact => f !== null);
-  }, [facts]);
-
-  if (items.length === 0) return null;
+  const shown = facts.slice(0, MAX_FACTS);
+  if (shown.length === 0) return null;
 
   return (
     <View style={styles.strip}>
-      {items.map((fact, i) => (
-        <React.Fragment key={fact.key}>
-          {i === 0 ? null : <View style={styles.divider} />}
+      {shown.map((fact, index) => {
+        const Icon = FACT_ICON[fact.icon];
+        const a11y = [fact.label, fact.value, fact.note]
+          .filter((part): part is string => Boolean(part))
+          .join(', ');
 
+        return (
           <View
-            style={styles.fact}
+            key={`${fact.label}-${index}`}
+            style={[styles.column, index > 0 && styles.columnDivided]}
             accessible
-            accessibilityLabel={`${fact.label}, ${fact.value}`}
+            accessibilityLabel={a11y}
           >
-            <fact.Icon size={22} color={Colors.primaryDark} strokeWidth={2} />
+            <Icon size={ICON_SIZE} color={Colors.primaryDark} strokeWidth={2} />
 
             <View style={styles.copy}>
-              <Text
-                style={styles.label}
-                numberOfLines={1}
-                maxFontSizeMultiplier={1.3}
-              >
+              <Text style={styles.label} maxFontSizeMultiplier={1.4}>
                 {fact.label}
               </Text>
-              <Text
-                style={styles.value}
-                numberOfLines={2}
-                maxFontSizeMultiplier={1.3}
-              >
+              <Text style={styles.value} maxFontSizeMultiplier={1.4}>
                 {fact.value}
               </Text>
+              {fact.note ? (
+                <Text style={styles.note} maxFontSizeMultiplier={1.4}>
+                  {fact.note}
+                </Text>
+              ) : null}
             </View>
           </View>
-        </React.Fragment>
-      ))}
+        );
+      })}
     </View>
   );
 };
@@ -116,37 +112,45 @@ export const TourFactStrip: React.FC<Props> = ({ facts }) => {
 const styles = StyleSheet.create({
   strip: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.primaryWash,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.xl,
+    backgroundColor: STRIP_BG,
   },
-  fact: {
+  column: {
     flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+  },
+  columnDivided: {
+    borderLeftWidth: 1,
+    borderLeftColor: DIVIDER,
   },
   copy: {
     flex: 1,
+    minWidth: 0,
+    gap: Spacing.xxs,
   },
   label: {
     ...Typography.caption,
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 16,
     color: Colors.textSecondary,
   },
   value: {
     ...Typography.bodySmall,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 14,
+    lineHeight: 19,
     fontWeight: '800',
     color: Colors.textPrimary,
   },
-  divider: {
-    width: StyleSheet.hairlineWidth,
-    alignSelf: 'center',
-    height: '72%',
-    marginHorizontal: Spacing.sm,
-    backgroundColor: Colors.primaryLight,
+  note: {
+    ...Typography.caption,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textSecondary,
   },
 });

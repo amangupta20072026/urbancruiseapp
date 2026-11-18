@@ -19,20 +19,18 @@ export { SpiritualToursHero, HERO_BG } from './components/SpiritualToursHero';
 export { TourDetailHeader } from './components/TourDetailHeader';
 export { TourTitleBlock } from './components/TourTitleBlock';
 export { TourFactStrip } from './components/TourFactStrip';
-export { TourHighlights } from './components/TourHighlights';
-export { PlacesCovered } from './components/PlacesCovered';
+export { TourAbout } from './components/TourAbout';
+export { TourSectionRow, SectionIcon } from './components/TourSectionRow';
+export { TourSectionSheet } from './components/TourSectionSheet';
 export {
-  TourTabBar,
-  TOUR_TABS,
-  TOUR_TAB_LABEL,
-  type TourTab,
-} from './components/TourTabBar';
-export { OverviewTab } from './components/tabs/OverviewTab';
-export { ItineraryTab } from './components/tabs/ItineraryTab';
-export { ListTab } from './components/tabs/ListTab';
-export { PricingTab } from './components/tabs/PricingTab';
-export { SectionHeading, TabEmpty } from './components/tabs/TabPieces';
-export { IconSection } from './components/tabs/IconSection';
+  SectionBody,
+  SectionEmpty,
+  ItineraryBody,
+  ListBody,
+  PricingBody,
+  TextBody,
+  isSectionEmpty,
+} from './components/sectionBodies';
 
 /* ---- Data ---- */
 export {
@@ -57,11 +55,14 @@ export { TOUR_IMAGES, bundledTourImage } from './tourImages';
 export { REGION_LABEL } from './types';
 export type {
   SpiritualTour,
-  SpiritualTourFacts,
+  SpiritualTourFact,
+  SpiritualTourFactIcon,
   SpiritualTourIcon,
+  SpiritualTourInfoSection,
   SpiritualTourItineraryDay,
   SpiritualTourPlace,
   SpiritualTourPrice,
   SpiritualTourRegion,
   SpiritualTourSection,
+  SpiritualTourSectionIcon,
 } from './types';

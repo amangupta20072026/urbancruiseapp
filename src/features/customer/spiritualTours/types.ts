@@ -48,27 +48,42 @@ export type SpiritualTourIcon =
   | 'ganesh'
   | 'shivling';
 
-/** One named stop: the card joins the names, the detail shows the tiles. */
+/** One named stop. The card and the detail screen join the names. */
 export type SpiritualTourPlace = {
   name: string;
-  /** Absolute https URL, or null until ops uploads the tile photograph. */
+  /** Absolute https URL, or null. Not shown anywhere today. */
   imageUrl: string | null;
 };
 
 /**
- * The four facts in the strip under the destinations. All DISPLAY STRINGS
- * set by ops — "10 – 12 Days" is a range, "Car / Tempo / Bus" is a list —
- * so the app only ever prints them. null hides that fact rather than
- * printing a dash.
+ * Which icon sits beside one fact. A closed set mapped to bundled icons
+ * (components/TourFactStrip.tsx); an unknown value from a newer backend
+ * becomes 'info' in the schema, so a fact never renders iconless.
  */
-export type SpiritualTourFacts = {
-  duration: string | null;
-  travelMode: string | null;
-  bestSeason: string | null;
-  difficulty: string | null;
+export type SpiritualTourFactIcon =
+  | 'calendar'
+  | 'users'
+  | 'vehicle'
+  | 'clock'
+  | 'map-pin'
+  | 'sun'
+  | 'mountain'
+  | 'info';
+
+/**
+ * One fact in the strip under the title, e.g. Duration · 10 – 12 Days.
+ * The backend decides which facts exist, their order, labels and icons;
+ * the app only lays them out. Values are DISPLAY STRINGS — never parsed.
+ */
+export type SpiritualTourFact = {
+  icon: SpiritualTourFactIcon;
+  label: string;
+  value: string;
+  /** Small line under the value, e.g. "9 – 26 Seater". */
+  note: string | null;
 };
 
-/** One row of the Itinerary tab. */
+/** One day (or group of days) of an itinerary section. */
 export type SpiritualTourItineraryDay = {
   /** "Day 1", "Day 3 – 4" — a label, because days are often grouped. */
   dayLabel: string;
@@ -77,15 +92,63 @@ export type SpiritualTourItineraryDay = {
 };
 
 /**
- * One row of the Pricing tab. `amount` is a display string including the
- * currency, e.g. "₹24,500". The app never parses it: a real quotation is
- * priced by the team through the enquiry flow, and this tab is indicative.
+ * One row of a pricing section. `amount` is a display string including
+ * the currency, e.g. "₹24,500". The app never parses it: a real
+ * quotation is priced by the team, and this is indicative.
  */
 export type SpiritualTourPrice = {
   label: string;
   amount: string;
   note: string | null;
 };
+
+/**
+ * Which icon a section row (and its sheet header) shows. Closed set;
+ * an unknown value becomes 'info' in the schema.
+ */
+export type SpiritualTourSectionIcon =
+  | 'itinerary'
+  | 'check'
+  | 'cross'
+  | 'rupee'
+  | 'info'
+  | 'list';
+
+type SpiritualTourInfoSectionBase = {
+  /** Stable key within one tour, e.g. "itinerary". */
+  id: string;
+  /** Row title and sheet title, e.g. "Itinerary". */
+  title: string;
+  icon: SpiritualTourSectionIcon;
+  /** Sheet message while the section is empty; null = app default. */
+  emptyText: string | null;
+};
+
+/**
+ * One tappable row on the detail screen; tapping opens a bottom sheet.
+ * The backend decides which rows exist, their order, titles and icons.
+ * `kind` decides the sheet's layout. A kind this app does not know is
+ * dropped by the schema, so the backend can add kinds safely.
+ */
+export type SpiritualTourInfoSection =
+  | (SpiritualTourInfoSectionBase & {
+      kind: 'itinerary';
+      days: SpiritualTourItineraryDay[];
+    })
+  | (SpiritualTourInfoSectionBase & {
+      kind: 'list';
+      marker: 'check' | 'cross' | 'dot';
+      items: string[];
+    })
+  | (SpiritualTourInfoSectionBase & {
+      kind: 'pricing';
+      rows: SpiritualTourPrice[];
+      note: string | null;
+    })
+  | (SpiritualTourInfoSectionBase & {
+      kind: 'text';
+      body: string | null;
+    });
 
 export type SpiritualTour = {
   /** Stable slug, e.g. "char-dham-yatra". The detail screen's param. */
@@ -95,11 +158,11 @@ export type SpiritualTour = {
   /** Smaller bracketed qualifier after the title, e.g. "(North, MP)". */
   titleNote: string | null;
   /**
-   * Named stops. Names joined with "·" on the card; picture tiles on the
+   * Named stops, joined with "·" under the title on the card and on the
    * detail screen. Empty for tours described in prose instead.
    */
   places: SpiritualTourPlace[];
-  /** Prose description, used on the card when `places` is empty. */
+  /** Prose description, used under the title when `places` is empty. */
   summary: string | null;
   icon: SpiritualTourIcon;
   /**
@@ -110,25 +173,14 @@ export type SpiritualTour = {
   imageUrl: string | null;
 
   /* ----- Detail screen -----
-   * All optional. A tour with none of it still lists and still opens; its
-   * tabs just show empty states. That lets ops publish a tour as soon as
-   * its name and stops are known and write it up later. */
+   * All optional. A tour with none of it still lists and still opens. */
 
-  /** One line under the title on the detail screen. */
-  tagline: string | null;
-  /** Carousel images, in order. Empty falls back to `imageUrl`, then a tile. */
-  heroImages: string[];
-  facts: SpiritualTourFacts;
-  /** The "About the Tour" body on the Overview tab. */
+  /** The fact strip under the title, in order. Empty hides the strip. */
+  facts: SpiritualTourFact[];
+  /** The "About the Tour" body. null hides that block. */
   overview: string | null;
-  /** The ticked list in the Tour Highlights panel. */
-  highlights: string[];
-  itinerary: SpiritualTourItineraryDay[];
-  inclusions: string[];
-  exclusions: string[];
-  pricing: SpiritualTourPrice[];
-  /** Small print under the price rows. */
-  pricingNote: string | null;
+  /** The tappable rows under About the Tour, in order. */
+  sections: SpiritualTourInfoSection[];
 };
 
 /** One region heading and the tours under it, in catalog order. */
