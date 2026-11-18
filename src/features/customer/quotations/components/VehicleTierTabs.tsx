@@ -8,9 +8,9 @@
  *
  * A segmented control inside the "Choose Your Vehicle" card. The
  * coloured highlight SLIDES to the tapped tab (and widens / narrows
- * to fit it) and takes that tier's colour: green for Economy and
- * Premium, royal purple for Royal and Royal VIP — the same colours
- * as the tier pills on the vehicle cards.
+ * to fit it) and takes that tier's colour from VEHICLE_TIER_PALETTE:
+ * Economy green, Premium blue, Royal purple, Royal VIP gold — the
+ * same colours as the tier pills everywhere in the app.
  *
  * MARKED TAB
  *   `markedKey` is the tier that holds the customer's selected

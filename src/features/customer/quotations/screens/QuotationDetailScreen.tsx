@@ -153,7 +153,6 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import {
   ArrowLeftRight,
   Bus,
-  Calendar,
   CarFront,
   CheckCircle2,
   ChevronDown,
@@ -235,14 +234,6 @@ const CALL_TINT_BG = '#EAF2FF';
 const CALL_TINT_FG = '#1D6BFF';
 const EMAIL_TINT_BG = '#FFF1E0';
 const EMAIL_TINT_FG = '#D97B0A';
-
-/* ================================================================
- * Formatting helpers
- * ================================================================ */
-
-function formatAmount(rupees: number): string {
-  return `₹${rupees.toLocaleString('en-IN')}`;
-}
 
 /* ================================================================
  * Status visual mappings
@@ -502,10 +493,6 @@ const QuotationDetailScreen: React.FC = () => {
           ) : (
             <VehicleCard detail={detail} />
           )}
-          <AdvanceToBookCard
-            amount={detail.amount}
-            advanceAmount={detail.advanceAmount}
-          />
           <TripChargesSection
             detail={detail}
             selectedOption={selectedVehicleOption}
@@ -1374,49 +1361,6 @@ const BottomBar: React.FC<{
 };
 
 /* ================================================================
- * AdvanceToBookCard  — orange-tint info card (lives in the scroll
- *                      content, between Vehicle Details and Terms)
- *                      showing the upfront amount due to lock the
- *                      booking. Read-only — no press handler, no
- *                      navigation affordance — this is a fact
- *                      about the quotation, not an action; paying
- *                      the advance happens via the CTA below.
- *                      Percentage is derived from the record
- *                      (advanceAmount / amount) rather than hard-
- *                      coded, so it stays correct if ops ever tunes
- *                      the advance fraction per quotation.
- * ================================================================ */
-
-const AdvanceToBookCard: React.FC<{
-  amount: number;
-  advanceAmount: number;
-}> = ({ amount, advanceAmount }) => {
-  const percent = amount > 0 ? Math.round((advanceAmount / amount) * 100) : 0;
-
-  return (
-    <View style={styles.advanceBar}>
-      <View style={styles.advanceIconTile}>
-        <Calendar size={20} color={Colors.accent} strokeWidth={2.25} />
-      </View>
-      <View style={styles.advanceBody}>
-        <Text style={styles.advanceTitle}>Advance to Book</Text>
-        <Text style={styles.advanceSubtitle}>
-          Please pay {percent}% to confirm your booking
-        </Text>
-      </View>
-      <View style={styles.advanceRight}>
-        <Text style={styles.advanceRightLabel}>
-          Advance Amount ({percent}%)
-        </Text>
-        <Text style={styles.advanceRightAmount}>
-          {formatAmount(advanceAmount)}
-        </Text>
-      </View>
-    </View>
-  );
-};
-
-/* ================================================================
  * Styles
  * ================================================================ */
 
@@ -1755,53 +1699,6 @@ const styles = StyleSheet.create({
     ...Typography.label,
     fontWeight: '700',
     color: Colors.primaryDark,
-  },
-
-  /* Advance-to-book card (scrollable content, between Vehicle
-     Details and Terms — read-only, no press state) */
-  advanceBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.accentTint,
-  },
-  advanceIconTile: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.surface,
-  },
-  advanceBody: {
-    flex: 1,
-    gap: 2,
-  },
-  advanceTitle: {
-    ...Typography.bodySmall,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-  },
-  advanceSubtitle: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  advanceRight: {
-    alignItems: 'flex-end',
-  },
-  advanceRightLabel: {
-    ...Typography.caption,
-    fontWeight: '700',
-    color: Colors.accent,
-  },
-  advanceRightAmount: {
-    ...Typography.subtitle,
-    fontWeight: '800',
-    color: Colors.accent,
-    marginTop: 1,
   },
 
   /* Bottom action bar */

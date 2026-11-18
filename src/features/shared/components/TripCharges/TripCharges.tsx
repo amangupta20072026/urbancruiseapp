@@ -5,7 +5,7 @@
  * Two cards describing what the fare covers and what the customer
  * still owes the driver. Shared by BOTH ends of the funnel:
  *
- *   Quotation Details — after "Advance to Book"
+ *   Quotation Details — after the vehicle section
  *   Booking Details   — after "Fare Details"
  *
  * One component on purpose. These are the same commercial terms seen
@@ -37,12 +37,35 @@
  * Vehicle-specific charges (`forVehicle` set, e.g. extra km above
  * 1800) show ONLY the booked vehicle option's rate, as one large
  * chip, with the option named beside it.
+ *
+ * VIEW ALL / COLLAPSE (same pattern as the vehicle cards)
+ *   Both cards start COLLAPSED, showing only their header with a
+ *   count, and expand on their own:
+ *
+ *   ┌ (📋) Notes · 5 points                     View all ⌄ ┐
+ *   └──────────────────────────────────────────────────────┘
+ *   ┌ (🧾) Other Charges · 4 items              View all ⌄ ┐
+ *   └──────────────────────────────────────────────────────┘
+ *
+ *   Tapping anywhere on the header (or "View all") expands the card;
+ *   "Collapse ⌃" folds it again. Expanded, Other Charges shows
+ *   "(if applicable)" in place of the count. The card's height
+ *   animates (layout transition) and the content fades in, so a card
+ *   below it slides rather than jumps. Reanimated follows the phone's
+ *   Reduce Motion setting by itself.
  * ------------------------------------------------------------------
  */
 
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { CircleCheck, ClipboardList, ReceiptText } from 'lucide-react-native';
+import React, { useCallback, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import {
+  ChevronDown,
+  ChevronUp,
+  CircleCheck,
+  ClipboardList,
+  ReceiptText,
+} from 'lucide-react-native';
 
 import { Colors, Radius, Spacing, Typography } from '@theme';
 
@@ -81,16 +104,59 @@ const STATUS_META: Record<
 };
 
 /* ================================================================
+ * Collapsible shell — shared by both cards
+ * ================================================================ */
+
+/** "5 points", "1 item". */
+function countLabel(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/** "View all ⌄" / "Collapse ⌃" — green, like the vehicle cards. */
+const ToggleLabel: React.FC<{ expanded: boolean }> = ({ expanded }) => (
+  <View style={styles.toggle}>
+    <Text style={styles.toggleText}>{expanded ? 'Collapse' : 'View all'}</Text>
+    {expanded ? (
+      <ChevronUp size={16} color={Colors.primaryDark} strokeWidth={2.5} />
+    ) : (
+      <ChevronDown size={16} color={Colors.primaryDark} strokeWidth={2.5} />
+    )}
+  </View>
+);
+
+/** Starts collapsed; returns the state and its toggle. */
+function useExpanded(): [boolean, () => void] {
+  const [expanded, setExpanded] = useState(false);
+  const toggle = useCallback(() => setExpanded(prev => !prev), []);
+  return [expanded, toggle];
+}
+
+/* ================================================================
  * Notes card
  * ================================================================ */
 
 export const TripNotesCard: React.FC<{ notes: readonly string[] }> = ({
   notes,
 }) => {
+  const [expanded, toggle] = useExpanded();
   if (notes.length === 0) return null;
+
+  const count = countLabel(notes.length, 'point', 'points');
+
   return (
-    <View style={[styles.card, styles.notesCard]}>
-      <View style={styles.headRow}>
+    <Animated.View
+      layout={LinearTransition.duration(240)}
+      style={[styles.card, styles.notesCard]}
+    >
+      <Pressable
+        onPress={toggle}
+        style={({ pressed }) => [styles.headRow, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`Notes, ${count}. ${
+          expanded ? 'Collapse' : 'View all'
+        }`}
+      >
         <View style={[styles.iconTile, styles.notesIconTile]}>
           <ClipboardList
             size={18}
@@ -98,23 +164,34 @@ export const TripNotesCard: React.FC<{ notes: readonly string[] }> = ({
             strokeWidth={2.25}
           />
         </View>
-        <Text style={[styles.title, styles.notesTitle]}>Notes</Text>
-      </View>
+        <Text style={[styles.title, styles.notesTitle]} numberOfLines={1}>
+          Notes
+          {expanded ? null : (
+            <Text style={styles.titleNote}>{`  ·  ${count}`}</Text>
+          )}
+        </Text>
+        <ToggleLabel expanded={expanded} />
+      </Pressable>
 
-      <View style={styles.notesList}>
-        {notes.map(note => (
-          <View key={note} style={styles.noteRow}>
-            <CircleCheck
-              size={16}
-              color={Colors.primary}
-              strokeWidth={2.25}
-              style={styles.noteIcon}
-            />
-            <Text style={styles.noteText}>{note}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
+      {expanded ? (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          style={[styles.body, styles.notesList]}
+        >
+          {notes.map(note => (
+            <View key={note} style={styles.noteRow}>
+              <CircleCheck
+                size={16}
+                color={Colors.primary}
+                strokeWidth={2.25}
+                style={styles.noteIcon}
+              />
+              <Text style={styles.noteText}>{note}</Text>
+            </View>
+          ))}
+        </Animated.View>
+      ) : null}
+    </Animated.View>
   );
 };
 
@@ -168,24 +245,45 @@ const ChargeRow: React.FC<{ charge: TripCharge; isFirst: boolean }> = ({
 export const OtherChargesCard: React.FC<{
   charges: readonly TripCharge[];
 }> = ({ charges }) => {
+  const [expanded, toggle] = useExpanded();
   if (charges.length === 0) return null;
+
+  const count = countLabel(charges.length, 'item', 'items');
+
   return (
-    <View style={[styles.card, styles.chargesCard]}>
-      <View style={styles.headRow}>
+    <Animated.View
+      layout={LinearTransition.duration(240)}
+      style={[styles.card, styles.chargesCard]}
+    >
+      <Pressable
+        onPress={toggle}
+        style={({ pressed }) => [styles.headRow, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`Other charges, ${count}. ${
+          expanded ? 'Collapse' : 'View all'
+        }`}
+      >
         <View style={[styles.iconTile, styles.chargesIconTile]}>
           <ReceiptText size={18} color={CHARGES_FG} strokeWidth={2.25} />
         </View>
-        <Text style={[styles.title, styles.chargesTitle]}>
-          Other Charges <Text style={styles.titleNote}>(if applicable)</Text>
+        <Text style={[styles.title, styles.chargesTitle]} numberOfLines={1}>
+          Other Charges{' '}
+          <Text style={styles.titleNote}>
+            {expanded ? '(if applicable)' : `·  ${count}`}
+          </Text>
         </Text>
-      </View>
+        <ToggleLabel expanded={expanded} />
+      </Pressable>
 
-      <View>
-        {charges.map((charge, i) => (
-          <ChargeRow key={charge.label} charge={charge} isFirst={i === 0} />
-        ))}
-      </View>
-    </View>
+      {expanded ? (
+        <Animated.View entering={FadeIn.duration(200)} style={styles.body}>
+          {charges.map((charge, i) => (
+            <ChargeRow key={charge.label} charge={charge} isFirst={i === 0} />
+          ))}
+        </Animated.View>
+      ) : null}
+    </Animated.View>
   );
 };
 
@@ -198,7 +296,23 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    gap: Spacing.md,
+  },
+  /* Expanded content sits this far under the header. */
+  body: {
+    marginTop: Spacing.md,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  toggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  toggleText: {
+    ...Typography.caption,
+    fontWeight: '700',
+    color: Colors.primaryDark,
   },
   headRow: {
     flexDirection: 'row',

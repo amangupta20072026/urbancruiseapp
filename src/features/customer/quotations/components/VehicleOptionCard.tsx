@@ -28,12 +28,14 @@
  * image) so four chips fit on a 360dp phone.
  *
  * COLOUR RULE:
- *   - The tier pill always uses the tier's colour (green for
- *     Economy/Premium, royal purple for Royal/Royal VIP).
+ *   - Each tier has its own colour (VEHICLE_TIER_PALETTE: Economy
+ *     green, Premium blue, Royal purple, Royal VIP gold). The tier
+ *     pill and "Most popular" badge always use it.
  *   - Every other accent (index badge, image wash, price, border,
- *     selected button) is brand green, and switches to the tier
- *     colour only when this card is selected. So at most one purple
- *     card is ever on screen, and it's the one the customer picked.
+ *     ✓, selected button) is brand green, and switches to the tier
+ *     colour only when this card is selected. So at most one card in
+ *     a tier colour is ever on screen, and it's the one the customer
+ *     picked.
  *
  * Quantity and selection are owned by ChooseVehicleSection. The only
  * state here is `expanded`, which is purely visual: collapsing a card
@@ -79,35 +81,27 @@ import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import {
   DEFAULT_MAX_VEHICLE_QUANTITY,
   VEHICLE_TIER_LABELS,
+  VEHICLE_TIER_PALETTE,
   type VehicleAmenityKind,
   type VehicleOption,
-  type VehicleTierKey,
+  type VehicleTierPalette,
 } from '../vehicleTierOptions';
 
 /* ================================================================
  * Tier palette
  * ================================================================ */
 
-export type TierPalette = { solid: string; tint: string; wash: string };
+export type TierPalette = VehicleTierPalette;
 
-const GREEN: TierPalette = {
+/** The shared tier colours (vehicleTierOptions.ts), re-exported for
+ *  the tier tabs and the screen. */
+export const TIER_PALETTE = VEHICLE_TIER_PALETTE;
+
+/** Accent of a card that is NOT selected: brand green, every tier. */
+const UNSELECTED: TierPalette = {
   solid: Colors.primaryDark,
   tint: Colors.primaryTint,
   wash: Colors.primaryWash,
-};
-
-const ROYAL: TierPalette = {
-  solid: Colors.royal,
-  tint: Colors.royalTint,
-  wash: Colors.royalWash,
-};
-
-/** Exported so the tier tabs use exactly the same colours. */
-export const TIER_PALETTE: Readonly<Record<VehicleTierKey, TierPalette>> = {
-  economy: GREEN,
-  premium: GREEN,
-  royal: ROYAL,
-  royal_vip: ROYAL,
 };
 
 const AMENITY_ICON: Readonly<Record<VehicleAmenityKind, LucideIcon>> = {
@@ -158,7 +152,7 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
   }) => {
     const tierPalette = TIER_PALETTE[option.tier];
     // Accent for everything except the tier pill — see COLOUR RULE.
-    const accent = selected ? tierPalette : GREEN;
+    const accent = selected ? tierPalette : UNSELECTED;
     const tierLabel = VEHICLE_TIER_LABELS[option.tier];
     const maxQty = option.maxQuantity ?? DEFAULT_MAX_VEHICLE_QUANTITY;
     const vehicleName = `${tierLabel} ${option.model}`;

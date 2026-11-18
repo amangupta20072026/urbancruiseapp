@@ -1,20 +1,19 @@
 /**
- * Tier label pill. Same colour rule as VehicleOptionCard's tier pill:
- * green for Economy / Premium, royal purple for Royal / Royal VIP,
- * white text on the solid colour.
+ * Tier label pill. Same colours as VehicleOptionCard's tier pill —
+ * the shared VEHICLE_TIER_PALETTE (Economy green, Premium blue, Royal
+ * purple, Royal VIP gold) — with white text on the solid colour.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors, Radius, Spacing, Typography } from '@theme';
 import {
   VEHICLE_TIER_LABELS,
+  VEHICLE_TIER_PALETTE,
   type VehicleTierKey,
 } from '@features/customer/quotations/vehicleTierOptions';
 
 export function tierSolidColor(tier: VehicleTierKey): string {
-  return tier === 'royal' || tier === 'royal_vip'
-    ? Colors.royal
-    : Colors.primaryDark;
+  return VEHICLE_TIER_PALETTE[tier].solid;
 }
 
 export const TierPill: React.FC<{ tier: VehicleTierKey }> = ({ tier }) => (

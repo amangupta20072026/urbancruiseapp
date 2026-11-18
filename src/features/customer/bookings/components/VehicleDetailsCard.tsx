@@ -52,6 +52,10 @@ import {
 } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
+import {
+  VEHICLE_TIER_PALETTE,
+  type VehicleTierKey,
+} from '@features/customer/quotations/vehicleTierOptions';
 
 import type { CustomerBookingDetail } from '../types';
 
@@ -65,11 +69,21 @@ const PLACEHOLDER_VEHICLE_IMG: ImageSourcePropType = require('@assets/images/ser
 
 type TierVisual = { fg: string; bg: string };
 
+/** Tier colour as a tinted badge: tier colour text on its light tint.
+ *  Colours come from the shared VEHICLE_TIER_PALETTE, so this badge
+ *  matches the tier tags on Quotation Details and the brochures. */
+const badge = (tier: VehicleTierKey): TierVisual => ({
+  fg: VEHICLE_TIER_PALETTE[tier].solid,
+  bg: VEHICLE_TIER_PALETTE[tier].tint,
+});
+
+/** Keyed by the lower-cased display name the booking carries
+ *  (`vehicleOption.tier`, e.g. "Royal VIP"). */
 const TIER_VISUAL: Record<string, TierVisual> = {
-  economy: { fg: Colors.textSecondary, bg: Colors.surfaceMuted },
-  premium: { fg: Colors.completed, bg: Colors.completedTint },
-  royal: { fg: Colors.royal, bg: Colors.royalTint },
-  'royal vip': { fg: Colors.secondaryDark, bg: Colors.secondaryTint },
+  economy: badge('economy'),
+  premium: badge('premium'),
+  royal: badge('royal'),
+  'royal vip': badge('royal_vip'),
 };
 
 const DEFAULT_TIER_VISUAL: TierVisual = {

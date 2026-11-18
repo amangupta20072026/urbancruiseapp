@@ -46,6 +46,37 @@ export const VEHICLE_TIER_NAMES: Readonly<Record<VehicleTierKey, string>> = {
   royal_vip: 'Royal VIP',
 };
 
+/** One tier's colours. */
+export type VehicleTierPalette = {
+  /** Strong colour: tabs, tier tags (white text on it), selected
+   *  card border / price / ✓ / button, tinted-badge text. */
+  solid: string;
+  /** Light tint: image background, tinted badge background. */
+  tint: string;
+  /** Faintest wash: selected card background. */
+  wash: string;
+};
+
+/**
+ * THE tier colours — the one place they are defined. "Rising value":
+ * green → blue → purple → gold, getting richer as the tier goes up.
+ * Used everywhere a tier is coloured: Quotation Details (tier tabs and
+ * vehicle cards), the brochure screens' tier tags (Vehicle Brochures,
+ * Compare Vehicles, Vehicle Video) and the Booking Details vehicle
+ * card's tier badge.
+ *
+ * Contrast (WCAG AA, small text): white on every `solid` is ≥ 4.9:1,
+ * and every `solid` on its own `tint` is ≥ 4.5:1.
+ */
+export const VEHICLE_TIER_PALETTE: Readonly<
+  Record<VehicleTierKey, VehicleTierPalette>
+> = {
+  economy: { solid: '#2E7D32', tint: '#E7F7EC', wash: '#F4FBF5' },
+  premium: { solid: '#1D4ED8', tint: '#DBEAFE', wash: '#EFF6FF' },
+  royal: { solid: '#7E22CE', tint: '#F3E8FF', wash: '#FAF5FF' },
+  royal_vip: { solid: '#A16207', tint: '#FEF7DD', wash: '#FFFBEB' },
+};
+
 /**
  * Amenity kinds the card knows how to draw an icon for. `label` on
  * each amenity is free text, so ops can say "BT Music" vs "Music
