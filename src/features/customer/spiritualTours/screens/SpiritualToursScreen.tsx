@@ -3,21 +3,23 @@
  * SpiritualToursScreen — what Urban Cruise offers
  * ------------------------------------------------------------------
  *   ┌────────────────────────────────────────┐
- *   │ ‹        [ Urban Cruise ]              │
- *   │ Spiritual Tours                        │
- *   │ ───                                    │
- *   ╭────────────────────────────────────────╮
- *   │ NORTH TOURS                            │
+ *   │ ‹  [ Urban Cruise ]        ╱▲╲         │  fixed
+ *   │ Spiritual                ╱▲███▲╲       │  (white,
+ *   │ Tours                    █TEMPLE█      │   temple
+ *   │ ───                      ▀▀▀▀▀▀▀       │   image)
+ *   │ Explore India’s divine heritage …      │
+ *   ├────────────────────────────────────────┤
+ *   │ 📍 NORTH TOURS                         │  scrolls
  *   │  🛕 Char Dham Yatra                 ›  │
  *   │     Yamunotri · Gangotri · Kedar…      │
  *   │  🛕 Ayodhya-Prayagraj-Varanasi      ›  │
  *   │  🔱 Shakti peeth Tour (North, MP)   ›  │
  *   │                                        │
- *   │ WEST TOURS                             │
+ *   │ 📍 WEST TOURS                          │
  *   │  ॐ Ujjain-Omkareshwar               ›  │
  *   │  🐘 Ashtvinayak Yatra               ›  │
  *   │  🕉 Jyotirlinga Tours (Mah. + Guj.) ›  │
- *   ╰────────────────────────────────────────╯
+ *   ├────────────────────────────────────────┤
  *   │ [ 🎧 Talk to a Travel Advisor ]        │  pinned
  *   └────────────────────────────────────────┘
  *
@@ -40,17 +42,14 @@
  *   service with a backend deploy and no app release.
  *
  * FIXED HEADER, SCROLLING LIST
- *   The hero and the call bar are fixed; only the white sheet between
- *   them scrolls, and its content starts at the NORTH TOURS band.
- *   The sheet is a plain View that owns the rounded top corners and
- *   clips (`overflow: 'hidden'`), and the ScrollView sits inside it.
- *   The corners must belong to this fixed wrapper: put them on the
- *   scroll content and they would scroll away with it.
+ *   The white hero (with the temple image) and the call bar are
+ *   fixed; only the list between them scrolls, starting at the NORTH
+ *   TOURS band. The whole page is white — there is no separate sheet.
  *
  * LAYOUT NOTE — why SafeScreen is not used
- *   SafeScreen paints BOTH insets with one colour. This screen needs
- *   a green top and a white bottom, so the hero paints its own top
- *   inset and the call bar pads itself with `insets.bottom`.
+ *   The hero paints its own top inset (so the temple can sit right
+ *   under the status bar) and the call bar pads itself with
+ *   `insets.bottom`.
  * ------------------------------------------------------------------ */
 import React, { useCallback } from 'react';
 import { ScrollView, StatusBar, StyleSheet, View } from 'react-native';
@@ -79,7 +78,7 @@ type Nav = NativeStackNavigationProp<CustomerStackParamList>;
 const SkeletonList: React.FC = () => (
   <View style={styles.skeletonWrap}>
     {[0, 1, 2, 3].map(i => (
-      <Skeleton key={i} width="100%" height={64} radius={16} />
+      <Skeleton key={i} width="100%" height={76} radius={20} />
     ))}
   </View>
 );
@@ -126,11 +125,11 @@ const SpiritualToursScreen: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      {/* Light icons for the dark hero. RN keeps a stack of these:
+      {/* Dark icons on the white hero. RN keeps a stack of these:
           unmounting this screen pops the entry and the screen
-          underneath gets its dark-content bar back automatically. */}
+          underneath gets its own bar back automatically. */}
       <StatusBar
-        barStyle="light-content"
+        barStyle="dark-content"
         backgroundColor={HERO_BG}
         translucent={false}
       />
@@ -138,8 +137,8 @@ const SpiritualToursScreen: React.FC = () => {
       {/* Fixed: stays put while the list scrolls. */}
       <SpiritualToursHero onBack={onBack} topInset={insets.top} />
 
-      {/* The sheet clips and rounds; the list scrolls inside it. */}
-      <View style={styles.sheet}>
+      {/* Only the list scrolls. */}
+      <View style={styles.listArea}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -194,39 +193,30 @@ export default SpiritualToursScreen;
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    // Matches the hero so an over-scroll bounce at the top shows
-    // green, not a white flash.
     backgroundColor: HERO_BG,
   },
-  sheet: {
+  listArea: {
     flex: 1,
-    // Lifts over the hero's lower edge. Later sibling, so it paints
-    // above the hero.
-    marginTop: -Spacing.xxl,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
     backgroundColor: Colors.surface,
-    // Clips the scrolling rows to the rounded corners.
-    overflow: 'hidden',
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
+    paddingTop: Spacing.xs,
     // The call bar is a sibling, not an overlay, so the scroll needs
     // no padding for it — only a little breathing room at the end.
     paddingBottom: Spacing.xl,
   },
   section: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   rows: {
-    // 9 pt between cards and 12 under the band: the cards must read
+    // 8 pt between cards and 10 under the band: the cards must read
     // as belonging to the band above them, not float between bands.
-    gap: Spacing.sm + 1,
-    marginTop: Spacing.md,
+    gap: Spacing.sm,
+    marginTop: Spacing.sm + 2,
   },
   skeletonWrap: {
     gap: Spacing.sm,

@@ -3,10 +3,14 @@
  * TourCard — one tour in the list
  * ------------------------------------------------------------------
  *   ┌──────────────────────────────────────────────┐
- *   │ ┌────┐  Char Dham Yatra                 (›)  │
- *   │ │ 🛕 │  Yamunotri · Gangotri · Kedarnath …   │
- *   │ └────┘                                       │
+ *   │ ┌──────┐  Char Dham Yatra                (›) │
+ *   │ │  🛕  │  Yamunotri · Gangotri · Kedarnath … │
+ *   │ └──────┘                                     │
  *   └──────────────────────────────────────────────┘
+ *
+ * SIZE
+ *   Larger than the first version, to match the design: a wide tint
+ *   tile (TILE_W × TILE_H), a bigger title and a bigger chevron disc.
  *
  * TITLE ON ONE LINE, SUBTITLE IN FULL
  *   The title truncates rather than wrapping, with `titleNote` inline
@@ -45,7 +49,10 @@ type Props = {
   onPress: (tour: SpiritualTour) => void;
 };
 
-const TILE = 52;
+/** The design's tile is wider than it is tall. */
+const TILE_W = 68;
+const TILE_H = 54;
+const GO = 34;
 
 /** Named stops, or the prose summary when a tour has none. */
 export function subtitleFor(tour: SpiritualTour): string {
@@ -107,7 +114,7 @@ export const TourCard: React.FC<Props> = ({ tour, onPress }) => {
         ) : bundled ? (
           <Image source={bundled} style={styles.image} resizeMode="contain" />
         ) : (
-          <TourIcon name={tour.icon} size={30} color={Colors.primaryDark} />
+          <TourIcon name={tour.icon} size={34} color={Colors.primaryDark} />
         )}
       </View>
 
@@ -133,7 +140,7 @@ export const TourCard: React.FC<Props> = ({ tour, onPress }) => {
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <ChevronRight size={15} color={Colors.primaryDark} strokeWidth={2.6} />
+        <ChevronRight size={18} color={Colors.primaryDark} strokeWidth={2.6} />
       </View>
     </Pressable>
   );
@@ -144,26 +151,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    paddingVertical: Spacing.sm + 3,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.lg,
+    paddingVertical: Spacing.sm + 2,
+    paddingLeft: Spacing.sm + 2,
+    paddingRight: Spacing.md,
+    borderRadius: Radius.xl,
     backgroundColor: Colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
     // Lighter than Shadows.sm on purpose: six stacked cards with a
     // normal card shadow turn the list grey.
     shadowColor: '#101814',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   pressed: {
     backgroundColor: Colors.primaryWash,
   },
   tile: {
-    width: TILE,
-    height: TILE,
+    width: TILE_W,
+    height: TILE_H,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -178,24 +186,24 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: Spacing.xxs,
   },
   title: {
     ...Typography.subtitle,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '800',
     color: Colors.textPrimary,
   },
   subtitle: {
     ...Typography.caption,
-    fontSize: 11.5,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 18,
     color: Colors.textSecondary,
   },
   go: {
-    width: 28,
-    height: 28,
+    width: GO,
+    height: GO,
     borderRadius: Radius.circle,
     alignItems: 'center',
     justifyContent: 'center',

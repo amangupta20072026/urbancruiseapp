@@ -1,30 +1,50 @@
 /**
  * ------------------------------------------------------------------
- * SpiritualToursHero — the green header
+ * SpiritualToursHero — the white header with the temple
  * ------------------------------------------------------------------
  *   ┌───────────────────────────────────────────────┐
- *   │ ‹        [ Urban Cruise ]          ☀  ╱▲╲ ╱▲╲ │
- *   │ Spiritual Tours                   ▂▃▅███████▅ │
- *   │ ───                                           │
- *   │ Embark on sacred journeys to …                │
+ *   │ ‹  [ Urban Cruise ]              ╱▲╲          │
+ *   │                                ╱▲╲███╱▲╲      │
+ *   │ Spiritual                      ██ TEMPLE ██   │
+ *   │ Tours                          ███████████    │
+ *   │ ───                            ▀▀▀▀▀▀▀▀▀▀▀    │
+ *   │ Explore India’s divine …                      │
  *   └───────────────────────────────────────────────┘
  *
- * THE SKYLINE IS DRAWN, NOT AN ASSET
- *   The repo ships no temple-skyline artwork, and `service-temple.png`
- *   is a full-colour illustration — flattening it to a silhouette
- *   produces the green blob the old screen's notes warned about. So
- *   the sun, ridges, shrines and birds are paths here: they scale to
- *   any screen, cost nothing to download, and tint with the hero.
+ * THE TEMPLE IS THE SHIPPED ILLUSTRATION
+ *   `service-temple.png` (512×512, transparent background) — the same
+ *   file the home screen's service switcher uses. It sits on the
+ *   right, behind the copy, from the status-bar line down. Its size
+ *   follows the screen width (about half of it, capped), so it keeps
+ *   the design's proportions on small and large phones.
  *
- *   If design later supplies the real artwork, swap the <Svg> block
- *   for an <Image> — nothing else on the screen depends on it.
+ * THE TITLE NEVER RUNS UNDER THE TEMPLE
+ *   The title column is as wide as the screen minus the temple, so
+ *   "Spiritual Tours" wraps before it reaches the artwork. The PNG has
+ *   a few points of transparent margin, which is why a small overlap
+ *   of the column into the temple's box is harmless.
  *
- * It sits behind the text, is pinned to the right, and is hidden from
- * screen readers in full. The title is the heading.
+ * THE SUBTITLE IS ALWAYS TWO LINES
+ *   It sits below the temple, so it gets its own, wider box
+ *   (SUBTITLE_MAX) and fits in two lines at the normal text size. With
+ *   a very large system text size it shrinks (down to
+ *   SUBTITLE_MIN_SCALE) rather than taking a third line.
+ *
+ * WHITE, SO THE STATUS BAR IS DARK
+ *   HERO_BG is exported so the screen can paint the status bar and its
+ *   own background with the same white.
+ *
+ * The temple is hidden from screen readers. The title is the heading.
  * ------------------------------------------------------------------ */
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, G, Path } from 'react-native-svg';
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 
 import { BrandLockup } from '@shared/components';
@@ -36,157 +56,114 @@ type Props = {
   topInset: number;
 };
 
-/* Deeper than Colors.primaryDark so white text clears 7:1 on it, and
- * the two tints the silhouette is built from. Local: nothing else in
- * the app uses greens this dark. */
-export const HERO_BG = '#1B5E20';
-const RIDGE_FAR = '#2E7D32';
-const RIDGE_NEAR = '#14491A';
-const SUN = '#A5D96A';
-const SUBTITLE = 'rgba(255, 255, 255, 0.90)';
-/** The design's gold rule under the title. */
-const RULE = '#F9A825';
+/** The hero, the status bar and the page behind it are all white. */
+export const HERO_BG = Colors.surface;
 
-/** One shrine: stepped base, body, dome, finial, flag. */
-const Shrine: React.FC<{ x: number; scale: number; fill: string }> = ({
-  x,
-  scale,
-  fill,
-}) => (
-  <G transform={`translate(${x}, 0) scale(${scale})`}>
-    <Path
-      d="M-16 100 L-16 52 L-11 52 L-11 40 L11 40 L11 52 L16 52 L16 100 Z"
-      fill={fill}
-    />
-    {/* Dome */}
-    <Path d="M-11 40 C-11 26 -5 18 0 12 C5 18 11 26 11 40 Z" fill={fill} />
-    {/* Finial and flag */}
-    <Path d="M-1.4 12 L-1.4 0 L1.4 0 L1.4 12 Z" fill={fill} />
-    <Path d="M1.4 0.5 L13 4.5 L1.4 8.5 Z" fill={fill} />
-  </G>
-);
+/** The design's deep green title — darker than Colors.primaryDark so
+ *  the large title reads as the heading, not as a button. */
+const TITLE = '#1B5E20';
+/** Dark grey subtitle from the design (≈ 10:1 on white). */
+const SUBTITLE = '#374151';
 
-export const SpiritualToursHero: React.FC<Props> = ({ onBack, topInset }) => (
-  <View style={[styles.hero, { paddingTop: topInset + Spacing.sm }]}>
-    {/* ── Silhouette ───────────────────────────────────────────── */}
-    <View
-      style={styles.art}
-      pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      <Svg
-        width="100%"
-        height="100%"
-        viewBox="0 0 320 200"
-        preserveAspectRatio="xMaxYMax slice"
-      >
-        {/* Rising sun behind everything */}
-        <Circle cx={212} cy={74} r={46} fill={SUN} opacity={0.55} />
+const TEMPLE = require('@assets/images/service-temple.png');
 
-        {/* Birds */}
-        <G
-          stroke={RIDGE_FAR}
-          strokeWidth={2.2}
-          strokeLinecap="round"
-          fill="none"
+/** Temple width as a share of the screen width, and its upper limit
+ *  so tablets and foldables don't get a giant temple. */
+const TEMPLE_SHARE = 0.5;
+const TEMPLE_MAX = 260;
+
+/** Widest the subtitle box gets: two lines at 14 pt. */
+const SUBTITLE_MAX = 260;
+/** Smallest the subtitle may shrink to keep two lines (70%). */
+const SUBTITLE_MIN_SCALE = 0.7;
+
+export const SpiritualToursHero: React.FC<Props> = ({ onBack, topInset }) => {
+  const { width: screenWidth } = useWindowDimensions();
+
+  const templeSize = Math.min(
+    Math.round(screenWidth * TEMPLE_SHARE),
+    TEMPLE_MAX,
+  );
+  // Everything left of the temple, minus the hero's left padding.
+  const copyWidth = screenWidth - templeSize - Spacing.xl + Spacing.sm;
+  // Below the temple, so it may run wider than the title column.
+  const subtitleWidth = Math.min(screenWidth - Spacing.xl * 2, SUBTITLE_MAX);
+
+  return (
+    <View style={[styles.hero, { paddingTop: topInset + Spacing.sm }]}>
+      {/* ── Temple ─────────────────────────────────────────────── */}
+      <Image
+        source={TEMPLE}
+        resizeMode="contain"
+        style={[
+          styles.temple,
+          { top: topInset, width: templeSize, height: templeSize },
+        ]}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
+
+      {/* ── Top row: back + logo, left aligned ─────────────────── */}
+      <View style={styles.topRow}>
+        <Pressable
+          onPress={onBack}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
         >
-          <Path d="M66 54 q7 -6 14 0" />
-          <Path d="M92 36 q6 -5 12 0" />
-          <Path d="M122 62 q5 -4 10 0" />
-        </G>
+          <ChevronLeft size={28} color={Colors.primaryDark} strokeWidth={2.4} />
+        </Pressable>
 
-        {/* Far ridge */}
-        <Path
-          d="M0 200 L0 136 L44 104 L86 138 L126 112 L170 150 L220 118 L268 146 L320 116 L320 200 Z"
-          fill={RIDGE_FAR}
-          opacity={0.75}
-        />
-
-        {/* Shrines sit on the near ridge's crest */}
-        <G transform="translate(0, 72)">
-          <Shrine x={150} scale={0.52} fill={RIDGE_NEAR} />
-          <Shrine x={204} scale={0.86} fill={RIDGE_NEAR} />
-          <Shrine x={264} scale={0.62} fill={RIDGE_NEAR} />
-          <Shrine x={308} scale={0.44} fill={RIDGE_NEAR} />
-        </G>
-
-        {/* Near ridge, over the shrines' feet */}
-        <Path
-          d="M0 200 L0 176 L52 158 L104 174 L156 160 L212 172 L266 156 L320 170 L320 200 Z"
-          fill={RIDGE_NEAR}
-        />
-      </Svg>
-    </View>
-
-    {/* ── Top row ──────────────────────────────────────────────── */}
-    <View style={styles.topRow}>
-      <Pressable
-        onPress={onBack}
-        hitSlop={12}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-        style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-      >
-        <ChevronLeft size={26} color={Colors.surface} strokeWidth={2.4} />
-      </Pressable>
-
-      {/* White plate: the wordmark's "Urban" is brand green and would
-          all but vanish against the hero. */}
-      <View style={styles.brandPlate}>
-        <BrandLockup width={150} variant="wordmark" />
+        {/* On white the wordmark needs no plate. */}
+        <BrandLockup width={116} variant="wordmark" />
       </View>
 
-      {/* Balances the back button so the plate sits centred. */}
-      <View style={styles.backBtn} />
+      {/* ── Title ──────────────────────────────────────────────── */}
+      <View style={{ width: copyWidth }}>
+        <Text
+          style={styles.title}
+          accessibilityRole="header"
+          maxFontSizeMultiplier={1.3}
+        >
+          Spiritual Tours
+        </Text>
+
+        <View
+          style={styles.rule}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+      </View>
+
+      {/* ── Subtitle: two lines, shrinks rather than wrapping to 3 ── */}
+      <Text
+        style={[styles.subtitle, { width: subtitleWidth }]}
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={SUBTITLE_MIN_SCALE}
+        maxFontSizeMultiplier={1.5}
+      >
+        Explore India’s divine heritage and spiritual destinations with us!
+      </Text>
     </View>
-
-    {/* ── Copy ─────────────────────────────────────────────────── */}
-    <Text
-      style={styles.title}
-      accessibilityRole="header"
-      maxFontSizeMultiplier={1.5}
-    >
-      Spiritual Tours
-    </Text>
-
-    <View
-      style={styles.rule}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    />
-
-    <Text style={styles.subtitle} maxFontSizeMultiplier={1.6}>
-      Explore India’s divine heritage and spiritual destinations with us!
-    </Text>
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   hero: {
     backgroundColor: HERO_BG,
     paddingHorizontal: Spacing.xl,
-    // The white sheet lifts into this space.
-    paddingBottom: Spacing.huge,
-    overflow: 'hidden',
+    paddingBottom: Spacing.lg,
   },
-  art: {
-    // Insets written out rather than spreading StyleSheet.absoluteFill:
-    // `left` is overridden below anyway, so the spread only hid which
-    // edges this actually pins. (RN 0.86 also dropped
-    // `absoluteFillObject` from StyleSheet's types — `absoluteFill` is
-    // what survives, and it is a registered style, not a plain object.)
+  temple: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    // Pinned right: the copy occupies the left, as in the design.
-    left: '28%',
+    right: Spacing.xs,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.lg,
   },
   backBtn: {
     width: 40,
@@ -195,35 +172,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pressed: {
-    opacity: 0.85,
-  },
-  brandPlate: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.surface,
+    opacity: 0.6,
   },
   title: {
     ...Typography.h1,
-    marginTop: Spacing.lg,
-    fontSize: 38,
+    marginTop: Spacing.xl,
+    fontSize: 40,
     lineHeight: 44,
     fontWeight: '800',
-    color: Colors.surface,
+    color: TITLE,
   },
   rule: {
-    width: 104,
-    height: 5,
+    width: 48,
+    height: 4,
     marginTop: Spacing.md,
     borderRadius: Radius.pill,
-    backgroundColor: RULE,
+    backgroundColor: Colors.primaryDark,
   },
   subtitle: {
     ...Typography.body,
-    marginTop: Spacing.lg,
-    lineHeight: 22,
-    // Keeps the copy clear of the silhouette on a narrow phone.
-    paddingRight: Spacing.sectionLarge,
+    marginTop: Spacing.md,
+    fontSize: 14,
+    lineHeight: 20,
     color: SUBTITLE,
   },
 });
