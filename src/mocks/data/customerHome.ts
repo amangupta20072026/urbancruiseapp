@@ -53,6 +53,8 @@ const AMAN_ID = mockCurrentUser.id;
  * Chosen to match the design mock's "12 May 2026" travel date. */
 const TRAVEL_DATE_ISO = '2026-05-12T09:00:00Z';
 const TRAVEL_END_DATE_ISO = '2026-05-15T12:30:00Z';
+const EXPECTED_DROP_ISO = '2026-05-12T13:30:00Z'; // 07:00 PM IST
+const DRIVER_REPORTING_ISO = '2026-05-12T08:00:00Z'; // 01:30 PM IST
 const QUOTATION_PREPARED_ISO = '2026-05-11T04:30:00Z'; // 10:30 AM IST (mock shows "10:30 AM")
 const PAYMENT_RECEIVED_ISO = '2026-05-10T05:45:00Z'; // 11:15 AM IST
 const TRIP_CONFIRMED_ISO = '2026-05-09T22:50:00Z'; // 04:20 AM IST next day-ish; mock reads "04:20 PM"
@@ -78,19 +80,28 @@ const AMAN_HOME: MockHomeData = {
 
   upcomingTrip: {
     id: 'TRP-2026-05-000921',
+    // Values below match the Home trip card design.
+    tripNumber: 'TRP-2026-0847',
     status: 'confirmed',
     fromCity: 'Delhi',
     toCity: 'Agra',
     scheduledAt: asISODateTime(TRAVEL_DATE_ISO),
+    travelEndDate: asISODateTime(TRAVEL_END_DATE_ISO),
+    durationDays: 5,
+    passengerCount: 2,
     vehicleName: 'Toyota Innova Crysta',
+    vehicleColor: 'White',
+    vehicleRegNo: 'UP16AB1234',
     /* Local placeholder path; the card component maps this through
      * a require() so the RN bundler picks it up. Later we swap to
      * a real vehicle photo (CDN URL from backend) — the field name
      * stays `vehicleImageUrl` for that transition. */
     vehicleImageUrl: 'placeholder-vehicle-innova',
-    /* Driver not yet assigned — swaps to the driver's name/phone
-     * once assignment happens, closer to the trip date. */
-    driverDetailsNote: 'Driver details available tomorrow',
+    distanceKm: 233,
+    estimatedDurationMinutes: 270,
+    expectedDropAt: asISODateTime(EXPECTED_DROP_ISO),
+    driver: { name: 'Amit Kumar', phone: '+91 98765 43210' },
+    driverReportingAt: asISODateTime(DRIVER_REPORTING_ISO),
   },
 
   recentActivity: [

@@ -13,7 +13,7 @@
  *   │ Prepared by Urban Cruise team                           │
  *   │ 📍 Delhi  →  📍 Jaipur                                   │
  *   │ 📅 12 May 2026 – 15 May 2026                            │
- *   │ ☰ 3 Options  |  ◷ 5 Days  |  👥 2 Passengers            │
+ *   │ ◷ 5 Days  |  👥 2 Passengers                            │
  *   │ [           Review Quotation  →            ]            │
  *   └────────────────────────────────────────────────────────┘
  *
@@ -50,7 +50,6 @@ import {
   Clock,
   Copy,
   FileText,
-  List,
   Users,
   XCircle,
 } from 'lucide-react-native';
@@ -145,7 +144,6 @@ export const QuotationReadyCard: React.FC<Props> = ({
   const dateRange = `${fmtDate(quotation.travelDate)} – ${fmtDate(
     quotation.travelEndDate,
   )}`;
-  const options = plural(quotation.optionsCount, 'Option', 'Options');
   const days = plural(quotation.durationDays, 'Day', 'Days');
   const passengers = plural(
     quotation.passengerCount,
@@ -270,13 +268,8 @@ export const QuotationReadyCard: React.FC<Props> = ({
         <Text style={styles.dateText}>{dateRange}</Text>
       </View>
 
-      {/* ── Row 2: options | days | passengers ─────────────── */}
+      {/* ── Row 2: days | passengers ───────────────────────── */}
       <View style={[styles.metaRow, styles.statsRow]}>
-        <View style={styles.stat}>
-          <List size={15} color={Colors.textSecondary} strokeWidth={2} />
-          <Text style={styles.statText}>{options}</Text>
-        </View>
-        <View style={styles.statDivider} />
         <View style={styles.stat}>
           <Clock size={15} color={Colors.textSecondary} strokeWidth={2} />
           <Text style={styles.statText}>{days}</Text>

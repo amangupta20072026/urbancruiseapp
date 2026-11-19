@@ -119,20 +119,56 @@ export const UPCOMING_STATUS_COLOR: Record<
   in_progress: { fg: Colors.info, bg: '#DBEAFE' },
 };
 
+/** Driver assigned to a trip. Present only once UC has assigned one. */
+export type UpcomingTripDriver = {
+  name: string;
+  /** Display-ready phone, e.g. "+91 98765 43210". */
+  phone: string;
+};
+
 export type UpcomingTrip = {
+  /** Internal record id. Not shown to the customer. */
   id: string;
+  /** Human-facing trip number shown (and copyable) on the card,
+   *  e.g. "TRP-2026-0847". */
+  tripNumber: string;
   status: UpcomingTripStatus;
   fromCity: string;
   toCity: string;
+  /** Pickup moment (date + time) — the trip start. */
   scheduledAt: ISODateTime;
+  /** Last travel day (inclusive). */
+  travelEndDate: ISODateTime;
+  /** Days, as the team quotes them (billed days) — sent by the
+   *  backend, never counted from the dates in the app. */
+  durationDays: number;
+  passengerCount: number;
   vehicleName: string;
+  /** e.g. "White". Optional — hidden when absent. */
+  vehicleColor?: string;
+  /** Registration plate, e.g. "UP16AB1234". Optional — hidden when
+   *  absent. */
+  vehicleRegNo?: string;
   /** Local asset path or remote URL — the card `<Image source>`
    * consumer decides which. In mock we use a placeholder URL. */
   vehicleImageUrl: string;
-  /** Free-form status line about driver assignment, e.g. "Driver
-   * details available tomorrow" (not yet assigned) or "Ramesh Kumar
-   * · +91 98765 43210" (assigned). Optional — the row is omitted
-   * entirely when absent, rather than rendering a placeholder. */
+  /** One-way route distance in km. Optional — hidden when absent. */
+  distanceKm?: number;
+  /** Estimated one-way drive time in minutes. Optional — hidden when
+   *  absent. */
+  estimatedDurationMinutes?: number;
+  /** Expected drop time at the destination on the first day.
+   *  Optional — the drop line omits the time when absent. */
+  expectedDropAt?: ISODateTime;
+  /** Assigned driver. Absent until UC assigns one. */
+  driver?: UpcomingTripDriver;
+  /** When the driver reports for duty. Optional — the block is
+   *  hidden when absent. */
+  driverReportingAt?: ISODateTime;
+  /** Free-form status line shown only while no driver is assigned,
+   * e.g. "Driver details available tomorrow". Optional — the row is
+   * omitted entirely when absent, rather than rendering a
+   * placeholder. */
   driverDetailsNote?: string;
 };
 
