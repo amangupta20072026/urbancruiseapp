@@ -152,19 +152,22 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import {
   ArrowLeftRight,
+  Armchair,
   Bus,
   CarFront,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
-  ChevronUp,
   Clock,
+  Fuel,
+  LayoutGrid,
+  Luggage,
   Mail,
   MessageCircle,
   Lock,
   PenSquare,
   Phone,
   RefreshCw,
+  Snowflake,
   XCircle,
 } from 'lucide-react-native';
 
@@ -185,6 +188,7 @@ import {
   VEHICLE_OPTIONS,
   VEHICLE_TIER_LABELS,
   VEHICLE_TIER_NAMES,
+  VEHICLE_TIER_PALETTE,
   findVehicleOption,
   type VehicleOption,
   type VehicleSelection,
@@ -491,7 +495,7 @@ const QuotationDetailScreen: React.FC = () => {
               onPendingSelectConsumed={onPendingSelectConsumed}
             />
           ) : (
-            <VehicleCard detail={detail} />
+            <VehicleCard detail={detail} status={status} />
           )}
           <TripChargesSection
             detail={detail}
@@ -620,9 +624,11 @@ const MetaCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
             />
 
             <View style={styles.advisorIdentity}>
-              <Text style={styles.advisorEyebrow}>Your Travel Advisor</Text>
               <Text style={styles.advisorName}>{executive.name}</Text>
-              <Text style={styles.advisorRole}>{executive.role}</Text>
+              {/* Customers always see "Travel Advisor"; the internal job
+                  title (`executive.role`, e.g. Sales Executive) is not
+                  shown. Same wording as the Need Help sheet. */}
+              <Text style={styles.advisorRole}>Travel Advisor</Text>
             </View>
           </View>
 
@@ -708,24 +714,58 @@ const MetaCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
  *                is `accepted` or `expired` (the vehicle is locked
  *                in and there's exactly one to display).
  *
- * Uses the same FAQ-style accordion pattern as ChooseVehicleSection
- * below, so all three quotation states share one design language.
- * With only one item there's no "close the other" work to do — the
- * header just toggles open/closed on tap.
+ *   ┌──────────────────────────────────────────────┐
+ *   │ (🚌) Vehicle Details              ✓ Confirmed │  accepted only
+ *   │ ┌────────┐ [ECONOMY]                          │  tier: if known
+ *   │ │ photo  │ Maruti Suzuki Ertiga               │
+ *   │ └────────┘ A/c, Recline Seat, Charging Point… │  description
+ *   │ ┌ 🪑 7  │ ⛽ CNG  │ ❄ Yes │ 🧳 Yes ┐          │  spec strip
+ *   │ └ Seats │  Fuel   │  AC   │ Luggage ┘          │
+ *   │ [ ▶ Watch Vehicle Video ]                     │  if brochure
+ *   │           ⊞ Explore other vehicles ›          │
+ *   └──────────────────────────────────────────────┘
  *
- * Collapsed by default (matches the FAQ contract the customer sees
- * elsewhere in the app): a compact header shows a thumbnail, the
- * vehicle name, and a one-line summary like "7 Seater · Diesel · AC"
- * so the customer can identify the vehicle without opening; tapping
- * reveals the larger hero image and the full amenity checklist.
+ * Everything is visible at once — no accordion. Once a quotation is
+ * accepted the vehicle is a settled fact of the trip, not something
+ * to dig for. The photo stays small on purpose: until each vehicle
+ * has its own photo, a large placeholder would be misleading.
+ *
+ * SPEC STRIP: same tinted, four-column look as the Spiritual Tours
+ * fact strip. AC and Luggage show "No" in grey rather than being
+ * dropped, so the strip always reads the same four facts.
+ *
+ * DESCRIPTION: `vehicle.description` in full, small and grey, like
+ * the vehicle option cards. Absent → "Your vehicle for this trip".
+ *
+ * TIER TAG: only when the quotation names the vehicle's brochure
+ * (`vehicle.brochure.tier`); never guessed from the vehicle name.
+ * Colours from VEHICLE_TIER_PALETTE, like everywhere else.
+ *
+ * EXPLORE OTHER VEHICLES: opens Vehicle Brochures in view-only mode
+ * (`browseOnly`), so no "Select this vehicle" button appears — the
+ * vehicle of an accepted / expired quotation can't be swapped there.
+ * A customer who wants a different vehicle uses Need Changes.
  * ================================================================ */
 
-const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
-  detail,
-}) => {
+type VehicleSpec = {
+  key: string;
+  Icon: React.ComponentType<{
+    size?: number;
+    color?: string;
+    strokeWidth?: number;
+  }>;
+  value: string;
+  label: string;
+  /** Grey value: a feature this vehicle does not have. */
+  muted: boolean;
+};
+
+const VehicleCard: React.FC<{
+  detail: CustomerQuotationDetail;
+  status: QuotationStatus;
+}> = ({ detail, status }) => {
   const v = detail.vehicle;
   const navigation = useNavigation<Nav>();
-  const [expanded, setExpanded] = useState(false);
 
   /* Brochure video. Shown only when the quotation names its brochure
    * (`vehicle.brochure`, sent by the quotations API) AND the catalog
@@ -754,28 +794,43 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
     });
   }, [navigation, brochure]);
 
-  const onToggle = useCallback(() => {
-    setExpanded(e => !e);
-  }, []);
+  const onExplore = useCallback(() => {
+    navigation.navigate('VehicleBrochures', {
+      quotationId: detail.id,
+      browseOnly: true,
+    });
+  }, [navigation, detail.id]);
 
-  // Compact summary line for the collapsed header — mirrors what the
-  // customer would see on a booking-confirmation SMS.
-  const summary = useMemo(() => {
-    const parts: string[] = [`${v.seater} Seater`, v.fuel];
-    if (v.ac) parts.push('AC');
-    return parts.join(' · ');
-  }, [v.seater, v.fuel, v.ac]);
+  const tier = brochureRef?.tier;
+  const tierColor = tier ? VEHICLE_TIER_PALETTE[tier].solid : null;
 
-  // Amenity checklist shown once expanded. Kept as strings (rather
-  // than a discriminated union of icon+label) because the checklist
-  // is uniformly "green-check + text" — a heavier abstraction would
-  // just add ceremony without buying anything.
-  const features = useMemo(() => {
-    const items: string[] = [`${v.seater} Seater`, `${v.fuel} Fuel`];
-    if (v.ac) items.push('Air Conditioning');
-    if (v.hasLuggageSpace) items.push('Luggage Space');
-    return items;
-  }, [v.seater, v.fuel, v.ac, v.hasLuggageSpace]);
+  const specs = useMemo<VehicleSpec[]>(
+    () => [
+      {
+        key: 'seats',
+        Icon: Armchair,
+        value: String(v.seater),
+        label: 'Seats',
+        muted: false,
+      },
+      { key: 'fuel', Icon: Fuel, value: v.fuel, label: 'Fuel', muted: false },
+      {
+        key: 'ac',
+        Icon: Snowflake,
+        value: v.ac ? 'Yes' : 'No',
+        label: 'AC',
+        muted: !v.ac,
+      },
+      {
+        key: 'luggage',
+        Icon: Luggage,
+        value: v.hasLuggageSpace ? 'Yes' : 'No',
+        label: 'Luggage',
+        muted: !v.hasLuggageSpace,
+      },
+    ],
+    [v.seater, v.fuel, v.ac, v.hasLuggageSpace],
+  );
 
   return (
     <View style={styles.card}>
@@ -783,71 +838,78 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
         icon={<Bus size={18} color={Colors.primary} strokeWidth={2} />}
         iconBg={Colors.primaryTint}
         title="Vehicle Details"
+        rightSlot={
+          status === 'accepted' ? (
+            <View style={styles.vehicleConfirmed}>
+              <CheckCircle2
+                size={13}
+                color={Colors.primaryDark}
+                strokeWidth={2.5}
+              />
+              <Text style={styles.vehicleConfirmedText}>Confirmed</Text>
+            </View>
+          ) : undefined
+        }
       />
 
-      <View
-        style={[
-          styles.vehicleAccordion,
-          expanded && styles.vehicleAccordionOpen,
-        ]}
-      >
-        <Pressable
-          onPress={onToggle}
-          style={({ pressed }) => [
-            styles.vehicleAccordionHeader,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityState={{ expanded }}
-          accessibilityLabel={`${v.name}, ${
-            expanded ? 'collapse' : 'expand'
-          } details`}
-        >
-          <Image
-            source={v.image}
-            style={styles.vehicleThumb}
-            resizeMode="cover"
-          />
-          <View style={styles.vehicleAccordionHeaderText}>
-            <Text style={styles.vehicleAccordionName} numberOfLines={1}>
-              {v.name}
-            </Text>
-            <Text style={styles.vehicleAccordionSummary} numberOfLines={1}>
-              {summary}
-            </Text>
-          </View>
-          {expanded ? (
-            <ChevronUp size={20} color={Colors.textSecondary} strokeWidth={2} />
-          ) : (
-            <ChevronDown
+      {/* ── Photo + identity ─────────────────────────────── */}
+      <View style={styles.vehicleRow}>
+        <Image
+          source={v.image}
+          style={styles.vehiclePhoto}
+          resizeMode="cover"
+          accessibilityIgnoresInvertColors
+        />
+        <View style={styles.vehicleIdentity}>
+          {tier && tierColor ? (
+            <View
+              style={[styles.vehicleTierPill, { backgroundColor: tierColor }]}
+            >
+              <Text style={styles.vehicleTierPillText}>
+                {VEHICLE_TIER_LABELS[tier]}
+              </Text>
+            </View>
+          ) : null}
+          <Text style={styles.vehicleName} numberOfLines={2}>
+            {v.name}
+          </Text>
+          {/* Full description, like the vehicle option cards; the
+              caption stands in until the quotation sends one. */}
+          <Text style={styles.vehicleCaption}>
+            {v.description?.trim() || 'Your vehicle for this trip'}
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Spec strip ───────────────────────────────────── */}
+      <View style={styles.vehicleSpecStrip}>
+        {specs.map((spec, i) => (
+          <View
+            key={spec.key}
+            style={[styles.vehicleSpec, i > 0 && styles.vehicleSpecDivided]}
+            accessible
+            accessibilityLabel={`${spec.label}, ${spec.value}`}
+          >
+            <spec.Icon
               size={20}
-              color={Colors.textSecondary}
+              color={spec.muted ? Colors.textTertiary : Colors.primaryDark}
               strokeWidth={2}
             />
-          )}
-        </Pressable>
-
-        {expanded ? (
-          <View style={styles.vehicleAccordionBody}>
-            <Image
-              source={v.image}
-              style={styles.vehicleHero}
-              resizeMode="cover"
-            />
-            <View style={styles.vehicleFeatureList}>
-              {features.map(feature => (
-                <View key={feature} style={styles.vehicleFeatureRow}>
-                  <CheckCircle2
-                    size={16}
-                    color={Colors.primary}
-                    strokeWidth={2.5}
-                  />
-                  <Text style={styles.vehicleFeatureText}>{feature}</Text>
-                </View>
-              ))}
-            </View>
+            <Text
+              style={[
+                styles.vehicleSpecValue,
+                spec.muted && styles.vehicleSpecValueMuted,
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {spec.value}
+            </Text>
+            <Text style={styles.vehicleSpecLabel} numberOfLines={1}>
+              {spec.label}
+            </Text>
           </View>
-        ) : null}
+        ))}
       </View>
 
       {brochure ? (
@@ -859,6 +921,22 @@ const VehicleCard: React.FC<{ detail: CustomerQuotationDetail }> = ({
           />
         </View>
       ) : null}
+
+      {/* ── Browse the whole fleet (view only) ───────────── */}
+      <Pressable
+        onPress={onExplore}
+        hitSlop={8}
+        style={({ pressed }) => [
+          styles.vehicleExplore,
+          pressed && styles.compareAllPressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Explore other vehicles"
+      >
+        <LayoutGrid size={16} color={Colors.primaryDark} strokeWidth={2.2} />
+        <Text style={styles.compareAllText}>Explore other vehicles</Text>
+        <ChevronRight size={16} color={Colors.primaryDark} strokeWidth={2.4} />
+      </Pressable>
     </View>
   );
 };
@@ -1401,7 +1479,7 @@ const styles = StyleSheet.create({
     ...Shadows.xs,
   },
 
-  /* Brochure video button under the Vehicle Details accordion */
+  /* Brochure video button under the Vehicle Details spec strip */
   vehicleVideoAction: {
     marginTop: Spacing.md,
   },
@@ -1484,12 +1562,6 @@ const styles = StyleSheet.create({
   advisorIdentity: {
     flex: 1,
     minWidth: 0,
-  },
-  advisorEyebrow: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    marginBottom: 1,
   },
   advisorName: {
     ...Typography.subtitle,
@@ -1582,74 +1654,102 @@ const styles = StyleSheet.create({
    * ================================================================ */
 
   /* ── Vehicle Details (single locked-in vehicle — accepted / expired) */
-  vehicleAccordion: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.surface,
-    overflow: 'hidden',
-    ...Shadows.xs,
+  vehicleConfirmed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primaryTint,
   },
-  vehicleAccordionOpen: {
-    // Subtle brand accent while expanded — reinforces that the row
-    // is active without competing with the status pill in the top
-    // navbar for attention.
-    borderColor: Colors.primaryLight,
+  vehicleConfirmedText: {
+    ...Typography.caption,
+    fontWeight: '700',
+    color: Colors.primaryDark,
   },
-  vehicleAccordionHeader: {
+  vehicleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
   },
-  vehicleThumb: {
-    width: 52,
-    height: 52,
-    borderRadius: Radius.sm,
+  vehiclePhoto: {
+    width: 96,
+    height: 70,
+    borderRadius: Radius.md,
     backgroundColor: Colors.surfaceMuted,
   },
-  vehicleAccordionHeaderText: {
+  vehicleIdentity: {
     flex: 1,
-    gap: 2,
+    minWidth: 0,
+    gap: 3,
   },
-  vehicleAccordionName: {
+  vehicleTierPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.xs,
+  },
+  vehicleTierPillText: {
+    ...Typography.caption,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    color: Colors.textOnPrimary,
+    includeFontPadding: false,
+  },
+  vehicleName: {
     ...Typography.subtitle,
     fontWeight: '800',
     color: Colors.textPrimary,
   },
-  vehicleAccordionSummary: {
+  vehicleCaption: {
     ...Typography.caption,
+    fontSize: 11.5,
+    lineHeight: 16,
     color: Colors.textSecondary,
-    fontWeight: '500',
   },
-  vehicleAccordionBody: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
-    paddingTop: Spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    gap: Spacing.md,
-  },
-  vehicleHero: {
-    width: '100%',
-    height: 150,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surfaceMuted,
+  vehicleSpecStrip: {
+    flexDirection: 'row',
     marginTop: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xs,
+    borderRadius: Radius.lg,
+    backgroundColor: '#EEF7EF',
   },
-  vehicleFeatureList: {
-    gap: 8,
+  vehicleSpec: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: Spacing.xs,
   },
-  vehicleFeatureRow: {
+  vehicleSpecDivided: {
+    borderLeftWidth: 1,
+    borderLeftColor: '#CFE3D1',
+  },
+  vehicleSpecValue: {
+    ...Typography.bodySmall,
+    marginTop: 2,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+  },
+  vehicleSpecValueMuted: {
+    color: Colors.textTertiary,
+  },
+  vehicleSpecLabel: {
+    ...Typography.caption,
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  vehicleExplore: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  vehicleFeatureText: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '500',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    gap: Spacing.xs + 2,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
   },
 
   /* ── Choose Your Vehicle (pending quotations only) ──

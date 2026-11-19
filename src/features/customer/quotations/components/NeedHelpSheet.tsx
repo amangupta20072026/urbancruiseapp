@@ -281,7 +281,10 @@ export const NeedHelpSheet = forwardRef<BottomSheetModal, Props>(
               />
             </View>
             <Text style={styles.name}>{executive.name}</Text>
-            <Text style={styles.role}>{executive.role}</Text>
+            {/* Customers always see "Travel Advisor"; the internal job
+                title (`executive.role`) is not shown. Same wording as
+                the advisor card on Quotation Details. */}
+            <Text style={styles.role}>Travel Advisor</Text>
             <View style={styles.phoneRow}>
               <Phone
                 size={16}

@@ -52,6 +52,7 @@ const AMAN_ID = mockCurrentUser.id;
  * the "current moment" for demo purposes, all dates shift together.
  * Chosen to match the design mock's "12 May 2026" travel date. */
 const TRAVEL_DATE_ISO = '2026-05-12T09:00:00Z';
+const TRAVEL_END_DATE_ISO = '2026-05-15T12:30:00Z';
 const QUOTATION_PREPARED_ISO = '2026-05-11T04:30:00Z'; // 10:30 AM IST (mock shows "10:30 AM")
 const PAYMENT_RECEIVED_ISO = '2026-05-10T05:45:00Z'; // 11:15 AM IST
 const TRIP_CONFIRMED_ISO = '2026-05-09T22:50:00Z'; // 04:20 AM IST next day-ish; mock reads "04:20 PM"
@@ -61,10 +62,17 @@ const TRIP_COMPLETED_ISO = '2026-05-08T20:00:00Z'; // sits right after Invoice G
 const AMAN_HOME: MockHomeData = {
   quotation: {
     id: 'QTN-2026-05-000487',
+    // Values below match the Home quotation card design.
+    quotationNumber: 'QUO-2026-239147',
+    approvalStatus: 'pending',
+    tripType: 'round_trip',
     fromCity: 'Delhi',
     toCity: 'Jaipur',
     travelDate: asISODateTime(TRAVEL_DATE_ISO),
+    travelEndDate: asISODateTime(TRAVEL_END_DATE_ISO),
+    durationDays: 5,
     optionsCount: 3,
+    passengerCount: 2,
     status: 'ready',
   },
 

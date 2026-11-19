@@ -402,6 +402,9 @@ const DETAIL_RECORDS: readonly CustomerQuotationDetail[] = [
       fuel: 'CNG',
       ac: true,
       hasLuggageSpace: true,
+      // MOCK text — the quotations API will send the real description.
+      description:
+        'A/c, Recline Seat, Charging Point, Music System, Luggage Carrier',
     },
     notes: QUOTATION_NOTES,
     otherCharges: QUOTATION_OTHER_CHARGES,
@@ -426,6 +429,9 @@ const DETAIL_RECORDS: readonly CustomerQuotationDetail[] = [
       fuel: 'Diesel',
       ac: true,
       hasLuggageSpace: true,
+      // MOCK text — the quotations API will send the real description.
+      description:
+        'A/c, Push-back Recline Seat, Charging Points, Music System + Speaker, Roof Luggage Carrier',
     },
     notes: QUOTATION_NOTES,
     otherCharges: QUOTATION_OTHER_CHARGES,

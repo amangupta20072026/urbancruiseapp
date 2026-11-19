@@ -2,8 +2,9 @@
  * ------------------------------------------------------------------
  * VehicleBrochuresScreen (Customer)
  * ------------------------------------------------------------------
- * Opened from "View all vehicles" on a pending quotation. Lists every
- * brochure grouped as vehicle type → seater → tier (catalog order).
+ * Opened from "Explore other vehicles" on an accepted / expired
+ * quotation's Vehicle Details card. Lists every brochure grouped as
+ * vehicle type → seater → tier (catalog order).
  *
  *   loading (no cache) → skeleton cards
  *   error   (no cache) → ErrorView + Try again
@@ -12,7 +13,9 @@
  *   tier without video → "Coming soon" card, not tappable
  *
  * "Select this vehicle" is passed on to VehicleVideo only when exactly
- * one vehicle option of the quotation matches the brochure.
+ * one vehicle option of the quotation matches the brochure, and never
+ * with `browseOnly` — that quotation's vehicle is already locked in,
+ * so the list is for looking only.
  * ------------------------------------------------------------------
  */
 import React, { useCallback, useEffect } from 'react';
@@ -47,7 +50,7 @@ type Route = RouteProp<CustomerStackParamList, 'VehicleBrochures'>;
 
 const VehicleBrochuresScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
-  const { quotationId } = useRoute<Route>().params;
+  const { quotationId, browseOnly = false } = useRoute<Route>().params;
   const { groups, isLoading, isError, refetch } = useGroupedBrochures();
 
   useEffect(() => {
@@ -56,7 +59,9 @@ const VehicleBrochuresScreen: React.FC = () => {
 
   const onOpen = useCallback(
     (entry: BrochureEntry) => {
-      const optionIds = vehicleOptionIdsFor(entry, VEHICLE_OPTIONS);
+      const optionIds = browseOnly
+        ? []
+        : vehicleOptionIdsFor(entry, VEHICLE_OPTIONS);
       const onlyOption = optionIds.length === 1 ? optionIds[0] : undefined;
       navigation.navigate('VehicleVideo', {
         groupKey: entry.groupKey,
@@ -66,7 +71,7 @@ const VehicleBrochuresScreen: React.FC = () => {
           : {}),
       });
     },
-    [navigation, quotationId],
+    [navigation, quotationId, browseOnly],
   );
 
   let body: React.ReactNode;

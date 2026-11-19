@@ -188,6 +188,13 @@ export type QuotationVehicle = {
   ac: boolean;
   hasLuggageSpace: boolean;
   /**
+   * Full description under the vehicle name on Vehicle Details, e.g.
+   * "A/c, Recline Seat, Charging Point, Music System". Same style as
+   * the vehicle option cards' description. Optional: absent → the card
+   * shows "Your vehicle for this trip" instead.
+   */
+  description?: string;
+  /**
    * Which vehicle brochure (GET /config/brochures) shows this vehicle.
    * Sent by the quotations API once it is built; absent → the
    * "Watch Vehicle Video" button is hidden (never guessed from name).

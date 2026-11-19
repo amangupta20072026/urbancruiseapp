@@ -51,8 +51,11 @@ const queryStore = createMMKV({ id: 'urbancruise-query-cache' });
  *         list of { icon, label, value, note }, `sections` replaces
  *         itinerary / inclusions / exclusions / pricing / pricingNote,
  *         and tagline / heroImages / highlights are gone.
+ *   '7' — Customer Home quotation summary gains quotationNumber,
+ *         approvalStatus, tripType, travelEndDate, durationDays and
+ *         passengerCount.
  */
-export const QUERY_CACHE_BUSTER = '6';
+export const QUERY_CACHE_BUSTER = '7';
 
 /**
  * AsyncStorage-shaped adapter over the sync MMKV instance.

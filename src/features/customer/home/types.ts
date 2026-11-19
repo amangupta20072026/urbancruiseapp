@@ -14,6 +14,10 @@
 
 import type { ISODateTime } from '@app-types/datetime';
 import type { Money } from '@app-types/currency';
+import type {
+  QuotationStatus,
+  TripType,
+} from '@features/customer/quotations/types';
 import { Colors } from '@theme';
 
 /* ------------------------------------------------------------------
@@ -59,12 +63,26 @@ export const QUOTATION_STATUS_LABEL: Record<QuotationCardStatus, string> = {
 
 export type QuotationSummary = {
   id: string;
+  /** Human-facing quotation number shown (and copyable) on the card,
+   *  e.g. "QUO-2026-239147". */
+  quotationNumber: string;
+  /** Customer-side approval state — the "Pending" / "Accepted" /
+   *  "Expired" pill. Separate from `status` (ready vs being prepared):
+   *  a ready quotation is usually still pending the customer's OK. */
+  approvalStatus: QuotationStatus;
+  tripType: TripType;
   fromCity: string;
   toCity: string;
   /** Travel date the customer will actually leave — not creation date. */
   travelDate: ISODateTime;
+  /** Last travel day (inclusive). */
+  travelEndDate: ISODateTime;
+  /** Days, as the team quotes them (billed days) — sent by the backend,
+   *  never counted from the dates in the app. */
+  durationDays: number;
   /** Number of vehicle options in the quotation (e.g. "3 Options"). */
   optionsCount: number;
+  passengerCount: number;
   status: QuotationCardStatus;
 };
 
