@@ -32,7 +32,6 @@ import {
 } from '@mocks/data/customerHome';
 import { mockCurrentUser } from '@mocks/data/currentUser';
 import type {
-  ActivityItem,
   QuotationSummary,
   UpcomingTrip,
 } from '@features/customer/home/types';
@@ -41,11 +40,9 @@ import type {
 const EMPTY_HOME: {
   quotation: null;
   upcomingTrip: null;
-  recentActivity: ActivityItem[];
 } = {
   quotation: null,
   upcomingTrip: null,
-  recentActivity: [],
 };
 
 /**
@@ -78,16 +75,4 @@ export function getFixtureUpcomingTripForUser(
   userId: string,
 ): UpcomingTrip | null {
   return homeFor(userId)?.upcomingTrip ?? EMPTY_HOME.upcomingTrip;
-}
-
-/**
- * Full recent-activity feed for a given user, newest-first.
- * Returns an empty array if the user is unknown or has no history —
- * caller does its own slicing (home shows the latest 4, full activity
- * screen shows everything).
- */
-export function getFixtureRecentActivityForUser(
-  userId: string,
-): ActivityItem[] {
-  return homeFor(userId)?.recentActivity ?? EMPTY_HOME.recentActivity;
 }

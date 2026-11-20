@@ -3,18 +3,21 @@
  * ------------------------------------------------------------------
  * useHomeData — the Customer Home screen's data-fetch orchestrator
  * ------------------------------------------------------------------
- * The home screen shows three independent feeds:
+ * The home screen shows two independent feeds:
  *
  *   1. Active quotation (or null → empty state)
  *   2. Upcoming trip     (or null → hide section)
- *   3. Recent activity   (list, latest N shown)
+ *
+ * (Recent activity was removed — the Notification Centre already
+ * shows those events. "Explore our fleet" reads the brochure catalog
+ * through its own hook, not this one.)
  *
  * Each feed has its own cache lifetime, own loading state, and own
  * refetch trigger. Bundling them into a single query would mean any
  * one feed's refresh invalidates the whole page — bad for cache
  * granularity, bad for perceived responsiveness.
  *
- * So we run three parallel useQuery calls and compose the returned
+ * So we run parallel useQuery calls and compose the returned
  * state at the hook boundary. The screen gets ONE return object
  * with per-feed data plus one top-level `isLoading` + `refetch`.
  *
@@ -25,7 +28,6 @@
  *   likely be:
  *     GET /customer/home/quotation
  *     GET /customer/home/trip/upcoming
- *     GET /customer/activity?limit=N&cursor=...
  * ------------------------------------------------------------------ */
 
 import { useQuery } from '@tanstack/react-query';
@@ -39,14 +41,11 @@ import { queryKeys } from '@constants/queryKeys';
 import { delayLikeApi } from '@mocks/helpers/delay';
 import {
   getFixtureQuotationForUser,
-  getFixtureRecentActivityForUser,
   getFixtureUpcomingTripForUser,
 } from '@mocks/fixtures/customerHome';
 import { selectUserId } from '@store/selectors/userSelectors';
 
-import type { ActivityItem, QuotationSummary, UpcomingTrip } from '../types';
-
-const RECENT_ACTIVITY_HOME_LIMIT = 5;
+import type { QuotationSummary, UpcomingTrip } from '../types';
 
 /* ------------------------------------------------------------------ */
 /* Individual fetchers                                                */
@@ -67,15 +66,6 @@ async function fetchQuotation(
 async function fetchUpcomingTrip(userId: string): Promise<UpcomingTrip | null> {
   await delayLikeApi();
   return getFixtureUpcomingTripForUser(userId);
-}
-
-async function fetchRecentActivity(userId: string): Promise<ActivityItem[]> {
-  await delayLikeApi();
-  /* Full history from fixture, then slice at the boundary. Backend
-   * will accept a `limit` query param so it slices server-side — same
-   * shape, just moved. */
-  const all = getFixtureRecentActivityForUser(userId);
-  return all.slice(0, RECENT_ACTIVITY_HOME_LIMIT);
 }
 
 /* ------------------------------------------------------------------ */
@@ -108,48 +98,29 @@ export function useHomeData() {
     staleTime: 30_000,
   });
 
-  const recentActivityQuery = useQuery({
-    queryKey: queryKeys.customer.home.recentActivity(userId),
-    queryFn: () => fetchRecentActivity(userId),
-    enabled: isEnabled,
-    /* Activity is the freshest of the three — a new payment landing
-     * should show up quickly. Shorter stale window. */
-    staleTime: 10_000,
-  });
-
   /* Top-level loading: TRUE only if at least one query is fetching
    * AND has no prior data yet. If we're revalidating warm caches,
    * `isLoading` is false and the screen renders the previous data
    * — the correct UX for pull-to-refresh. */
   const isLoading =
     (quotationQuery.isLoading && quotationQuery.fetchStatus !== 'idle') ||
-    (upcomingTripQuery.isLoading && upcomingTripQuery.fetchStatus !== 'idle') ||
-    (recentActivityQuery.isLoading &&
-      recentActivityQuery.fetchStatus !== 'idle');
+    (upcomingTripQuery.isLoading && upcomingTripQuery.fetchStatus !== 'idle');
 
-  /* Top-level refresh — fires all three refetches in parallel. Used
+  /* Top-level refresh — fires both refetches in parallel. Used
    * by pull-to-refresh on the ScrollView. */
   const refresh = useCallback(() => {
     void quotationQuery.refetch();
     void upcomingTripQuery.refetch();
-    void recentActivityQuery.refetch();
-  }, [quotationQuery, upcomingTripQuery, recentActivityQuery]);
+  }, [quotationQuery, upcomingTripQuery]);
 
   const isRefreshing =
-    quotationQuery.isFetching ||
-    upcomingTripQuery.isFetching ||
-    recentActivityQuery.isFetching;
+    quotationQuery.isFetching || upcomingTripQuery.isFetching;
 
-  const error =
-    quotationQuery.error ??
-    upcomingTripQuery.error ??
-    recentActivityQuery.error ??
-    null;
+  const error = quotationQuery.error ?? upcomingTripQuery.error ?? null;
 
   return {
     quotation: quotationQuery.data ?? null,
     upcomingTrip: upcomingTripQuery.data ?? null,
-    recentActivity: recentActivityQuery.data ?? [],
     isLoading,
     isRefreshing,
     error,

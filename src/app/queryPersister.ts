@@ -54,8 +54,12 @@ const queryStore = createMMKV({ id: 'urbancruise-query-cache' });
  *   '7' — Customer Home quotation summary gains quotationNumber,
  *         approvalStatus, tripType, travelEndDate, durationDays and
  *         passengerCount.
+ *   '8' — Customer Home upcoming trip gains tripType (One Way /
+ *         Round Trip / Pickup & Drop).
+ *   '9' — Brochure entries gain imageUrl; Customer Home drops the
+ *         recent-activity feed.
  */
-export const QUERY_CACHE_BUSTER = '7';
+export const QUERY_CACHE_BUSTER = '9';
 
 /**
  * AsyncStorage-shaped adapter over the sync MMKV instance.

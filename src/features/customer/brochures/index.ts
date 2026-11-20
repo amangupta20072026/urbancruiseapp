@@ -51,6 +51,8 @@ export {
   buildYouTubeWatchUrl,
   buildYouTubePlaylistUrl,
   buildYouTubeUrlForEntry,
+  buildYouTubeThumbnailUrl,
+  brochureImageUrl,
 } from './utils/youtube';
 
 export type {

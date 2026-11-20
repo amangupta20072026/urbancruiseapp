@@ -12,7 +12,8 @@
  *   - One bad entry          → that entry is dropped, the rest load.
  *   - Unknown extra fields   → ignored (forward compatible).
  *   - A bad optional value   → safe default (null spec, no playlist,
- *     invalid video ids removed) instead of dropping the entry.
+ *     no image, invalid video ids removed) instead of dropping the
+ *     entry. An older backend that sends no `imageUrl` gives null.
  *   - Duplicate (groupKey, tier) → first one wins.
  * ------------------------------------------------------------------
  */
@@ -43,6 +44,14 @@ const YOUTUBE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 export function isYouTubeId(value: unknown): value is string {
   return typeof value === 'string' && YOUTUBE_ID_RE.test(value);
+}
+
+/** Same rule as the backend: absolute https only (http is blocked on
+ *  device by ATS / cleartext policy anyway). */
+const HTTPS_URL_RE = /^https:\/\/[^\s<>"]+$/;
+
+function isHttpsUrl(value: unknown): value is string {
+  return typeof value === 'string' && HTTPS_URL_RE.test(value);
 }
 
 const DisplayText = z.string().trim().min(1);
@@ -79,6 +88,7 @@ const EntrySchema = z.object({
   seater: z.number().int().positive(),
   tier: z.enum(TIERS),
   title: DisplayText,
+  imageUrl: z.unknown().transform(v => (isHttpsUrl(v) ? v : null)),
   youtubePlaylistId: z
     .string()
     .nullable()

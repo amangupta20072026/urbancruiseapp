@@ -6,10 +6,14 @@
  *
  *   Upcoming Trip                                View All  ›
  *
- * Used above Upcoming Trip and Recent Activity on the Home screen.
+ *   Explore our fleet                            View All  ›
+ *   Watch the vehicles before you book      ← optional subtitle
+ *
+ * Used above Upcoming Trip and Explore our fleet on the Home screen.
  * The right-side action is optional — omit `onActionPress` to hide
  * the "View All" affordance entirely (for sections with no "all"
- * view).
+ * view). `subtitle` is optional too; without it the row is exactly
+ * as before.
  * ------------------------------------------------------------------ */
 
 import React from 'react';
@@ -20,19 +24,29 @@ import { Colors, Spacing, Typography } from '@theme';
 
 type Props = {
   title: string;
+  /** Small grey line under the title. */
+  subtitle?: string;
   actionLabel?: string;
   onActionPress?: () => void;
 };
 
 export const SectionHeader: React.FC<Props> = ({
   title,
+  subtitle,
   actionLabel = 'View All',
   onActionPress,
 }) => (
   <View style={styles.row}>
-    <Text style={styles.title} numberOfLines={1}>
-      {title}
-    </Text>
+    <View style={styles.titleBlock}>
+      <Text style={styles.title} numberOfLines={1}>
+        {title}
+      </Text>
+      {subtitle ? (
+        <Text style={styles.subtitle} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      ) : null}
+    </View>
     {onActionPress ? (
       <Pressable
         onPress={onActionPress}
@@ -53,15 +67,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.md,
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.md,
+  },
+  titleBlock: {
+    flexShrink: 1,
   },
   title: {
     ...Typography.title,
     color: Colors.textPrimary,
     fontWeight: '800',
     letterSpacing: -0.2,
+  },
+  subtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   action: {
     flexDirection: 'row',

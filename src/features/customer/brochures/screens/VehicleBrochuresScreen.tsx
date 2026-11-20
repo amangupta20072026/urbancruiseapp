@@ -2,9 +2,11 @@
  * ------------------------------------------------------------------
  * VehicleBrochuresScreen (Customer)
  * ------------------------------------------------------------------
- * Opened from "Explore other vehicles" on an accepted / expired
- * quotation's Vehicle Details card. Lists every brochure grouped as
- * vehicle type → seater → tier (catalog order).
+ * Opened from:
+ *   - "Explore other vehicles" on a quotation's Vehicle Details card
+ *   - "View All" on Home's "Explore our fleet" (no quotation)
+ * Lists every brochure grouped as vehicle type → seater → tier
+ * (catalog order).
  *
  *   loading (no cache) → skeleton cards
  *   error   (no cache) → ErrorView + Try again
@@ -15,7 +17,9 @@
  * "Select this vehicle" is passed on to VehicleVideo only when exactly
  * one vehicle option of the quotation matches the brochure, and never
  * with `browseOnly` — that quotation's vehicle is already locked in,
- * so the list is for looking only.
+ * so the list is for looking only. Without a `quotationId` (Home) the
+ * list is browse-only as well, and the error text does not mention a
+ * quotation.
  * ------------------------------------------------------------------
  */
 import React, { useCallback, useEffect } from 'react';
@@ -50,7 +54,10 @@ type Route = RouteProp<CustomerStackParamList, 'VehicleBrochures'>;
 
 const VehicleBrochuresScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
-  const { quotationId, browseOnly = false } = useRoute<Route>().params;
+  const params = useRoute<Route>().params;
+  const quotationId = params?.quotationId;
+  // No quotation (opened from Home) → nothing to select into.
+  const browseOnly = (params?.browseOnly ?? false) || quotationId == null;
   const { groups, isLoading, isError, refetch } = useGroupedBrochures();
 
   useEffect(() => {
@@ -59,14 +66,15 @@ const VehicleBrochuresScreen: React.FC = () => {
 
   const onOpen = useCallback(
     (entry: BrochureEntry) => {
-      const optionIds = browseOnly
-        ? []
-        : vehicleOptionIdsFor(entry, VEHICLE_OPTIONS);
+      const optionIds =
+        browseOnly || quotationId == null
+          ? []
+          : vehicleOptionIdsFor(entry, VEHICLE_OPTIONS);
       const onlyOption = optionIds.length === 1 ? optionIds[0] : undefined;
       navigation.navigate('VehicleVideo', {
         groupKey: entry.groupKey,
         tier: entry.tier,
-        ...(onlyOption !== undefined
+        ...(onlyOption !== undefined && quotationId != null
           ? { select: { quotationId, optionId: onlyOption } }
           : {}),
       });
@@ -87,7 +95,11 @@ const VehicleBrochuresScreen: React.FC = () => {
     body = (
       <ErrorView
         title="Couldn’t load vehicle brochures"
-        message="Check your internet connection and try again. Your quotation is not affected."
+        message={
+          quotationId != null
+            ? 'Check your internet connection and try again. Your quotation is not affected.'
+            : 'Check your internet connection and try again.'
+        }
         onRetry={refetch}
       />
     );

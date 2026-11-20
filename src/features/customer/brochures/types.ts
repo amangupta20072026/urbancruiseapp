@@ -41,6 +41,13 @@ export type BrochureEntry = {
   tier: BrochureTier;
   /** Card title, e.g. "Force Traveller 13 Seater — Royal". */
   title: string;
+  /**
+   * Absolute https URL of this vehicle's photograph, or null while ops
+   * has not uploaded one (a normal state, not an error). Home's
+   * "Explore our fleet" card uses the first non-null one in a group
+   * and draws a branded tile when there is none.
+   */
+  imageUrl: string | null;
   /** The group's playlist; null until ops creates it. */
   youtubePlaylistId: string | null;
   /** Videos for this tier, in display order. Empty = "Coming soon". */

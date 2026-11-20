@@ -11,7 +11,13 @@
  *   ─────────────────────────────────────────────
  *   [Upcoming Trip — always renders; iconified empty state]
  *   ─────────────────────────────────────────────
- *   [Recent Activity — always renders; iconified empty state]
+ *   [Explore our fleet — real brochure catalog; hidden if it can't load]
+ *   ─────────────────────────────────────────────
+ *   [Made-in-India footer]
+ *
+ * Recent Activity used to sit where the fleet is now. It was removed
+ * because it repeated the Notification Centre (bell) — same events,
+ * same grouping, same tap targets.
  *
  * ── Hero card priority ladder ────────────────────────────────────
  *   1. quotation.status === 'ready'       → QuotationReadyCard
@@ -25,8 +31,7 @@
  * we're asking them to look at.
  *
  * "Upcoming Trip" is deliberately NOT part of the ladder — it's an
- * always-visible section of its own (same pattern as "Recent
- * Activity"), independent of whichever hero card is showing. A
+ * always-visible section of its own, independent of whichever hero card is showing. A
  * ready quotation and a confirmed trip aren't mutually exclusive in
  * the product, so hiding one behind the other was a bug, not a
  * feature — see git history on this file for the prior 4-rung ladder.
@@ -35,7 +40,8 @@
  *   - Loading (first mount, no cached data) → screen-level spinner
  *   - Error                                 → ErrorView with retry
  *   - Upcoming Trip empty                   → iconified empty state
- *   - Activity empty                        → iconified empty state
+ *   - Fleet loading / failed / empty        → skeleton / hidden
+ *     (FleetCarousel handles its own states; it never blocks Home)
  *
  * ── Navigation intents ───────────────────────────────────────────
  *   - Bell / Avatar → handled inside the shared AppHeader
@@ -57,10 +63,11 @@ import {
 import { useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Inbox, CalendarClock } from 'lucide-react-native';
+import { CalendarClock } from 'lucide-react-native';
 
 import { AppHeader, SafeScreen, ErrorView } from '@shared/components';
 import { Colors, Radius, Spacing, Typography } from '@theme';
+import type { BrochureEntry } from '@features/customer/brochures';
 
 import type { CustomerStackParamList } from '@navigation/types';
 
@@ -78,7 +85,8 @@ import { QuotationPreparingCard } from '../components/QuotationPreparingCard';
 import { RequestQuotationCard } from '../components/RequestQuotationCard';
 import { UpcomingTripCard } from '../components/UpcomingTripCard';
 import { SectionHeader } from '../components/SectionHeader';
-import { ActivityRow } from '../components/ActivityRow';
+import { FleetCarousel } from '../components/FleetCarousel';
+import { MadeInIndiaFooter } from '../components/MadeInIndiaFooter';
 import { WelcomeOverlay } from '../components/WelcomeOverlay';
 import { logEvent } from '@services/telemetry/logEvent';
 
@@ -119,15 +127,8 @@ const CustomerHomeScreen: React.FC = () => {
     [changeServiceMode, navigation],
   );
 
-  const {
-    quotation,
-    upcomingTrip,
-    recentActivity,
-    isLoading,
-    isRefreshing,
-    error,
-    refresh,
-  } = useHomeData();
+  const { quotation, upcomingTrip, isLoading, isRefreshing, error, refresh } =
+    useHomeData();
 
   /* -------- Placeholder handlers for CTAs whose destinations
    * haven't been built yet. Grep for TODO(nav) to find them all.
@@ -155,10 +156,26 @@ const CustomerHomeScreen: React.FC = () => {
     // TODO(nav): navigate to Trip detail
   }, [upcomingTrip?.id]);
 
-  const onViewAllActivity = useCallback(() => {
-    logEvent('home.cta_tapped', { cta: 'view_all_activity' });
-    // TODO(nav): navigate to Recent activity list
-  }, []);
+  /* Explore our fleet — browse-only: no quotation, so no `select`. */
+  const onOpenVehicle = useCallback(
+    (entry: BrochureEntry) => {
+      logEvent('home.cta_tapped', {
+        cta: 'fleet_vehicle',
+        group_key: entry.groupKey,
+        tier: entry.tier,
+      });
+      navigation.navigate('VehicleVideo', {
+        groupKey: entry.groupKey,
+        tier: entry.tier,
+      });
+    },
+    [navigation],
+  );
+
+  const onViewAllFleet = useCallback(() => {
+    logEvent('home.cta_tapped', { cta: 'fleet_view_all' });
+    navigation.navigate('VehicleBrochures');
+  }, [navigation]);
 
   const onViewAllTrips = useCallback(() => {
     logEvent('home.cta_tapped', { cta: 'view_all_trips' });
@@ -249,39 +266,15 @@ const CustomerHomeScreen: React.FC = () => {
               </View>
             )}
 
-            {/* Recent Activity — always renders; iconified empty state. */}
+            {/* Explore our fleet — real brochure catalog. */}
             <SectionHeader
-              title="Recent Activity"
-              onActionPress={
-                recentActivity.length > 0 ? onViewAllActivity : undefined
-              }
+              title="Explore our fleet"
+              subtitle="Watch the vehicles before you book"
+              onActionPress={onViewAllFleet}
             />
-            {recentActivity.length > 0 ? (
-              <View style={styles.activityList}>
-                {recentActivity.map((item, index) => (
-                  <ActivityRow
-                    key={item.id}
-                    activity={item}
-                    isFirst={index === 0}
-                    isLast={index === recentActivity.length - 1}
-                  />
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyCard}>
-                <View style={styles.emptyIcon}>
-                  <Inbox
-                    size={28}
-                    color={Colors.textTertiary}
-                    strokeWidth={1.75}
-                  />
-                </View>
-                <Text style={styles.emptyTitle}>Nothing here yet</Text>
-                <Text style={styles.emptySubtitle}>
-                  Your bookings and payments will show up here.
-                </Text>
-              </View>
-            )}
+            <FleetCarousel onOpenVehicle={onOpenVehicle} />
+
+            <MadeInIndiaFooter />
           </>
         )}
       </ScrollView>
@@ -306,7 +299,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundSecondary,
   },
   scroll: {
-    paddingBottom: Spacing.xxxxl,
+    // Room under the footer so the floating tab bar never covers it.
+    paddingBottom: Spacing.xxxxl * 2,
   },
   loadingWrap: {
     paddingVertical: Spacing.xxl,
@@ -315,14 +309,6 @@ const styles = StyleSheet.create({
   },
   errorWrap: {
     paddingVertical: Spacing.xxl,
-  },
-  activityList: {
-    marginHorizontal: Spacing.xl,
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    overflow: 'hidden',
   },
   emptyCard: {
     marginHorizontal: Spacing.xl,

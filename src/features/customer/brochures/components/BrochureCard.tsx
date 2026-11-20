@@ -3,17 +3,21 @@
  * title. Tappable when the tier has a video; otherwise shown as
  * "Coming soon" and not tappable.
  *
- * The thumbnail is the app's vehicle image, not a YouTube thumbnail:
- * the official way to get YouTube thumbnail URLs was not verified
- * (proposal §12). It is 128 × 72, above YouTube's 120 × 70 minimum
- * for a thumbnail that starts playback (proposal §6.2).
+ * THUMBNAIL (128 × 72, 16:9 — above YouTube's 120 × 70 minimum for a
+ * thumbnail that starts playback, proposal §6.2):
+ *   1. the entry's real photo (`imageUrl`) once ops uploads one,
+ *   2. else the YouTube thumbnail of its first video,
+ *   3. else — or if the image fails to load — the bundled car image.
+ * See brochureImageUrl() in utils/youtube.ts (Home's fleet cards use
+ * the same rule).
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, Play } from 'lucide-react-native';
 import { Colors, Radius, Spacing, Typography } from '@theme';
 import type { BrochureEntry } from '../types';
 import { hasVideo } from '../utils/match';
+import { brochureImageUrl } from '../utils/youtube';
 import { TierPill } from './TierPill';
 
 const PLACEHOLDER_IMG = require('@assets/images/service-car.png');
@@ -23,6 +27,9 @@ export const BrochureCard: React.FC<{
   onPress: (entry: BrochureEntry) => void;
 }> = React.memo(({ entry, onPress }) => {
   const playable = hasVideo(entry);
+  const remoteUrl = brochureImageUrl(entry);
+  const [remoteFailed, setRemoteFailed] = useState(false);
+  const showRemote = remoteUrl !== null && !remoteFailed;
 
   if (!playable) {
     return (
@@ -31,11 +38,20 @@ export const BrochureCard: React.FC<{
         accessibilityLabel={`${entry.title}, video coming soon`}
       >
         <View style={[styles.thumb, styles.soonThumb]}>
-          <Image
-            source={PLACEHOLDER_IMG}
-            style={[styles.thumbImage, styles.soonImage]}
-            resizeMode="contain"
-          />
+          {showRemote ? (
+            <Image
+              source={{ uri: remoteUrl as string }}
+              style={[styles.thumbPhoto, styles.soonImage]}
+              resizeMode="cover"
+              onError={() => setRemoteFailed(true)}
+            />
+          ) : (
+            <Image
+              source={PLACEHOLDER_IMG}
+              style={[styles.thumbImage, styles.soonImage]}
+              resizeMode="contain"
+            />
+          )}
         </View>
         <View style={styles.body}>
           <View style={styles.soonPill}>
@@ -57,11 +73,20 @@ export const BrochureCard: React.FC<{
       accessibilityLabel={`Watch ${entry.title}`}
     >
       <View style={styles.thumb}>
-        <Image
-          source={PLACEHOLDER_IMG}
-          style={styles.thumbImage}
-          resizeMode="contain"
-        />
+        {showRemote ? (
+          <Image
+            source={{ uri: remoteUrl as string }}
+            style={styles.thumbPhoto}
+            resizeMode="cover"
+            onError={() => setRemoteFailed(true)}
+          />
+        ) : (
+          <Image
+            source={PLACEHOLDER_IMG}
+            style={styles.thumbImage}
+            resizeMode="contain"
+          />
+        )}
         <View style={styles.playBadge}>
           <Play
             size={13}
@@ -116,8 +141,14 @@ const styles = StyleSheet.create({
   soonThumb: {
     backgroundColor: Colors.surfaceMuted,
   },
+  /* Bundled car image: square, centred in the tile. */
   thumbImage: {
     width: THUMB_H,
+    height: THUMB_H,
+  },
+  /* Photo / YouTube thumbnail: fills the whole 16:9 tile. */
+  thumbPhoto: {
+    width: THUMB_W,
     height: THUMB_H,
   },
   soonImage: {

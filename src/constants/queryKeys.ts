@@ -45,8 +45,6 @@ export const queryKeys = {
         ['customer', 'home', userId, 'quotation'] as const,
       upcomingTrip: (userId: string) =>
         ['customer', 'home', userId, 'upcoming-trip'] as const,
-      recentActivity: (userId: string) =>
-        ['customer', 'home', userId, 'recent-activity'] as const,
     },
     enquiries: {
       all: () => ['customer', 'enquiries'] as const,

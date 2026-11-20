@@ -13,7 +13,6 @@
  * ================================================================== */
 
 import type { ISODateTime } from '@app-types/datetime';
-import type { Money } from '@app-types/currency';
 import type {
   QuotationStatus,
   TripType,
@@ -133,6 +132,9 @@ export type UpcomingTrip = {
    *  e.g. "TRP-2026-0847". */
   tripNumber: string;
   status: UpcomingTripStatus;
+  /** One Way / Round Trip / Pickup & Drop — shown as a pill next to
+   *  the status. Always sent by the backend. */
+  tripType: TripType;
   fromCity: string;
   toCity: string;
   /** Pickup moment (date + time) — the trip start. */
@@ -173,81 +175,12 @@ export type UpcomingTrip = {
 };
 
 /* ------------------------------------------------------------------
- * Recent activity row
- *
- * Every event the customer has recently done or received —
- * quotations prepared, payments received, trips confirmed, etc.
- * The home screen shows the LATEST THREE with a "View All" that
- * routes to a full activity screen (built in a later sprint).
- *
- * kind ⇒ Icon component + colour pair, resolved at render time by
- * a helper (see ActivityRow.tsx). Not baked into the type so the
- * data stays serialisable and cache-friendly.
- * ------------------------------------------------------------------ */
-
-export type ActivityKind =
-  | 'quotation_prepared'
-  | 'quotation_reviewed'
-  | 'payment_received'
-  | 'payment_pending'
-  | 'trip_confirmed'
-  | 'trip_completed'
-  | 'trip_cancelled'
-  | 'invoice_generated';
-
-export const ACTIVITY_KIND_LABEL: Record<ActivityKind, string> = {
-  quotation_prepared: 'Quotation Prepared',
-  quotation_reviewed: 'Quotation Reviewed',
-  payment_received: 'Payment Received',
-  payment_pending: 'Payment Pending',
-  trip_confirmed: 'Trip Confirmed',
-  trip_completed: 'Trip Completed',
-  trip_cancelled: 'Trip Cancelled',
-  invoice_generated: 'Invoice Generated',
-};
-
-/* Icon-tint palette per activity kind. Same principle as
- * UPCOMING_STATUS_COLOR — screens/components look up the pair, they
- * don't hard-code colours. When a new activity kind is added, the
- * enum + label + colour + icon in ActivityRow all get updated in one
- * atomic change. */
-export const ACTIVITY_KIND_COLOR: Record<
-  ActivityKind,
-  { fg: string; bg: string }
-> = {
-  quotation_prepared: { fg: Colors.success, bg: '#E7F7EC' },
-  quotation_reviewed: { fg: Colors.completed, bg: '#DBEAFE' },
-  payment_received: { fg: Colors.warning, bg: '#FFEDD5' },
-  payment_pending: { fg: Colors.warning, bg: '#FEF3C7' },
-  trip_confirmed: { fg: Colors.success, bg: '#E7F7EC' },
-  trip_completed: { fg: Colors.completed, bg: '#DBEAFE' },
-  trip_cancelled: { fg: Colors.error, bg: '#FEE2E2' },
-  invoice_generated: { fg: Colors.warning, bg: '#FFEDD5' },
-};
-
-export type ActivityItem = {
-  id: string;
-  kind: ActivityKind;
-  /** Short header line — e.g. "Quotation Prepared". Derived from
-   * kind in mock data, but we store it for i18n/future flexibility. */
-  title: string;
-  /** Second line — e.g. "Delhi → Jaipur · 3 Options" or
-   * "Advance payment of ₹3,750 received". Free-form content
-   * because the shape varies per activity kind. */
-  subtitle: string;
-  timestamp: ISODateTime;
-  /** For payment activities — otherwise undefined. Renders as a
-   * secondary detail line. Kept optional so activity rows have a
-   * uniform shape regardless of kind. */
-  amount?: Money;
-};
-
-/* ------------------------------------------------------------------
  * Home screen composite
  *
- * The one shape the home screen's hook returns. Composing all three
- * feeds into one type means the screen's contract with the hook is
- * one import, not three.
+ * The one shape the home screen's hook returns. Composing both feeds
+ * into one type means the screen's contract with the hook is one
+ * import, not two. (Recent activity was removed: the Notification
+ * Centre already shows those events.)
  * ------------------------------------------------------------------ */
 
 export type HomeScreenData = {
@@ -256,6 +189,4 @@ export type HomeScreenData = {
   /** Null = no upcoming trip → the "Upcoming Trip" section still
    * renders, but shows its iconified empty state instead of a card. */
   upcomingTrip: UpcomingTrip | null;
-  /** Empty = show the Recent Activity section with an empty state. */
-  recentActivity: ActivityItem[];
 };

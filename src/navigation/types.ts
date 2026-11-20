@@ -173,15 +173,19 @@ export type CustomerStackParamList = {
 
   // -----------------------------------------------------------------
   // Vehicle brochures (YouTube videos + compare). Reached from
-  // QuotationDetail only.
+  // QuotationDetail and from Home's "Explore our fleet".
   // -----------------------------------------------------------------
   /**
    * Grouped list: vehicle type → seater → tier. From a pending
    * quotation it can hand "Select this vehicle" on to VehicleVideo.
    * `browseOnly: true` (accepted / expired quotations, whose vehicle is
    * locked in) never offers Select — the list is for looking only.
+   * No params / no `quotationId` (Home's "Explore our fleet") is
+   * browse-only too: there is no quotation to select into.
    */
-  VehicleBrochures: { quotationId: QuotationId; browseOnly?: boolean };
+  VehicleBrochures:
+    | { quotationId?: QuotationId; browseOnly?: boolean }
+    | undefined;
   /**
    * One brochure's videos and facilities. `select` is present only
    * when exactly one vehicle option of a pending quotation is being
