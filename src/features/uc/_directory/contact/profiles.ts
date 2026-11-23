@@ -28,6 +28,7 @@ import {
 } from '../../vendors/types';
 import { maskPhone } from '@shared/utils';
 import { departmentColor, type Staff } from '../../staff/types';
+import { staffKnownAs, staffManagerLabel } from '../../staff/utils/displayName';
 import type { Driver } from '../../drivers/types';
 
 import type {
@@ -349,8 +350,10 @@ function staffProfile(s: Staff): ListContactProfile {
   return {
     layout: 'list',
     id: s.id,
+    // Full name as the title; the alias the list card showed goes
+    // underneath ("Known as Amit"), hidden when there is none.
     title: trimmed(s.name) || EMPTY_VALUE,
-    subtitle: null,
+    subtitle: staffKnownAs(s),
     meta: [],
     phones: distinctPhones([
       { label: 'Work', value: s.phone },
@@ -378,13 +381,14 @@ function staffProfile(s: Staff): ListContactProfile {
         value: s.subDepartment,
         colors: deptColors,
       }),
-      // After the department rows. Name only; hidden when the person
-      // has no manager (e.g. a department head).
+      // After the department rows. Full name with the alias in
+      // brackets, "Monu gehlot (Monu)"; hidden when the person has no
+      // manager (e.g. a department head).
       ...optionalField({
         key: 'reportingManager',
         kind: 'manager',
         label: 'Reporting Manager',
-        value: s.reportingManagerName,
+        value: staffManagerLabel(s),
       }),
       requiredField({
         key: 'phone',

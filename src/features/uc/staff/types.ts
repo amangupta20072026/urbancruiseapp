@@ -34,7 +34,16 @@ import type { ISODateTime } from '@app-types/datetime';
 
 export type Staff = {
   id: string;
+  /** Full name: first + middle + last. Shown in the contact sheet. */
   name: string;
+  /**
+   * The name the person goes by at work (saarthi alias_name), e.g.
+   * 'Amit' for Abhishek Sharma. First letter already capitalised by
+   * the server. null when not set. Shown as the list-card title,
+   * falling back to `name` — see utils/displayName.ts. The server's
+   * A–Z sort and search both use it.
+   */
+  aliasName: string | null;
   /** Department name, trimmed. One of Sales, Finance, IT, HR, VEH OPS,
    * Digital Marketing. null when not set — no badge is drawn. */
   department: string | null;
@@ -50,6 +59,9 @@ export type Staff = {
   /** Denormalised, like Driver.vendorName: the manager's name, joined by
    *  the server so the sheet needn't load all staff. Shown when set. */
   reportingManagerName: string | null;
+  /** The manager's alias, capitalised like `aliasName`. null when the
+   *  manager has none. Shown in brackets after the manager's name. */
+  reportingManagerAlias: string | null;
   /** Office phone — the number UC staff sign in with. null when Saarthi
    * has none; the card then shows one line fewer. Never replaced with a
    * personal number. */

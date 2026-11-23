@@ -25,6 +25,7 @@ import {
 } from '../../customers/types';
 import { VENDOR_STATUS_LABEL, type Vendor } from '../../vendors/types';
 import { departmentColor, type Staff } from '../../staff/types';
+import { staffCardTitle } from '../../staff/utils/displayName';
 import { DRIVER_VERIFICATION_LABEL, type Driver } from '../../drivers/types';
 import { EMPTY_VALUE, formatDate } from '../contact/profiles';
 import type { DirectoryContact } from '../contact/types';
@@ -221,9 +222,13 @@ function vendorCard(v: Vendor): DirectoryCardModel {
 
 function staffCard(s: Staff): DirectoryCardModel {
   const department = text(s.department);
+  // The alias ("Amit") is the title; the full name is in the sheet.
+  // Falls back to the full name when there is no alias.
+  const title = staffCardTitle(s);
+  const fullName = text(s.name);
   return {
     id: s.id,
-    title: orEmpty(s.name),
+    title: orEmpty(title),
     // Department badge; no badge when the server sends no department.
     // Colour per department; unknown departments get the neutral badge.
     badge: department
@@ -236,7 +241,13 @@ function staffCard(s: Staff): DirectoryCardModel {
       ...optionalLine('city', 'location', s.city),
     ],
     footer: null,
-    accessibilityLabel: [`Staff ${orEmpty(s.name)}`, department]
+    // Screen readers hear both names when they differ:
+    // "Staff Amit, Abhishek Sharma, Sales".
+    accessibilityLabel: [
+      `Staff ${orEmpty(title)}`,
+      fullName && fullName !== title ? fullName : null,
+      department,
+    ]
       .filter(Boolean)
       .join(', '),
     accessibilityHint: 'Opens contact actions',
