@@ -26,9 +26,10 @@ import androidx.annotation.RequiresApi
  *   - Any error is swallowed and the call still goes through.
  *
  * WHAT ANDROID DOESN'T SEND HERE
- *   Private / unknown / payphone numbers, and numbers saved in the phone's
- *   Contacts (this app doesn't ask for READ_CONTACTS). Those calls simply
- *   show no card.
+ *   Private / unknown / payphone numbers. Numbers saved in the phone's
+ *   contacts are sent ONLY while the app holds READ_CONTACTS ("Saved
+ *   contacts" on the Caller ID screen); without it those calls show no
+ *   card. The app never reads the contacts themselves.
  *
  * Works when the app is closed or removed from recents: Android starts
  * this service on its own. React Native is not involved.

@@ -1,7 +1,9 @@
 package app.urbancruise.callerid
 
+import android.Manifest
 import android.app.Activity
 import android.app.role.RoleManager
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -22,8 +24,8 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * JS: src/native/callerId.ts
  *   getStatus()                       → { supported, roleHeld, canDrawOverlays,
- *                                         notificationsEnabled, count,
- *                                         version, syncedAt }
+ *                                         notificationsEnabled, contactsGranted,
+ *                                         count, version, syncedAt }
  *   requestRole()                     → boolean (Android's "caller ID app" dialog)
  *   openOverlaySettings()             → opens "Display over other apps"
  *   openNotificationSettings()        → opens this app's notification settings
@@ -87,6 +89,14 @@ class CallerIdModule(reactContext: ReactApplicationContext) :
               putBoolean(
                   "notificationsEnabled",
                   CallerIdNotifier.canNotify(reactApplicationContext),
+              )
+              // READ_CONTACTS: without it Android never passes calls from
+              // saved contacts to the screening service. Requested from JS
+              // (PermissionService capability `callerIdContacts`).
+              putBoolean(
+                  "contactsGranted",
+                  reactApplicationContext.checkSelfPermission(Manifest.permission.READ_CONTACTS) ==
+                      PackageManager.PERMISSION_GRANTED,
               )
               putInt("count", status.count)
               if (status.version != null) putString("version", status.version)

@@ -74,6 +74,13 @@
          app. Without it the app shows a notification instead. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- UC staff caller ID: Android passes calls from numbers saved in
+         the phone's contacts to a CallScreeningService ONLY when the app
+         holds READ_CONTACTS. The app never reads or uploads contacts.
+         Runtime prompt via PermissionService capability
+         `callerIdContacts` (UC only). -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
     <!-- ── Legacy storage — capped on Android 9 and below ────────── -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
                      android:maxSdkVersion="28" />
