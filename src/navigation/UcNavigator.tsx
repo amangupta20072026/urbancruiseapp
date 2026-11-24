@@ -86,6 +86,11 @@ import { DriversListScreen } from '@features/uc/drivers';
 import { PerformanceScreen } from '@features/uc/performance';
 import DirectoryScreen from '@features/uc/_directory/screens/DirectoryScreen';
 import { UcChangeMpinScreen } from '@features/uc/security';
+import {
+  CallerIdScreen,
+  CallerIdSetupSheet,
+  useCallerIdAutoSync,
+} from '@features/uc/callerId';
 import { isBusinessWorkspace, useUcWorkspace } from '@features/uc/workspace';
 import { Colors } from '@theme';
 import { renderSharedScreens } from './sharedScreens';
@@ -95,6 +100,10 @@ const Stack = createNativeStackNavigator<UcStackParamList>();
 
 const UcNavigator: React.FC = () => {
   const { workspace, isLoading } = useUcWorkspace();
+
+  // Caller ID: refresh this phone's customer list when the app opens.
+  // This navigator renders only after the MPIN / fingerprint unlock.
+  useCallerIdAutoSync();
 
   // Point 1 above: never mount the navigator on a guessed workspace.
   if (isLoading) {
@@ -108,39 +117,46 @@ const UcNavigator: React.FC = () => {
   const isBusiness = isBusinessWorkspace(workspace);
 
   return (
-    <Stack.Navigator
-      // Point 2 above: remount if the workspace ever changes, so the
-      // new initialRouteName is actually applied.
-      key={isBusiness ? 'business' : 'workplace'}
-      initialRouteName={isBusiness ? 'UcTabs' : 'UcWorkplaceTabs'}
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_right',
-      }}
-    >
-      {/* Real screens — one of these two is the landing route. */}
-      <Stack.Screen name="UcTabs" component={UcTabs} />
-      <Stack.Screen name="UcWorkplaceTabs" component={UcWorkplaceTabs} />
+    <>
+      <Stack.Navigator
+        // Point 2 above: remount if the workspace ever changes, so the
+        // new initialRouteName is actually applied.
+        key={isBusiness ? 'business' : 'workplace'}
+        initialRouteName={isBusiness ? 'UcTabs' : 'UcWorkplaceTabs'}
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      >
+        {/* Real screens — one of these two is the landing route. */}
+        <Stack.Screen name="UcTabs" component={UcTabs} />
+        <Stack.Screen name="UcWorkplaceTabs" component={UcWorkplaceTabs} />
 
-      {/* Shared screens — decided by SCREEN_ACCESS (src/rbac/screenAccess.ts) */}
-      {renderSharedScreens(Stack, 'uc')}
-      <Stack.Screen name="CustomersList" component={CustomersListScreen} />
-      <Stack.Screen name="CustomerDetail" component={CustomerHistoryScreen} />
+        {/* Shared screens — decided by SCREEN_ACCESS (src/rbac/screenAccess.ts) */}
+        {renderSharedScreens(Stack, 'uc')}
+        <Stack.Screen name="CustomersList" component={CustomersListScreen} />
+        <Stack.Screen name="CustomerDetail" component={CustomerHistoryScreen} />
 
-      {/* ComingSoon placeholders — pushed from the More sheet */}
-      <Stack.Screen name="VendorsList" component={VendorsListScreen} />
-      <Stack.Screen name="Payments" component={PaymentsScreen} />
-      <Stack.Screen name="DriversList" component={DriversListScreen} />
-      <Stack.Screen name="Performance" component={PerformanceScreen} />
+        {/* ComingSoon placeholders — pushed from the More sheet */}
+        <Stack.Screen name="VendorsList" component={VendorsListScreen} />
+        <Stack.Screen name="Payments" component={PaymentsScreen} />
+        <Stack.Screen name="DriversList" component={DriversListScreen} />
+        <Stack.Screen name="Performance" component={PerformanceScreen} />
 
-      {/* Directory hub — Customers / Vendors / UC Staff / Drivers.
+        {/* Directory hub — Customers / Vendors / UC Staff / Drivers.
           Reached from the More sheet, which only the business
           workspaces have. The 'general' workspace gets the
           staff-only StaffDirectoryScreen as a bottom tab instead. */}
-      <Stack.Screen name="Directory" component={DirectoryScreen} />
-      {/* Settings › Security */}
-      <Stack.Screen name="UcChangeMpin" component={UcChangeMpinScreen} />
-    </Stack.Navigator>
+        <Stack.Screen name="Directory" component={DirectoryScreen} />
+        {/* Settings › Security */}
+        <Stack.Screen name="UcChangeMpin" component={UcChangeMpinScreen} />
+        {/* Settings › Caller ID (Android 10+; the card is hidden elsewhere) */}
+        <Stack.Screen name="UcCallerId" component={CallerIdScreen} />
+      </Stack.Navigator>
+
+      {/* "Know who's calling" — shown once per phone, then never again. */}
+      <CallerIdSetupSheet />
+    </>
   );
 };
 

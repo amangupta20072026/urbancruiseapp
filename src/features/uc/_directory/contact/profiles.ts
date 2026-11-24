@@ -357,7 +357,9 @@ function staffProfile(s: Staff): ListContactProfile {
     meta: [],
     phones: distinctPhones([
       { label: 'Work', value: s.phone },
-      { label: 'Alternate', value: s.phoneAlt },
+      // phoneAlt is the staff member's PERSONAL mobile. The server sends
+      // it to HR callers only, so only HR ever sees this option.
+      { label: 'Personal', value: s.phoneAlt },
     ]),
     email: present(s.email),
     whatsAppMessage: 'Hi, this is Urban Cruise.',
@@ -396,10 +398,12 @@ function staffProfile(s: Staff): ListContactProfile {
         label: 'Work Phone',
         value: maskPhone(s.phone),
       }),
+      // Personal mobile — HR callers only (the server leaves phoneAlt
+      // out for everyone else); hidden when none is saved in Saarthi.
       ...optionalField({
         key: 'phoneAlt',
         kind: 'phone',
-        label: 'Alternate Phone',
+        label: 'Personal Phone',
         value: maskPhone(s.phoneAlt),
       }),
       ...optionalField({

@@ -274,6 +274,8 @@ export type UcStackParamList = {
 
   /** Settings › Security › Change MPIN. UC only. */
   UcChangeMpin: undefined;
+  /** Settings › Caller ID. UC only, Android 10+. */
+  UcCallerId: undefined;
 } & SharedParamsFor<'uc'>;
 
 export type UcWorkplaceTabParamList = {

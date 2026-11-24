@@ -13,6 +13,7 @@
 import { queryClient } from '@app/queryClient';
 import { clearTokens } from '@services/storage/secureStorage';
 import { deleteAllUcKeys } from '@services/ucSecurity/keys';
+import { clearCallerId } from '@features/uc/callerId/sync';
 import { resetIdentity } from '@services/telemetry/identify';
 import { resetScreenTracker } from '@services/telemetry/screenTracker';
 import { logout } from '@store/slices/appSlice';
@@ -28,6 +29,9 @@ export async function teardownLocalSession(
   // logout / lockout, so the old keys are useless. Harmless no-op for
   // other roles (no keys exist).
   await deleteAllUcKeys();
+  // UC caller ID: delete this phone's customer list. No-op for other
+  // roles and on phones without caller ID.
+  await clearCallerId();
   dispatch(logout());
   queryClient.clear();
 }

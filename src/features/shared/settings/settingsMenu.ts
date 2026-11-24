@@ -47,6 +47,7 @@ import {
   Languages,
   Palette,
   Phone,
+  PhoneCall,
   Shield,
   Trash2,
   User,
@@ -87,7 +88,8 @@ export type SettingsRowId =
   | 'contactSupport'
   | 'deleteAccount'
   | 'changeMpin'
-  | 'fingerprintUnlock';
+  | 'fingerprintUnlock'
+  | 'callerId';
 
 export type SettingsGroup =
   | 'account'
@@ -142,6 +144,8 @@ export type SettingsContext = {
   readonly appVersion: string;
   /** UC: this phone can use fingerprint unlock (Android, strong biometric). */
   readonly biometricSupported?: boolean;
+  /** UC: this phone can use caller ID (Android 10+). */
+  readonly callerIdSupported?: boolean;
 };
 
 /* -----------------------------------------------------------------
@@ -256,6 +260,20 @@ const ROWS: readonly RowDefinition[] = [
     // Hidden on iPhone (product decision) and on phones without a
     // strong fingerprint.
     visibleWhen: ctx => ctx.biometricSupported === true,
+  },
+  {
+    // Shows which customer is calling, over the incoming-call screen.
+    // Opens Settings › Caller ID (UcCallerId, UC navigator only).
+    id: 'callerId',
+    group: 'preferences',
+    roles: ['uc'],
+    title: 'Caller ID',
+    subtitle: 'See which customer is calling you',
+    Icon: PhoneCall,
+    iconFg: Colors.primaryDark,
+    iconBg: Colors.primaryTint,
+    // Hidden on iPhone and Android 9 and below (no caller-ID API).
+    visibleWhen: ctx => ctx.callerIdSupported === true,
   },
 
   // ── Preferences ────────────────────────────────────────────────

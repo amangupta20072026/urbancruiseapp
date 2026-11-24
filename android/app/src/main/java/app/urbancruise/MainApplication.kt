@@ -10,6 +10,7 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.common.assets.ReactFontManager
 
 import app.urbancruise.auth.OtpAutofillPackage
+import app.urbancruise.callerid.CallerIdPackage
 import app.urbancruise.location.CityLookupPackage
 import app.urbancruise.location.DriverLocationPackage
 
@@ -31,6 +32,9 @@ class MainApplication : Application(), ReactApplication {
           // Onboarding: city name from coordinates via the built-in Geocoder.
           // See android/app/src/main/java/app/urbancruise/location/.
           add(CityLookupPackage())
+          // UC staff caller ID: local customer list + role / overlay helpers.
+          // See android/app/src/main/java/app/urbancruise/callerid/.
+          add(CallerIdPackage())
         },
     )
   }

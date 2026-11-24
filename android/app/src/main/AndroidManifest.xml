@@ -67,6 +67,13 @@
     <!-- UC staff fingerprint unlock (@sbaiahmed1/react-native-biometrics). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- ── Special app access (user turns it on in Settings) ─────── -->
+    <!-- UC staff caller ID: the customer card drawn over the incoming
+         call screen (callerid/CallerIdOverlay.kt). Not a runtime prompt:
+         the Caller ID screen opens "Display over other apps" for this
+         app. Without it the app shows a notification instead. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <!-- ── Legacy storage — capped on Android 9 and below ────────── -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
                      android:maxSdkVersion="28" />
@@ -167,6 +174,27 @@
         android:name="app.urbancruise.location.DriverLocationForegroundService"
         android:exported="false"
         android:foregroundServiceType="location" />
+
+      <!-- ==========================================================
+           UC staff caller ID.
+           Kotlin class:
+             android/app/src/main/java/app/urbancruise/callerid/
+               CallerIdScreeningService.kt
+
+           Android binds it for incoming calls only after the user
+           picks Urban Cruise as the caller-ID app
+           (RoleManager.ROLE_CALL_SCREENING, Android 10+). Exported so
+           Telecom can bind it; BIND_SCREENING_SERVICE means only the
+           system can. It never blocks a call.
+           ========================================================== -->
+      <service
+        android:name="app.urbancruise.callerid.CallerIdScreeningService"
+        android:permission="android.permission.BIND_SCREENING_SERVICE"
+        android:exported="true">
+        <intent-filter>
+          <action android:name="android.telecom.CallScreeningService" />
+        </intent-filter>
+      </service>
 
     </application>
 </manifest>

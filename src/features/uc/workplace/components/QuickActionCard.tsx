@@ -2,8 +2,13 @@
  * ------------------------------------------------------------------
  * QuickActionCard — one tinted tile on the Workplace home
  * ------------------------------------------------------------------
- * Title, one line of description, a tinted icon circle and a chevron.
- * Two per row on the Workplace dashboard.
+ * Stacked layout: a top row with the tinted icon circle (left) and a
+ * chevron (right), then the title and description underneath at the
+ * tile's full width. Two tiles per row on the Workplace dashboard.
+ *
+ * Text is never truncated: title and description wrap onto as many
+ * lines as they need. Tiles in the same row stay the same height,
+ * because the parent row (actionRow) stretches its children.
  * ------------------------------------------------------------------
  */
 
@@ -46,34 +51,32 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
     accessibilityLabel={title}
     accessibilityHint={description}
   >
-    <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
-      <Icon size={20} color={iconFg} />
+    <View style={styles.topRow}>
+      <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
+        <Icon size={20} color={iconFg} />
+      </View>
+      <ChevronRight size={18} color={Colors.textTertiary} />
     </View>
 
-    <View style={styles.textWrap}>
-      <Text style={styles.title} numberOfLines={1}>
-        {title}
-      </Text>
-      <Text style={styles.description} numberOfLines={2}>
-        {description}
-      </Text>
-    </View>
-
-    <ChevronRight size={18} color={Colors.textTertiary} />
+    <Text style={styles.title}>{title}</Text>
+    <Text style={styles.description}>{description}</Text>
   </Pressable>
 );
 
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
     padding: Spacing.md,
     borderRadius: Radius.lg,
     minHeight: 96,
   },
   pressed: { opacity: 0.7 },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
   iconWrap: {
     width: 44,
     height: 44,
@@ -81,7 +84,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  textWrap: { flex: 1 },
   title: {
     ...Typography.body,
     color: Colors.textPrimary,

@@ -104,6 +104,7 @@ import {
   type MpinConfirmSheetRef,
 } from '@features/uc/security';
 import { notifyComingSoon } from '@services/comingSoon';
+import { isCallerIdSupported } from '@/native/callerId';
 
 import {
   buildSettingsSections,
@@ -187,8 +188,9 @@ const SettingsScreen: React.FC = () => {
       buildSettingsSections(role, {
         appVersion: DeviceInfo.getVersion(),
         biometricSupported,
+        callerIdSupported: isUc && isCallerIdSupported(),
       }),
-    [role, biometricSupported],
+    [role, biometricSupported, isUc],
   );
 
   /* -------- Handlers -------- */
@@ -283,6 +285,10 @@ const SettingsScreen: React.FC = () => {
 
         case 'fingerprintUnlock':
           void toggleFingerprint();
+          return;
+
+        case 'callerId':
+          navigate('UcCallerId');
           return;
 
         case 'savedPayments':

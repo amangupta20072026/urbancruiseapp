@@ -31,6 +31,12 @@ export const StorageKeys = {
    * secret (the keys live in the Keystore). See services/ucSecurity.
    */
   ucBiometricPreference: 'uc.biometricPreference',
+  /**
+   * true once the "Know who's calling" caller-ID sheet has been shown on
+   * this phone. Shown once, ever (product decision, 23 Nov 2026). See
+   * features/uc/callerId/components/CallerIdSetupSheet.tsx.
+   */
+  ucCallerIdPromptShown: 'uc.callerIdPromptShown',
 } as const;
 
 export type StorageKey = (typeof StorageKeys)[keyof typeof StorageKeys];
