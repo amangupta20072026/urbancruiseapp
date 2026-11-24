@@ -9,6 +9,7 @@
  *   │  Caller ID app            On / Turn on › │  ROLE_CALL_SCREENING
  *   │  Display over other apps  On / Turn on › │  overlay card
  *   │  Notifications            On / Turn on › │  locked-phone backup
+ *   │  Saved contacts           On / Turn on › │  READ_CONTACTS
  *   │ CALLER LIST                              │
  *   │  Last synced              Today, 7:45 pm │
  *   │  Updates when you open the app           │
@@ -40,7 +41,7 @@ import { callerIdNative } from '@/native/callerId';
 
 import { useCallerIdStatus } from '../hooks/useCallerIdStatus';
 import { syncCallerId } from '../sync';
-import { turnOnCallerId } from '../turnOn';
+import { allowSavedContacts, turnOnCallerId } from '../turnOn';
 
 /* ------------------------------------------------------------------ */
 /* Formatting                                                         */
@@ -73,8 +74,15 @@ function formatSyncedAt(iso: string | null): string {
 const CallerIdScreen: React.FC = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { status } = useCallerIdStatus();
+  const { status, refresh } = useCallerIdStatus();
   const [syncing, setSyncing] = useState(false);
+
+  // The contacts dialog doesn't send the app to the background, so the
+  // status hook's foreground re-read doesn't fire: re-read here.
+  const handleSavedContacts = useCallback(async () => {
+    await allowSavedContacts();
+    await refresh();
+  }, [refresh]);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -203,6 +211,13 @@ const CallerIdScreen: React.FC = () => {
               on={status.notificationsEnabled}
               onTurnOn={() => void callerIdNative.openNotificationSettings()}
             />
+            <View style={styles.divider} />
+            <SetupRow
+              title="Saved contacts"
+              hint="Also show the card for numbers saved in your contacts"
+              on={status.contactsGranted}
+              onTurnOn={() => void handleSavedContacts()}
+            />
           </View>
         </View>
 
@@ -218,10 +233,7 @@ const CallerIdScreen: React.FC = () => {
             </View>
             <View style={styles.divider} />
             <View style={styles.row}>
-              <Text style={styles.rowHint}>
-                Updates when you open the app. Numbers saved in your phone's
-                contacts show your contact name instead.
-              </Text>
+              <Text style={styles.rowHint}>Updates when you open the app.</Text>
             </View>
           </View>
 

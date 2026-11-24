@@ -74,3 +74,13 @@ export const CAMERA_PERM: Permission | undefined = Platform.select({
   ios: PERMISSIONS.IOS.CAMERA,
   android: PERMISSIONS.ANDROID.CAMERA,
 });
+
+/**
+ * Contacts, for UC staff caller ID (capability `callerIdContacts`).
+ *   - Android: READ_CONTACTS. Android only passes calls from saved
+ *              contacts to a CallScreeningService that holds it.
+ *   - iOS:     undefined — caller ID is Android only, so iOS never asks.
+ */
+export const CALLER_ID_CONTACTS_PERM: Permission | undefined = Platform.select({
+  android: PERMISSIONS.ANDROID.READ_CONTACTS,
+});

@@ -24,6 +24,11 @@ export type CallerIdNativeStatus = {
   canDrawOverlays: boolean;
   /** Notifications are on (needed for the locked-phone backup). */
   notificationsEnabled: boolean;
+  /**
+   * READ_CONTACTS is allowed. Without it Android doesn't pass calls from
+   * numbers saved in the phone's contacts to caller ID.
+   */
+  contactsGranted: boolean;
   /** Customer numbers on this phone. */
   count: number;
   /** Snapshot version from the server, null before the first sync. */
@@ -69,6 +74,7 @@ const UNSUPPORTED: CallerIdNativeStatus = {
   roleHeld: false,
   canDrawOverlays: false,
   notificationsEnabled: false,
+  contactsGranted: false,
   count: 0,
   version: null,
   syncedAt: null,

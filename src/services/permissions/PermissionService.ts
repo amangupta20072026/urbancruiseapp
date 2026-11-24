@@ -58,6 +58,7 @@ import {
 import { isDeviceLocationEnabled } from '@services/driverLocation';
 
 import {
+  CALLER_ID_CONTACTS_PERM,
   CAMERA_PERM,
   CITY_LOCATION_PERM,
   FOREGROUND_LOCATION_PERM,
@@ -118,6 +119,8 @@ export async function ensureCapability(
       return ensureForegroundLocation(cap, CITY_LOCATION_PERM);
     case 'camera':
       return ensureCamera(cap);
+    case 'callerIdContacts':
+      return ensureCallerIdContacts(cap);
     case 'photoPicker':
     case 'phoneDialer':
     case 'downloadPdf':
@@ -260,6 +263,37 @@ async function ensureCamera(cap: Capability): Promise<EnsureResult> {
   return { status: 'denied', canRetry: false };
 }
 
+/**
+ * Contacts for UC caller ID. Same flow as camera: rationale sheet → OS
+ * prompt → cache; blocked → recovery sheet with Open Settings.
+ */
+async function ensureCallerIdContacts(cap: Capability): Promise<EnsureResult> {
+  if (!CALLER_ID_CONTACTS_PERM) {
+    return { status: 'unavailable', reason: 'unsupported-os' };
+  }
+
+  const current = mapRnpResult(await check(CALLER_ID_CONTACTS_PERM));
+  writeCache(cap, current);
+
+  if (current === 'granted') return { status: 'granted' };
+  if (current === 'blocked') return handleBlocked(cap);
+  if (current === 'unavailable') {
+    return { status: 'unavailable', reason: 'device' };
+  }
+
+  const proceed = await showRationale(cap);
+  if (proceed === 'dismiss') return { status: 'denied', canRetry: true };
+
+  emitPermissionEvent(cap, 'prompt_shown');
+  const result = mapRnpResult(await request(CALLER_ID_CONTACTS_PERM));
+  writeCache(cap, result);
+  emitPermissionEvent(cap, result === 'granted' ? 'granted' : 'denied');
+
+  if (result === 'granted') return { status: 'granted' };
+  if (result === 'blocked') return handleBlocked(cap);
+  return { status: 'denied', canRetry: false };
+}
+
 async function ensureForegroundLocation(
   cap: Capability,
   perm: Permission | undefined,
@@ -313,6 +347,10 @@ async function liveCheck(cap: Capability): Promise<CapabilityStatus> {
     case 'camera':
       return CAMERA_PERM
         ? mapRnpResult(await check(CAMERA_PERM))
+        : 'unavailable';
+    case 'callerIdContacts':
+      return CALLER_ID_CONTACTS_PERM
+        ? mapRnpResult(await check(CALLER_ID_CONTACTS_PERM))
         : 'unavailable';
     case 'photoPicker':
     case 'phoneDialer':

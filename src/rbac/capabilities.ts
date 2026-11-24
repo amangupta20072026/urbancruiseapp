@@ -90,7 +90,17 @@ export type Capability =
    * Save a PDF to the shared Downloads collection via MediaStore.
    * Zero permission on Android 10+ (scoped storage).
    */
-  | 'downloadPdf';
+  | 'downloadPdf'
+  /**
+   * READ_CONTACTS, for UC staff caller ID only (Android). Android sends
+   * calls from numbers saved in the phone's contacts to a caller-ID app
+   * ONLY when it holds this permission (CallScreeningService docs), so
+   * without it a saved colleague / vendor / driver never gets the card.
+   * The app never reads, stores or uploads contacts: holding the
+   * permission is the whole point. Denial is fine: caller ID still works
+   * for numbers that aren't saved. Added 24 Nov 2026.
+   */
+  | 'callerIdContacts';
 
 /* -----------------------------------------------------------------
  * Telemetry keys — closed union owned by this module.
@@ -114,7 +124,8 @@ export type PermissionTelemetryKey =
   | 'camera'
   | 'photo_picker'
   | 'phone_dialer'
-  | 'download_pdf';
+  | 'download_pdf'
+  | 'caller_id_contacts';
 
 /* -----------------------------------------------------------------
  * Descriptor shape
@@ -296,6 +307,19 @@ export const CAPABILITY_REGISTRY: Readonly<
     },
     fallback: 'blockFeature',
     telemetryKey: 'download_pdf',
+  },
+
+  callerIdContacts: {
+    roles: ['uc'],
+    requiresProminentDisclosure: false,
+    requiresDeviceLocationOn: false,
+    rationale: {
+      title: 'Caller ID for saved numbers',
+      body: 'Android only shows calls from numbers saved in your contacts to caller ID when Urban Cruise has contacts access. Your contacts are never read, saved or uploaded.',
+      cta: 'Allow contacts',
+    },
+    fallback: 'degradedMode',
+    telemetryKey: 'caller_id_contacts',
   },
 };
 
