@@ -3,6 +3,7 @@ package app.urbancruise.callerid
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.graphics.Color
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -27,6 +28,9 @@ object CallerIdNotifier {
   private const val NOTIFICATION_ID = 4801
   private const val TIMEOUT_MS = 60_000L
 
+  /** src/theme/colors.ts primaryDark. */
+  private val BRAND = Color.parseColor("#2E7D32")
+
   fun canNotify(context: Context): Boolean =
       NotificationManagerCompat.from(context).areNotificationsEnabled()
 
@@ -38,7 +42,11 @@ object CallerIdNotifier {
     val details = CallerIdText.details(entry)
     val notification =
         NotificationCompat.Builder(app, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            // White phone silhouette: a full-colour launcher icon shows as
+            // a solid square in the status bar and notification header.
+            .setSmallIcon(R.drawable.ic_stat_caller_id)
+            // Brand green for the small icon and app name in the header.
+            .setColor(BRAND)
             .setContentTitle("Customer calling: ${entry.name}")
             .apply { if (details != null) setContentText(details) }
             .setPriority(NotificationCompat.PRIORITY_HIGH)

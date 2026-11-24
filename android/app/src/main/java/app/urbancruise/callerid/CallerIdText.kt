@@ -1,26 +1,64 @@
 package app.urbancruise.callerid
 
+import android.graphics.Color
+import androidx.annotation.DrawableRes
+import app.urbancruise.R
+
 /**
- * Text shown on the caller-ID card and notification, in one place so
- * both always say the same thing.
+ * Text and colours shown on the caller-ID card and notification, in one
+ * place so both always say the same thing.
  */
 object CallerIdText {
 
-  /** Same labels as the app's CUSTOMER_CATEGORY_LABEL (uc/customers/types.ts). */
-  private fun typeLabel(type: String?): String? =
+  /** How a customer type looks on the card's type chip. */
+  data class TypeStyle(
+      val label: String,
+      @DrawableRes val icon: Int,
+      val background: Int,
+      val foreground: Int,
+  )
+
+  /**
+   * Same labels as the app's CUSTOMER_CATEGORY_LABEL
+   * (src/features/uc/customers/types.ts). Colours from src/theme/colors.ts
+   * (product decision, 24 Nov 2026): Corporate blue, Agent purple,
+   * Personal green.
+   */
+  fun typeStyle(type: String?): TypeStyle? =
       when (type) {
-        "personal" -> "Personal"
-        "corporate" -> "Corporate"
-        "agent" -> "Agent"
+        "corporate" ->
+            TypeStyle(
+                "Corporate",
+                R.drawable.ic_caller_id_building,
+                Color.parseColor("#DBEAFE"), // completedTint
+                Color.parseColor("#1D4ED8"),
+            )
+        "agent" ->
+            TypeStyle(
+                "Agent",
+                R.drawable.ic_caller_id_briefcase,
+                Color.parseColor("#F3E8FF"), // royalTint
+                Color.parseColor("#7E22CE"),
+            )
+        "personal" ->
+            TypeStyle(
+                "Personal",
+                R.drawable.ic_caller_id_person,
+                Color.parseColor("#E7F7EC"), // primaryTint
+                Color.parseColor("#2E7D32"), // primaryDark
+            )
         else -> null
       }
 
+  /** The city, or null when there is none. The server already sends null for 'Unknown'. */
+  fun city(entry: CallerIdStore.Entry): String? = entry.city?.trim()?.ifEmpty { null }
+
   /**
-   * "Corporate · Mumbai", "Personal", "Mumbai", or null when there is
-   * neither. The server already sends null for an 'Unknown' city.
+   * One line for the notification: "Corporate · Mumbai", "Personal",
+   * "Mumbai", or null when there is neither.
    */
   fun details(entry: CallerIdStore.Entry): String? {
-    val parts = listOfNotNull(typeLabel(entry.type), entry.city?.trim()?.ifEmpty { null })
+    val parts = listOfNotNull(typeStyle(entry.type)?.label, city(entry))
     return if (parts.isEmpty()) null else parts.joinToString(" · ")
   }
 
