@@ -55,20 +55,20 @@ class CallerIdScreeningService : CallScreeningService() {
 
     // Logged without the number or name.
     Log.i(TAG, "Known customer calling")
-    present(this, entry)
+    present(this, entry, phone)
   }
 
   /**
    * Overlay card when the phone is unlocked and "Display over other apps"
    * is on; otherwise the backup notification.
    */
-  private fun present(context: Context, entry: CallerIdStore.Entry) {
+  private fun present(context: Context, entry: CallerIdStore.Entry, phoneE164: String) {
     val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
     val locked = keyguard.isKeyguardLocked
     if (!locked && Settings.canDrawOverlays(context)) {
-      CallerIdOverlay.show(context, entry)
+      CallerIdOverlay.show(context, entry, phoneE164)
     } else {
-      CallerIdNotifier.show(context, entry)
+      CallerIdNotifier.show(context, entry, phoneE164)
     }
   }
 

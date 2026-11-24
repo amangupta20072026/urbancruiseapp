@@ -34,12 +34,19 @@ object CallerIdNotifier {
   fun canNotify(context: Context): Boolean =
       NotificationManagerCompat.from(context).areNotificationsEnabled()
 
-  fun show(context: Context, entry: CallerIdStore.Entry) {
+  /**
+   * Title: "Customer calling: Test Caller"
+   * Text:  "+91 86044 85702 · Corporate · Delhi" (the calling number first,
+   *        then type and city when known; product decision, 24 Nov 2026)
+   */
+  fun show(context: Context, entry: CallerIdStore.Entry, phoneE164: String) {
     val app = context.applicationContext
     if (!canNotify(app)) return
     ensureChannel(app)
 
-    val details = CallerIdText.details(entry)
+    val details =
+        listOfNotNull(CallerIdText.formatPhone(phoneE164), CallerIdText.details(entry))
+            .joinToString(" · ")
     val notification =
         NotificationCompat.Builder(app, CHANNEL_ID)
             // White phone silhouette: a full-colour launcher icon shows as
@@ -48,7 +55,7 @@ object CallerIdNotifier {
             // Brand green for the small icon and app name in the header.
             .setColor(BRAND)
             .setContentTitle("Customer calling: ${entry.name}")
-            .apply { if (details != null) setContentText(details) }
+            .setContentText(details)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

@@ -62,6 +62,17 @@ object CallerIdText {
     return if (parts.isEmpty()) null else parts.joinToString(" · ")
   }
 
+  /**
+   * The calling number for the card: '+918604485702' → "+91 86044 85702".
+   * Non-Indian numbers are shown as received (E.164).
+   */
+  fun formatPhone(phoneE164: String): String =
+      if (phoneE164.length == 13 && phoneE164.startsWith("+91")) {
+        "+91 ${phoneE164.substring(3, 8)} ${phoneE164.substring(8)}"
+      } else {
+        phoneE164
+      }
+
   /** "Rahul Mehta" → "RM", "Acme" → "A". */
   fun initials(name: String): String {
     val words = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }

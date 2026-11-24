@@ -35,6 +35,7 @@ import app.urbancruise.R
  *   │▓▓                                        ▓│
  *   │  (TC)                                     │  avatar overlaps header
  *   │  Test Caller                              │  big name
+ *   │  ☎ +91 86044 85702                        │  the calling number
  *   │  [▣ Corporate]  [⌖ Delhi]                 │  type chip + city chip
  *   │───────────────────────────────────────────│
  *   │  ✓ Identified by Urban Cruise  Tap to close│
@@ -82,16 +83,17 @@ object CallerIdOverlay {
   private var sawRinging = false
 
   /**
-   * Shows the card for [entry]. Replaces a card already on screen. Main
-   * thread. TYPE_APPLICATION_OVERLAY needs Android 8; caller ID itself
+   * Shows the card for [entry], calling from [phoneE164] (the number that
+   * is ringing now, shown in full under the name). Replaces a card already
+   * on screen. Main thread. TYPE_APPLICATION_OVERLAY needs Android 8; caller ID itself
    * needs Android 10, so the only caller (the screening service) is above it.
    */
   @RequiresApi(Build.VERSION_CODES.O)
-  fun show(context: Context, entry: CallerIdStore.Entry) {
+  fun show(context: Context, entry: CallerIdStore.Entry, phoneE164: String) {
     dismiss(context)
     val app = context.applicationContext
     val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    val view = buildCard(app, entry)
+    val view = buildCard(app, entry, phoneE164)
     view.setOnClickListener { dismiss(app) }
 
     val params =
@@ -162,10 +164,11 @@ object CallerIdOverlay {
   /* Layout                                                           */
   /* ---------------------------------------------------------------- */
 
-  private fun buildCard(context: Context, entry: CallerIdStore.Entry): View {
+  private fun buildCard(context: Context, entry: CallerIdStore.Entry, phoneE164: String): View {
     val ui = Ui(context)
     val typeStyle = CallerIdText.typeStyle(entry.type)
     val city = CallerIdText.city(entry)
+    val phone = CallerIdText.formatPhone(phoneE164)
 
     // Vertical room so the card's shadow isn't cut off.
     val outer = FrameLayout(context).apply { setPadding(ui.dp(12), ui.dp(8), ui.dp(12), ui.dp(16)) }
@@ -181,6 +184,7 @@ object CallerIdOverlay {
               listOfNotNull(
                       "Urban Cruise customer calling",
                       entry.name,
+                      phone,
                       typeStyle?.label,
                       city,
                   )
@@ -188,7 +192,7 @@ object CallerIdOverlay {
         }
 
     card.addView(header(ui))
-    card.addView(body(ui, entry, typeStyle, city), ui.matchWrap().apply { topMargin = -ui.dp(30) })
+    card.addView(body(ui, entry, phone, typeStyle, city), ui.matchWrap().apply { topMargin = -ui.dp(30) })
     card.addView(
         View(context).apply { setBackgroundColor(BORDER) },
         LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, ui.dp(1)),
@@ -236,10 +240,11 @@ object CallerIdOverlay {
     return row
   }
 
-  /** Avatar overlapping the header, the name, then the chips. */
+  /** Avatar overlapping the header, the name, the number, then the chips. */
   private fun body(
       ui: Ui,
       entry: CallerIdStore.Entry,
+      phone: String,
       typeStyle: CallerIdText.TypeStyle?,
       city: String?,
   ): View {
@@ -281,6 +286,14 @@ object CallerIdOverlay {
           ellipsize = TextUtils.TruncateAt.END
         }
     col.addView(name, ui.matchWrap().apply { topMargin = ui.dp(8) })
+
+    // The number that is calling, in full (product decision, 24 Nov 2026).
+    val number =
+        ui.text(phone, 14f, TEXT_SECONDARY).apply {
+          letterSpacing = 0.02f
+          ui.startIcon(this, R.drawable.ic_stat_caller_id, TEXT_SECONDARY, 14)
+        }
+    col.addView(number, ui.matchWrap().apply { topMargin = ui.dp(4) })
 
     if (typeStyle != null || city != null) {
       val chips =
