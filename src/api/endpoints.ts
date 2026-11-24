@@ -203,13 +203,16 @@ export const endpoints = {
       detail: (id: string) => `/uc/staff/${id}`,
     },
     /**
-     * Caller ID: every customer number with name, type and city, for the
-     * card shown on incoming calls. Send the stored version as
+     * Caller ID: every customer, vendor, driver and UC staff number, for
+     * the card shown on incoming calls. Send the stored version as
      * If-None-Match; 304 means nothing changed. 403 CALLER_ID_REVOKED
      * means delete the list (features/uc/callerId/sync.ts).
      */
     callerId: {
+      /** Customers only. Kept for older app builds; this build uses `contacts`. */
       snapshot: () => '/uc/caller-id/snapshot',
+      /** Customers, vendors, drivers and active UC staff (24 Nov 2026). */
+      contacts: () => '/uc/caller-id/contacts',
     },
     drivers: {
       list: () => '/uc/drivers',

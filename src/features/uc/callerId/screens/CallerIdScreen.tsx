@@ -4,12 +4,12 @@
  * CallerIdScreen — Settings › Caller ID (UC staff, Android 10+)
  * ------------------------------------------------------------------
  *   ┌ Caller ID ───────────────────────────────┐
- *   │ [✓ Caller ID is on · 12,211 numbers]     │  status banner
+ *   │ [✓ Caller ID is on · 12,4xx numbers]     │  status banner
  *   │ SETUP                                    │
  *   │  Caller ID app            On / Turn on › │  ROLE_CALL_SCREENING
  *   │  Display over other apps  On / Turn on › │  overlay card
  *   │  Notifications            On / Turn on › │  locked-phone backup
- *   │ CUSTOMER LIST                            │
+ *   │ CALLER LIST                              │
  *   │  Last synced              Today, 7:45 pm │
  *   │  Updates when you open the app           │
  *   │ [ ⟳ Sync now ]                           │
@@ -87,10 +87,10 @@ const CallerIdScreen: React.FC = () => {
     setSyncing(false);
     switch (result) {
       case 'updated':
-        toast.success('Customer list updated');
+        toast.success('Caller list updated');
         return;
       case 'unchanged':
-        toast.success('Customer list is up to date');
+        toast.success('Caller list is up to date');
         return;
       case 'revoked':
         toast.error('Caller ID is not available for your account', {
@@ -101,7 +101,7 @@ const CallerIdScreen: React.FC = () => {
         toast.info('Turn on caller ID first');
         return;
       case 'failed':
-        toast.error("Couldn't update the customer list", {
+        toast.error("Couldn't update the caller list", {
           description: 'Check your internet connection and try again.',
         });
         return;
@@ -127,8 +127,8 @@ const CallerIdScreen: React.FC = () => {
   const bannerTitle = isOn ? 'Caller ID is on' : 'Caller ID is off';
   const bannerText = isOn
     ? status.count > 0
-      ? `${countFormat.format(status.count)} customer numbers on this phone`
-      : 'Getting the customer list…'
+      ? `${countFormat.format(status.count)} numbers on this phone`
+      : 'Getting the caller list…'
     : 'Turn it on to see who is calling';
 
   return (
@@ -206,9 +206,9 @@ const CallerIdScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Customer list */}
+        {/* Caller list: customers, vendors, drivers, UC staff */}
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionLabel}>Customer list</Text>
+          <Text style={styles.sectionLabel}>Caller list</Text>
           <View style={styles.card}>
             <View style={styles.row}>
               <Text style={styles.rowTitle}>Last synced</Text>
@@ -219,7 +219,7 @@ const CallerIdScreen: React.FC = () => {
             <View style={styles.divider} />
             <View style={styles.row}>
               <Text style={styles.rowHint}>
-                Updates when you open the app. Customers saved in your phone's
+                Updates when you open the app. Numbers saved in your phone's
                 contacts show your contact name instead.
               </Text>
             </View>

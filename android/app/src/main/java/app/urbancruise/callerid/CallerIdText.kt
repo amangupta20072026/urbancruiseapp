@@ -10,6 +10,21 @@ import app.urbancruise.R
  */
 object CallerIdText {
 
+  /** How each kind of caller looks (product decision, 24 Nov 2026). */
+  data class KindStyle(
+      /** Header pill: "Customer", "Vendor", "Driver", "UC Staff". */
+      val label: String,
+      /** Notification title: "Vendor calling: …". */
+      val callingLabel: String,
+      @DrawableRes val icon: Int,
+      /** Header band colour. */
+      val header: Int,
+      /** Avatar circle background. */
+      val tint: Int,
+      /** Avatar initials colour. */
+      val foreground: Int,
+  )
+
   /** How a customer type looks on the card's type chip. */
   data class TypeStyle(
       val label: String,
@@ -19,9 +34,52 @@ object CallerIdText {
   )
 
   /**
-   * Same labels as the app's CUSTOMER_CATEGORY_LABEL
-   * (src/features/uc/customers/types.ts). Colours from src/theme/colors.ts
-   * (product decision, 24 Nov 2026): Corporate blue, Agent purple,
+   * Customer green, vendor orange, driver blue, UC staff purple. Colours
+   * from src/theme/colors.ts where the theme has them.
+   */
+  fun kindStyle(kind: String): KindStyle =
+      when (kind) {
+        "vendor" ->
+            KindStyle(
+                "Vendor",
+                "Vendor",
+                R.drawable.ic_caller_id_store,
+                Color.parseColor("#C2410C"),
+                Color.parseColor("#FFEDD5"),
+                Color.parseColor("#C2410C"),
+            )
+        "driver" ->
+            KindStyle(
+                "Driver",
+                "Driver",
+                R.drawable.ic_caller_id_car,
+                Color.parseColor("#1D4ED8"),
+                Color.parseColor("#DBEAFE"), // completedTint
+                Color.parseColor("#1D4ED8"),
+            )
+        "staff" ->
+            KindStyle(
+                "UC Staff",
+                "UC staff",
+                R.drawable.ic_caller_id_staff,
+                Color.parseColor("#7E22CE"),
+                Color.parseColor("#F3E8FF"), // royalTint
+                Color.parseColor("#7E22CE"),
+            )
+        else ->
+            KindStyle(
+                "Customer",
+                "Customer",
+                R.drawable.ic_caller_id_shield,
+                Color.parseColor("#2E7D32"), // primaryDark
+                Color.parseColor("#E7F7EC"), // primaryTint
+                Color.parseColor("#2E7D32"),
+            )
+      }
+
+  /**
+   * Customer type chip. Same labels as the app's CUSTOMER_CATEGORY_LABEL
+   * (src/features/uc/customers/types.ts): Corporate blue, Agent purple,
    * Personal green.
    */
   fun typeStyle(type: String?): TypeStyle? =
@@ -50,16 +108,28 @@ object CallerIdText {
         else -> null
       }
 
-  /** The city, or null when there is none. The server already sends null for 'Unknown'. */
-  fun city(entry: CallerIdStore.Entry): String? = entry.city?.trim()?.ifEmpty { null }
+  private fun clean(v: String?): String? = v?.trim()?.ifEmpty { null }
+
+  /** The city, or null. The server already sends null for 'Unknown'. */
+  fun city(entry: CallerIdStore.Entry): String? = clean(entry.city)
 
   /**
-   * One line for the notification: "Corporate · Mumbai", "Personal",
-   * "Mumbai", or null when there is neither.
+   * The notification's second line after the number, by kind:
+   *   customer  "Corporate · Delhi"
+   *   vendor    "Sharma Travels · Mumbai · Inactive"
+   *   driver    "Driver · Sharma Travels · Pune"
+   *   staff     "Sales · Tele-Sales · Mumbai Office"
+   * null when there is nothing to add.
    */
   fun details(entry: CallerIdStore.Entry): String? {
-    val parts = listOfNotNull(typeStyle(entry.type)?.label, city(entry))
-    return if (parts.isEmpty()) null else parts.joinToString(" · ")
+    val parts =
+        when (entry.kind) {
+          "customer" -> listOf(typeStyle(entry.type)?.label, city(entry))
+          "staff" -> listOf(clean(entry.department), clean(entry.branch))
+          else -> listOf(clean(entry.subtitle), city(entry))
+        } + clean(entry.badge)
+    val present = parts.filterNotNull()
+    return if (present.isEmpty()) null else present.joinToString(" · ")
   }
 
   /**

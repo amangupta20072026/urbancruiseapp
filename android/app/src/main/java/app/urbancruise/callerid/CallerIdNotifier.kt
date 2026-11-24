@@ -11,7 +11,8 @@ import androidx.core.app.NotificationManagerCompat
 import app.urbancruise.R
 
 /**
- * The backup: a heads-up notification "Customer calling: Rahul Mehta".
+ * The backup: a heads-up notification "Customer calling: Rahul Mehta"
+ * (or "Vendor / Driver / UC staff calling: …").
  *
  * Used when the overlay card can't be drawn — the phone is locked (most
  * phones never draw overlays over the lock screen) or "Display over other
@@ -35,9 +36,10 @@ object CallerIdNotifier {
       NotificationManagerCompat.from(context).areNotificationsEnabled()
 
   /**
-   * Title: "Customer calling: Test Caller"
-   * Text:  "+91 86044 85702 · Corporate · Delhi" (the calling number first,
-   *        then type and city when known; product decision, 24 Nov 2026)
+   * Title: "<Kind> calling: <name>", e.g. "Vendor calling: Ramesh Sharma"
+   * Text:  the calling number, then CallerIdText.details() — e.g.
+   *        "+91 98100 12345 · Sharma Travels · Mumbai · Inactive"
+   *        (product decisions, 24 Nov 2026)
    */
   fun show(context: Context, entry: CallerIdStore.Entry, phoneE164: String) {
     val app = context.applicationContext
@@ -54,7 +56,9 @@ object CallerIdNotifier {
             .setSmallIcon(R.drawable.ic_stat_caller_id)
             // Brand green for the small icon and app name in the header.
             .setColor(BRAND)
-            .setContentTitle("Customer calling: ${entry.name}")
+            .setContentTitle(
+                "${CallerIdText.kindStyle(entry.kind).callingLabel} calling: ${entry.name}",
+            )
             .setContentText(details)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
@@ -80,7 +84,7 @@ object CallerIdNotifier {
     if (nm.getNotificationChannel(CHANNEL_ID) != null) return
     val channel =
         NotificationChannel(CHANNEL_ID, "Caller ID", NotificationManager.IMPORTANCE_HIGH).apply {
-          description = "Shows which Urban Cruise customer is calling"
+          description = "Shows which customer, vendor, driver or colleague is calling"
           lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
           setSound(null, null)
           enableVibration(false)

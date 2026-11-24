@@ -2,9 +2,10 @@
  * ------------------------------------------------------------------
  * Caller ID — keeping the customer list on this phone up to date
  * ------------------------------------------------------------------
- * GET /api/v1/uc/caller-id/snapshot returns every customer number with
- * name, type and city. The phone stores it in its own SQLite database
- * (CallerIdStore.kt), where the call-screening service reads it.
+ * GET /api/v1/uc/caller-id/contacts returns every customer, vendor,
+ * driver and active UC staff number with what the card shows. The phone
+ * stores it in its own SQLite database (CallerIdStore.kt), where the
+ * call-screening service reads it.
  *
  * WHEN IT RUNS (product decision, 23 Nov 2026: only when the app opens)
  *   - when the UC app opens or comes back to the foreground, at most
@@ -30,7 +31,7 @@ import { endpoints } from '@api/endpoints';
 import { ApiError } from '@api/errors';
 import { callerIdNative, isCallerIdSupported } from '@/native/callerId';
 
-import type { CallerIdSnapshot, CallerIdSyncResult } from './types';
+import type { CallerIdContactsSnapshot, CallerIdSyncResult } from './types';
 
 /** Automatic checks: at most one per this interval. */
 const MIN_INTERVAL_MS = 5 * 60 * 1000;
@@ -99,8 +100,8 @@ async function runSync(): Promise<CallerIdSyncResult> {
   }
 
   try {
-    const response = await apiClient.get<CallerIdSnapshot | ''>(
-      endpoints.uc.callerId.snapshot(),
+    const response = await apiClient.get<CallerIdContactsSnapshot | ''>(
+      endpoints.uc.callerId.contacts(),
       {
         headers: status.version
           ? { 'If-None-Match': `"${status.version}"` }

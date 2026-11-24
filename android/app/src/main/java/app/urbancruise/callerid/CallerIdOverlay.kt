@@ -28,21 +28,23 @@ import app.urbancruise.R
 
 /**
  * The Truecaller-style card drawn over the incoming-call screen
- * (design "A", approved 24 Nov 2026).
+ * (design "A", approved 24 Nov 2026; four kinds added 24 Nov 2026).
  *
  *   ┌──────────────────────────────────────────┐
- *   │▓▓ [UC] Urban Cruise      [✓ Customer]  ✕ ▓│  brand-green header
+ *   │▓▓ [UC] Urban Cruise         [◆ Kind]  ✕ ▓│  header in the kind's colour
  *   │▓▓                                        ▓│
- *   │  (TC)                                     │  avatar overlaps header
- *   │  Test Caller                              │  big name
- *   │  ☎ +91 86044 85702                        │  the calling number
- *   │  [▣ Corporate]  [⌖ Delhi]                 │  type chip + city chip
+ *   │  (RS)                                     │  avatar overlaps header
+ *   │  Ramesh Sharma  [Inactive]                │  name + server tag
+ *   │  Sharma Travels Pvt Ltd                   │  subtitle (vendor / driver)
+ *   │  ☎ +91 98100 12345                        │  the calling number
+ *   │  [⌖ Mumbai]                               │  chips by kind
  *   │───────────────────────────────────────────│
  *   │  ✓ Identified by Urban Cruise  Tap to close│
  *   └──────────────────────────────────────────┘
  *
- * Type chip colours: Corporate blue, Agent purple, Personal green
- * (CallerIdText.typeStyle). A missing type or city hides that chip.
+ * Kind colours (CallerIdText.kindStyle): customer green, vendor orange,
+ * driver blue, UC staff purple. Customer type chip: Corporate blue,
+ * Agent purple, Personal green. Anything missing hides its line or chip.
  *
  * Needs "Display over other apps" (Settings.canDrawOverlays). The caller
  * (CallerIdScreeningService) checks that and falls back to a notification.
@@ -67,8 +69,11 @@ object CallerIdOverlay {
   private const val POLL_MS = 500L
 
   // src/theme/colors.ts
+  /** The footer tick, always brand green. */
   private val BRAND = Color.parseColor("#2E7D32") // primaryDark
-  private val BRAND_TINT = Color.parseColor("#E7F7EC") // primaryTint
+  /** "Inactive" tag: errorTint / error text. */
+  private val BADGE_BG = Color.parseColor("#FEE2E2")
+  private val BADGE_FG = Color.parseColor("#B91C1C")
   private val ON_BRAND_SOFT = Color.argb(56, 255, 255, 255) // white 22%
   private val TEXT_PRIMARY = Color.parseColor("#111827")
   private val TEXT_SECONDARY = Color.parseColor("#6B7280")
@@ -166,8 +171,7 @@ object CallerIdOverlay {
 
   private fun buildCard(context: Context, entry: CallerIdStore.Entry, phoneE164: String): View {
     val ui = Ui(context)
-    val typeStyle = CallerIdText.typeStyle(entry.type)
-    val city = CallerIdText.city(entry)
+    val kind = CallerIdText.kindStyle(entry.kind)
     val phone = CallerIdText.formatPhone(phoneE164)
 
     // Vertical room so the card's shadow isn't cut off.
@@ -178,21 +182,20 @@ object CallerIdOverlay {
           orientation = LinearLayout.VERTICAL
           background = ui.rounded(Color.WHITE, ui.dp(20), stroke = BORDER)
           elevation = ui.dp(12).toFloat()
-          // Clips the green header to the card's rounded corners.
+          // Clips the coloured header to the card's rounded corners.
           clipToOutline = true
           contentDescription =
               listOfNotNull(
-                      "Urban Cruise customer calling",
+                      "Urban Cruise ${kind.callingLabel.lowercase()} calling",
                       entry.name,
                       phone,
-                      typeStyle?.label,
-                      city,
+                      CallerIdText.details(entry),
                   )
                   .joinToString(". ")
         }
 
-    card.addView(header(ui))
-    card.addView(body(ui, entry, phone, typeStyle, city), ui.matchWrap().apply { topMargin = -ui.dp(30) })
+    card.addView(header(ui, kind))
+    card.addView(body(ui, entry, kind, phone), ui.matchWrap().apply { topMargin = -ui.dp(30) })
     card.addView(
         View(context).apply { setBackgroundColor(BORDER) },
         LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, ui.dp(1)),
@@ -203,13 +206,13 @@ object CallerIdOverlay {
     return outer
   }
 
-  /** Green band: [UC] Urban Cruise ........ [✓ Customer] ✕ */
-  private fun header(ui: Ui): View {
+  /** Coloured band: [UC] Urban Cruise ........ [icon Kind] ✕ */
+  private fun header(ui: Ui, kind: CallerIdText.KindStyle): View {
     val row =
         LinearLayout(ui.context).apply {
           orientation = LinearLayout.HORIZONTAL
           gravity = Gravity.CENTER_VERTICAL
-          setBackgroundColor(BRAND)
+          setBackgroundColor(kind.header)
           // Tall bottom padding: the avatar sits over this part.
           setPadding(ui.dp(14), ui.dp(12), ui.dp(12), ui.dp(40))
         }
@@ -221,10 +224,10 @@ object CallerIdOverlay {
         }
     val brand = ui.text("Urban Cruise", 14f, Color.WHITE, bold = true)
     val pill =
-        ui.text("Customer", 11f, Color.WHITE, bold = true).apply {
+        ui.text(kind.label, 11f, Color.WHITE, bold = true).apply {
           background = ui.rounded(ON_BRAND_SOFT, ui.dp(12))
           setPadding(ui.dp(8), ui.dp(3), ui.dp(10), ui.dp(3))
-          ui.startIcon(this, R.drawable.ic_caller_id_shield, Color.WHITE, 12)
+          ui.startIcon(this, kind.icon, Color.WHITE, 12)
         }
     val close =
         ImageView(ui.context).apply {
@@ -240,13 +243,19 @@ object CallerIdOverlay {
     return row
   }
 
-  /** Avatar overlapping the header, the name, the number, then the chips. */
+  /**
+   * Avatar overlapping the header, the name (+ tag), the subtitle, the
+   * number, then the chips:
+   *   customer  [type] [⌖ city]
+   *   vendor    [⌖ city]                  subtitle = company
+   *   driver    [⌖ city]                  subtitle = "Driver · vendor"
+   *   staff     [▣ department] [⌖ branch]
+   */
   private fun body(
       ui: Ui,
       entry: CallerIdStore.Entry,
+      kind: CallerIdText.KindStyle,
       phone: String,
-      typeStyle: CallerIdText.TypeStyle?,
-      city: String?,
   ): View {
     val col =
         LinearLayout(ui.context).apply {
@@ -264,28 +273,51 @@ object CallerIdOverlay {
           setPadding(ui.dp(3), ui.dp(3), ui.dp(3), ui.dp(3))
         }
     val avatar =
-        ui.text(
-                CallerIdText.initials(entry.name),
-                20f,
-                typeStyle?.foreground ?: BRAND,
-                bold = true,
-            )
-            .apply {
-              gravity = Gravity.CENTER
-              background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(typeStyle?.background ?: BRAND_TINT)
-              }
-            }
+        ui.text(CallerIdText.initials(entry.name), 20f, kind.foreground, bold = true).apply {
+          gravity = Gravity.CENTER
+          background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(kind.tint)
+          }
+        }
     ring.addView(avatar, FrameLayout.LayoutParams(ui.dp(56), ui.dp(56)))
     col.addView(ring, LinearLayout.LayoutParams(ui.dp(62), ui.dp(62)))
 
+    // Name, with the server's tag (e.g. "Inactive") right after it.
+    val nameRow =
+        LinearLayout(ui.context).apply {
+          orientation = LinearLayout.HORIZONTAL
+          gravity = Gravity.CENTER_VERTICAL
+        }
     val name =
         ui.text(entry.name, 21f, TEXT_PRIMARY, bold = true).apply {
           maxLines = 2
           ellipsize = TextUtils.TruncateAt.END
+          // Leaves room for the tag on the same line.
+          maxWidth = ui.screenWidth() - ui.dp(150)
         }
-    col.addView(name, ui.matchWrap().apply { topMargin = ui.dp(8) })
+    nameRow.addView(name)
+    entry.badge?.trim()?.ifEmpty { null }?.let { tag ->
+      nameRow.addView(
+          ui.text(tag, 11f, BADGE_FG, bold = true).apply {
+            background = ui.rounded(BADGE_BG, ui.dp(8))
+            setPadding(ui.dp(7), ui.dp(3), ui.dp(7), ui.dp(3))
+          },
+          ui.wrap().apply { marginStart = ui.dp(8) },
+      )
+    }
+    col.addView(nameRow, ui.matchWrap().apply { topMargin = ui.dp(8) })
+
+    // Vendor company / "Driver · vendor".
+    entry.subtitle?.trim()?.ifEmpty { null }?.let { sub ->
+      col.addView(
+          ui.text(sub, 14f, TEXT_SECONDARY).apply {
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+          },
+          ui.matchWrap().apply { topMargin = ui.dp(3) },
+      )
+    }
 
     // The number that is calling, in full (product decision, 24 Nov 2026).
     val number =
@@ -295,24 +327,50 @@ object CallerIdOverlay {
         }
     col.addView(number, ui.matchWrap().apply { topMargin = ui.dp(4) })
 
-    if (typeStyle != null || city != null) {
-      val chips =
+    val chips = chipsFor(ui, entry, kind)
+    if (chips.isNotEmpty()) {
+      val row =
           LinearLayout(ui.context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
           }
-      if (typeStyle != null) {
-        chips.addView(ui.chip(typeStyle.label, typeStyle.icon, typeStyle.background, typeStyle.foreground))
+      chips.forEachIndexed { i, chip ->
+        // Two long chips must still fit on one line.
+        chip.maxWidth = (ui.screenWidth() - ui.dp(80)) / 2
+        row.addView(chip, ui.wrap().apply { if (i > 0) marginStart = ui.dp(8) })
       }
-      if (city != null) {
-        chips.addView(
-            ui.chip(city, R.drawable.ic_caller_id_pin, NEUTRAL_CHIP_BG, NEUTRAL_CHIP_FG),
-            ui.wrap().apply { if (typeStyle != null) marginStart = ui.dp(8) },
-        )
-      }
-      col.addView(chips, ui.matchWrap().apply { topMargin = ui.dp(10) })
+      col.addView(row, ui.matchWrap().apply { topMargin = ui.dp(10) })
     }
     return col
+  }
+
+  private fun chipsFor(
+      ui: Ui,
+      entry: CallerIdStore.Entry,
+      kind: CallerIdText.KindStyle,
+  ): List<TextView> {
+    val city = CallerIdText.city(entry)
+    val cityChip =
+        city?.let { ui.chip(it, R.drawable.ic_caller_id_pin, NEUTRAL_CHIP_BG, NEUTRAL_CHIP_FG) }
+    return when (entry.kind) {
+      "customer" -> {
+        val type = CallerIdText.typeStyle(entry.type)
+        listOfNotNull(
+            type?.let { ui.chip(it.label, it.icon, it.background, it.foreground) },
+            cityChip,
+        )
+      }
+      "staff" ->
+          listOfNotNull(
+              entry.department?.trim()?.ifEmpty { null }?.let {
+                ui.chip(it, R.drawable.ic_caller_id_briefcase, kind.tint, kind.foreground)
+              },
+              entry.branch?.trim()?.ifEmpty { null }?.let {
+                ui.chip(it, R.drawable.ic_caller_id_pin, NEUTRAL_CHIP_BG, NEUTRAL_CHIP_FG)
+              },
+          )
+      else -> listOfNotNull(cityChip)
+    }
   }
 
   /** ✓ Identified by Urban Cruise ............ Tap to close */
@@ -343,6 +401,8 @@ object CallerIdOverlay {
                 context.resources.displayMetrics,
             )
             .toInt()
+
+    fun screenWidth(): Int = context.resources.displayMetrics.widthPixels
 
     fun wrap() =
         LinearLayout.LayoutParams(

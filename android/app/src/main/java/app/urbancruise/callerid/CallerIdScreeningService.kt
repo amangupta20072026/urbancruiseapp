@@ -20,7 +20,8 @@ import androidx.annotation.RequiresApi
  *     or hidden from the call log.
  *   - Local lookup only, no network: it must answer Android within five
  *     seconds, and a SQLite primary-key lookup takes milliseconds.
- *   - Exact match only (E.164, same rule as the server). No match, an
+ *   - Identifies customers, vendors, drivers and UC staff (one list,
+ *     CallerIdStore). Exact match only (E.164, same rule as the server). No match, an
  *     unreadable or hidden number → nothing is shown.
  *   - Any error is swallowed and the call still goes through.
  *
@@ -54,7 +55,7 @@ class CallerIdScreeningService : CallScreeningService() {
     val entry = CallerIdStore.get(this).lookup(phone) ?: return
 
     // Logged without the number or name.
-    Log.i(TAG, "Known customer calling")
+    Log.i(TAG, "Known ${entry.kind} calling")
     present(this, entry, phone)
   }
 
