@@ -51,8 +51,8 @@ import {
 } from '@features/customer/bookings';
 import {
   QuotationDetailScreen,
-  RequestQuotationScreen,
-  QuotationSuccessScreen,
+  PlanTripScreen,
+  PlanTripSuccessScreen,
   QuotationHighlightsScreen,
 } from '@features/customer/quotations';
 import {
@@ -95,15 +95,12 @@ const CustomerNavigator: React.FC = () => {
         component={SpiritualTourDetailScreen}
       />
 
-      {/* "Plan your next journey" flow — form + success */}
-      <Stack.Screen
-        name="RequestQuotation"
-        component={RequestQuotationScreen}
-      />
-      <Stack.Screen
-        name="QuotationSuccess"
-        component={QuotationSuccessScreen}
-      />
+      {/* "Plan a Trip" flow — form + success. The route names stay
+          RequestQuotation / QuotationSuccess so every existing entry
+          point (Home, Quotations, Bookings, Quotation detail) keeps
+          working without changes. */}
+      <Stack.Screen name="RequestQuotation" component={PlanTripScreen} />
+      <Stack.Screen name="QuotationSuccess" component={PlanTripSuccessScreen} />
       {/* Brand images before QuotationDetail — used for deep links and
           Pay Now; in-app card taps play them over the list instead
           (HighlightsStoryHost). No iOS swipe-back: the customer must

@@ -5,17 +5,27 @@
  * Landing screen for the Customer "Quotations" tab.
  *
  * LAYOUT (top → bottom):
- *   [Quotations                        [ + Request a Quotation ] ]
- *   [ View and manage your travel quotations                     ]
+ *   [Quotations                               [ + Plan a Trip ] ]
+ *   [ Plan a trip and view your quotations                       ]
  *   [ All 6 | Pending 2 | Accepted 3 | Expired 1 ]  ← chip strip
  *   [ 🔍 Search…                                    ⚙︎ ]  ← search
- *   [ QuotationCard × N ]
+ *   [ Trip requests: TripRequestCard × N ]  ← "All", no search only
+ *   [ My quotations: QuotationCard × N ]
+ *
+ * TRIP REQUESTS:
+ *   Requests sent with "Plan a Trip" are listed (view only) above the
+ *   quotations, with the status "Received" and "Our travel expert
+ *   will call you". They only show on the "All" chip with an empty
+ *   search, because the chips and search are about quotations.
+ *   The customer never sees DRAFT quotations; the backend will only
+ *   return quotations the team has sent.
  *
  * NAVIGATION INTENTS:
- *   - Header CTA (+ Request a Quotation) → RequestQuotation flow
+ *   - Header CTA (+ Plan a Trip)         → Plan a Trip form
+ *                                          (route "RequestQuotation")
  *   - Card tap / View Details            → QuotationDetail
  *   - Book Now (accepted)                → QuotationDetail + ContinueToBookingSheet
- *   - Request Again (expired)            → RequestQuotation flow
+ *   - Request Again (expired)            → Plan a Trip form
  *   - Sliders button                     → TODO(nav): filter sheet
  *
  * WHAT CHANGED FROM THE PRIOR REQUEST-CENTRIC SCREEN:
@@ -26,7 +36,7 @@
  *     the pattern users returning from the older build expect.
  *     Search matches Quotation ID and any stop city; the sliders
  *     button is a placeholder for a future filter sheet.
- *   - The header keeps its original "+ Request a Quotation" CTA
+ *   - The header keeps a "+ Plan a Trip" CTA
  *     (green pill) as the primary action — the tab title reads as
  *     a section header, the subtitle explains it, and the CTA
  *     lets a customer create a new quotation without leaving the
@@ -82,6 +92,8 @@ import type {
 } from '../types';
 import { MOCK_CUSTOMER_QUOTATIONS } from '../mocks';
 import { QuotationCard } from '../components/QuotationCard';
+import { TripRequestCard } from '../components/TripRequestCard';
+import { useTripRequests } from '../planTrip';
 import { useOpenQuotationDetail } from '../highlights';
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList>;
@@ -150,6 +162,12 @@ const QuotationsScreen: React.FC = () => {
 
   const [filter, setFilter] = useState<QuotationFilter>('all');
   const [search, setSearch] = useState('');
+
+  /* Trip requests from "Plan a Trip" (dummy store for now). Shown
+   * only on the "All" chip with no search text. */
+  const tripRequests = useTripRequests();
+  const showTripRequests =
+    filter === 'all' && search.trim().length === 0 && tripRequests.length > 0;
 
   /* -------- Pull-to-refresh --------
    *
@@ -231,7 +249,8 @@ const QuotationsScreen: React.FC = () => {
 
   /* -------- Handlers -------- */
 
-  const goToRequestQuotation = useCallback(() => {
+  /* "Plan a Trip" is registered under the RequestQuotation route. */
+  const goToPlanTrip = useCallback(() => {
     navigation.navigate('RequestQuotation');
   }, [navigation]);
 
@@ -271,8 +290,8 @@ const QuotationsScreen: React.FC = () => {
 
   return (
     <SafeScreen edges={['top']} backgroundColor={Colors.background}>
-      {/* Header — title + subtitle on the left, "+ Request a
-          Quotation" CTA on the trailing edge. The title column
+      {/* Header — title + subtitle on the left, "+ Plan a Trip"
+          CTA on the trailing edge. The title column
           uses `flex: 1` inside a row so the CTA is pinned right
           regardless of title/subtitle length; the CTA never
           shrinks (its label is copy-critical). */}
@@ -280,17 +299,17 @@ const QuotationsScreen: React.FC = () => {
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Quotations</Text>
           <Text style={styles.headerSubtitle}>
-            View and manage your travel quotations
+            Plan a trip and view your quotations
           </Text>
         </View>
         <Pressable
-          onPress={goToRequestQuotation}
+          onPress={goToPlanTrip}
           style={({ pressed }) => [styles.headerCta, pressed && styles.pressed]}
           accessibilityRole="button"
-          accessibilityLabel="Request a quotation"
+          accessibilityLabel="Plan a trip"
         >
           <Plus size={16} color={Colors.textOnPrimary} strokeWidth={2.5} />
-          <Text style={styles.headerCtaText}>Request a Quotation</Text>
+          <Text style={styles.headerCtaText}>Plan a Trip</Text>
         </Pressable>
       </View>
 
@@ -367,12 +386,30 @@ const QuotationsScreen: React.FC = () => {
           />
         }
       >
+        {showTripRequests ? (
+          <>
+            <Text style={styles.sectionTitle}>Trip requests</Text>
+            {tripRequests.map(request => (
+              <TripRequestCard key={request.id} request={request} />
+            ))}
+            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
+              My quotations
+            </Text>
+          </>
+        ) : null}
+
         {visibleItems.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No quotations</Text>
+            <Text style={styles.emptyTitle}>
+              {filter === 'all' && !search
+                ? 'No quotations yet'
+                : 'No quotations'}
+            </Text>
             <Text style={styles.emptySubtitle}>
               {search
                 ? 'Try a different Quotation ID or destination.'
+                : filter === 'all'
+                ? 'Your quotations will show up here once our travel expert sends them.'
                 : 'Try another filter — your quotations will show up here.'}
             </Text>
           </View>
@@ -384,7 +421,7 @@ const QuotationsScreen: React.FC = () => {
               onPress={() => goToQuotationDetail(item)}
               onView={() => goToQuotationDetail(item)}
               onBookNow={() => onBookNow(item)}
-              onRequestAgain={goToRequestQuotation}
+              onRequestAgain={goToPlanTrip}
             />
           ))
         )}
@@ -561,6 +598,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xxxxl,
     gap: Spacing.md,
+  },
+
+  /* Section titles (Trip requests / My quotations) */
+  sectionTitle: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    fontWeight: '700',
+  },
+  sectionTitleSpaced: {
+    marginTop: Spacing.sm,
   },
 
   /* Empty */

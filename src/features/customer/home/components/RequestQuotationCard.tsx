@@ -7,19 +7,20 @@
  *
  *   ┌──────────────────────────────────────────────────────┐
  *   │  ┌──┐   Plan your next journey                       │
- *   │  │📄│   Tell us your travel plan and our team will   │
- *   │  └──┘   prepare the best options for you.            │
+ *   │  │🛣│   Tell us your plan. Our travel expert will    │
+ *   │  └──┘   call you.                                    │
  *   │                                                      │
- *   │              [ Request a Quotation ]                 │
+ *   │                 [ Plan a Trip ]                      │
  *   └──────────────────────────────────────────────────────┘
  *
  * CTA is a full-width row below the copy so the button has a proper
- * hit target and the copy has room to breathe.
+ * hit target and the copy has room to breathe. It opens the
+ * "Plan a Trip" form (route "RequestQuotation").
  * ------------------------------------------------------------------ */
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { FileSearch } from 'lucide-react-native';
+import { Route } from 'lucide-react-native';
 
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 
@@ -31,7 +32,7 @@ export const RequestQuotationCard: React.FC<Props> = ({ onRequestPress }) => (
   <View style={styles.card}>
     <View style={styles.top}>
       <View style={styles.iconWrap}>
-        <FileSearch size={24} color={Colors.primary} strokeWidth={2} />
+        <Route size={24} color={Colors.primary} strokeWidth={2} />
       </View>
 
       <View style={styles.body}>
@@ -39,8 +40,7 @@ export const RequestQuotationCard: React.FC<Props> = ({ onRequestPress }) => (
           Plan your next journey
         </Text>
         <Text style={styles.subtitle}>
-          Tell us your travel plan and our team will prepare the best options
-          for you.
+          Tell us your plan. Our travel expert will call you.
         </Text>
       </View>
     </View>
@@ -48,10 +48,10 @@ export const RequestQuotationCard: React.FC<Props> = ({ onRequestPress }) => (
     <Pressable
       onPress={onRequestPress}
       accessibilityRole="button"
-      accessibilityLabel="Request a quotation"
+      accessibilityLabel="Plan a trip"
       style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
     >
-      <Text style={styles.ctaText}>Request a Quotation</Text>
+      <Text style={styles.ctaText}>Plan a Trip</Text>
     </Pressable>
   </View>
 );

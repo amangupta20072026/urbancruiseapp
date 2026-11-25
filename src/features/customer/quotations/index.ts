@@ -1,11 +1,12 @@
 export { default as QuotationsScreen } from './screens/QuotationsScreen';
-export { default as RequestQuotationScreen } from './screens/RequestQuotationScreen';
-export { default as QuotationSuccessScreen } from './screens/QuotationSuccessScreen';
+export { default as PlanTripScreen } from './screens/PlanTripScreen';
+export { default as PlanTripSuccessScreen } from './screens/PlanTripSuccessScreen';
 export { default as QuotationDetailScreen } from './screens/QuotationDetailScreen';
 export { default as QuotationHighlightsScreen } from './screens/QuotationHighlightsScreen';
 export { useOpenQuotationDetail } from './highlights';
 
 export { QuotationCard } from './components/QuotationCard';
+export { TripRequestCard } from './components/TripRequestCard';
 export { NeedChangesSheet } from './components/NeedChangesSheet';
 export { NeedHelpSheet } from './components/NeedHelpSheet';
 export { RequestSuccessModal } from './components/RequestSuccessModal';
@@ -28,3 +29,8 @@ export type {
   TravelExecutive,
   TripType,
 } from './types';
+export type {
+  CustomerTripRequest,
+  PlanTripTypeOption,
+  TripRequestStatus,
+} from './planTrip';

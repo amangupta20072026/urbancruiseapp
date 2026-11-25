@@ -1,38 +1,29 @@
 /**
  * ------------------------------------------------------------------
- * QuotationSuccessScreen  (Customer)
+ * PlanTripSuccessScreen  (Customer)
  * ------------------------------------------------------------------
- * Terminal screen for the "Request a Quotation" flow. Confirms the
- * enquiry was captured, displays the Request ID (copy-to-clipboard),
- * and outlines what happens next.
+ * Shown after "Plan a Trip" is submitted. Confirms the request was
+ * received, shows the request number and trip, and tells the
+ * customer what happens next: our travel expert calls them, prepares
+ * the quotation, and the quotation appears in the Quotations tab.
  *
  * ROUTE CONTRACT:
- *   params.requestId is passed by RequestQuotationScreen on submit.
- *   For the UI-only pass this is a client-generated placeholder; when
- *   the backend takes over, the same param will carry the server's
- *   enquiry id — no shape change needed here.
+ *   Registered as "QuotationSuccess". params.requestId is the trip
+ *   request id from PlanTripScreen; the request number and trip are
+ *   read from the Plan a Trip store. If the request can't be found,
+ *   the screen still works and shows the id it was given.
  *
- * PRIMARY CTAs:
- *   "View My Requests" → jumps to the Quotations tab (the request
- *                        will appear once the list is wired to the
- *                        backend).
- *   "Back to Home"     → resets to CustomerTabs on the Home tab.
+ * CTAs:
+ *   "View My Requests" → Quotations tab (the request is listed there)
+ *   "Back to Home"     → Home tab
+ *   Both reset the stack, so Back never returns to this screen.
  *
- * Reached via navigation.replace() from the form screen so pressing
- * Back from here doesn't drop the user back into a completed form.
- *
- * LAYOUT — single-viewport, no scroll:
- *   The whole flow (brand → hero → title → subtitle → request-id →
- *   steps → CTAs) is designed to fit within SafeScreen on a typical
- *   phone without scrolling on either axis. Achieved with a flex
- *   column that pins CTAs to the bottom via `marginTop: 'auto'` and
- *   tight, hand-tuned vertical spacings above. Any new block must
- *   pay for its space by trimming an existing one — reintroducing a
- *   ScrollView would silently undo the "single-screen" decision.
+ * LAYOUT — single viewport, no scroll. CTAs are pinned to the bottom
+ * with `marginTop: 'auto'`; any new block must trim another one.
  * ------------------------------------------------------------------
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   CommonActions,
@@ -43,10 +34,11 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Check,
+  ChevronRight,
   ClipboardCheck,
   Copy,
   FileText,
-  ChevronRight,
+  PhoneCall,
 } from 'lucide-react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 
@@ -54,99 +46,93 @@ import { SafeScreen } from '@shared/components';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import type { CustomerStackParamList } from '@navigation/types';
 
+import { formatPickup, getTripRequest, routeLabel } from '../planTrip';
+
 type Nav = NativeStackNavigationProp<
   CustomerStackParamList,
   'QuotationSuccess'
 >;
 type Rt = RouteProp<CustomerStackParamList, 'QuotationSuccess'>;
 
+const COPIED_FEEDBACK_MS = 1500;
+
 const STEPS: readonly { title: string; body: string }[] = [
   {
-    title: 'We review your requirements',
-    body: 'Our team will go through your travel details.',
+    title: 'Our travel expert calls you',
+    body: 'We will call you on your registered mobile number to understand your plan.',
   },
   {
-    title: 'We prepare the best options',
-    body: 'Our team will find suitable vehicles and prepare a customized quotation.',
+    title: 'We prepare your quotation',
+    body: 'We will find the right vehicle and the best price for your trip.',
   },
   {
-    title: "We'll contact you",
-    body: 'You will receive the quotation on your registered mobile number and email.',
+    title: 'See it in the app',
+    body: 'Your quotation will appear in the Quotations tab.',
   },
 ];
 
-const QuotationSuccessScreen: React.FC = () => {
+const PlanTripSuccessScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Rt>();
   const { requestId } = params;
 
+  const request = getTripRequest(requestId);
+  const displayNumber = request?.requestNumber ?? requestId;
+  const tripSummary = request
+    ? `${routeLabel(request)} · ${formatPickup(request.pickupAt)}`
+    : null;
+
+  /* Copy feedback: the icon flips to a check for a short time. The
+   * timer is cleared on unmount so it never sets state afterwards. */
   const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+    },
+    [],
+  );
 
-  /**
-   * Copies the Request ID to the clipboard and flips the icon to a
-   * checkmark for ~1.5s as visual feedback (same treatment used in
-   * PaymentDetailSheet).
-   */
   const onCopy = useCallback(() => {
-    Clipboard.setString(requestId);
+    Clipboard.setString(displayNumber);
     setCopied(true);
-    const t = setTimeout(() => setCopied(false), 1500);
-    return () => clearTimeout(t);
-  }, [requestId]);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
+  }, [displayNumber]);
 
-  const goToQuotationsTab = useCallback(() => {
-    // Reset the CustomerFlow stack to CustomerTabs > Quotations so
-    // pressing Back from the list doesn't return to the success
-    // screen. Same idea as the "back to home" reset below.
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [
-          {
-            name: 'CustomerTabs',
-            state: {
-              index: 0,
-              routes: [{ name: 'Quotations' }],
+  const resetToTab = useCallback(
+    (tab: 'Home' | 'Quotations') => {
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'CustomerTabs',
+              state: {
+                index: 0,
+                routes: [{ name: tab }],
+              },
             },
-          },
-        ],
-      }),
-    );
-  }, [navigation]);
+          ],
+        }),
+      );
+    },
+    [navigation],
+  );
 
-  const goToHome = useCallback(() => {
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [
-          {
-            name: 'CustomerTabs',
-            state: {
-              index: 0,
-              routes: [{ name: 'Home' }],
-            },
-          },
-        ],
-      }),
-    );
-  }, [navigation]);
+  const goToQuotationsTab = useCallback(
+    () => resetToTab('Quotations'),
+    [resetToTab],
+  );
+  const goToHome = useCallback(() => resetToTab('Home'), [resetToTab]);
 
   return (
     <SafeScreen edges={['top', 'bottom']} backgroundColor={Colors.background}>
       <View style={styles.container}>
         {/* ── Brand mark ─────────────────────────────────── *
-         *
-         * ucwithtext.png has transparent top/bottom padding baked
-         * into the canvas (visible content occupies rows 651–1776
-         * of a 2376×2091 file). We reuse the clip-container trick
-         * from `AppHeader` so the padding never adds dead space:
-         * the outer view is sized to the SCALED VISIBLE region
-         * (BRAND_W × BRAND_H) and clips the Image, which is drawn
-         * at the full scaled canvas height (IMG_H) and shifted up
-         * by TOP_TRIM so only the visible band is exposed.
-         *
-         * BRAND_W drives everything — bump it and the other three
-         * derive from the same ratios (see constants below).
+         * ucwithtext.png has transparent padding baked into the
+         * canvas; the clip view shows only the visible band (same
+         * trick as AppHeader). See the brand* styles below.
          * -------------------------------------------------- */}
         <View style={styles.brandWrap}>
           <View style={styles.brandClip}>
@@ -162,8 +148,8 @@ const QuotationSuccessScreen: React.FC = () => {
 
         {/* ── Hero illustration ──────────────────────────── */}
         <View style={styles.heroIllustration}>
-          <View style={styles.heroDocument}>
-            <FileText size={52} color={Colors.primary} strokeWidth={1.5} />
+          <View style={styles.heroBadge}>
+            <PhoneCall size={44} color={Colors.primary} strokeWidth={1.5} />
             <View style={styles.heroCheck}>
               <Check size={16} color={Colors.textOnPrimary} strokeWidth={3} />
             </View>
@@ -171,20 +157,25 @@ const QuotationSuccessScreen: React.FC = () => {
         </View>
 
         {/* ── Title + copy ───────────────────────────────── */}
-        <Text style={styles.title}>Request Submitted{'\n'}Successfully!</Text>
+        <Text style={styles.title}>Request Received</Text>
         <Text style={styles.subtitle}>
-          Thank you for choosing Urban Cruise. Your travel requirement has been
-          shared with our team.
+          Thank you for choosing Urban Cruise. Our travel expert will call you
+          soon to plan your trip.
         </Text>
 
-        {/* ── Request ID pill ────────────────────────────── */}
+        {/* ── Request number card ────────────────────────── */}
         <View style={styles.requestIdCard}>
           <View style={styles.requestIdIcon}>
             <FileText size={22} color={Colors.accent} strokeWidth={2} />
           </View>
           <View style={styles.requestIdBody}>
             <Text style={styles.requestIdLabel}>Request ID</Text>
-            <Text style={styles.requestIdValue}>{requestId}</Text>
+            <Text style={styles.requestIdValue}>{displayNumber}</Text>
+            {tripSummary ? (
+              <Text style={styles.requestTrip} numberOfLines={1}>
+                {tripSummary}
+              </Text>
+            ) : null}
           </View>
           <Pressable
             onPress={onCopy}
@@ -267,14 +258,13 @@ const QuotationSuccessScreen: React.FC = () => {
   );
 };
 
-export default QuotationSuccessScreen;
+export default PlanTripSuccessScreen;
 
 /* ================================================================
  * Styles
  * ================================================================ */
 
 const styles = StyleSheet.create({
-  /* Root — flex column filling SafeScreen with padded gutters. */
   container: {
     flex: 1,
     paddingHorizontal: Spacing.xl,
@@ -282,12 +272,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
 
-  /* Brand — see JSX header comment for the padding-trim rationale.
-   * BRAND_W drives everything; if it changes, recompute the other
-   * three from the same ratios (canvas 2376×2091, visible 2376×1125
-   * starting at row 651). Kept inline as literals to keep this
-   * StyleSheet self-contained; if a third screen needs the trim
-   * technique it should be promoted to a shared BrandMark component. */
+  /* Brand — canvas 2376×2091, visible band 2376×1125 starting at
+   * row 651. BRAND width 140 drives the other three numbers. */
   brandWrap: {
     alignItems: 'center',
     marginBottom: Spacing.sm,
@@ -303,29 +289,25 @@ const styles = StyleSheet.create({
     marginTop: -38, // 140 × 651/2376 ≈ 38 (top padding to hide)
   },
 
-  /* Hero illustration — compact so title/subtitle/steps fit above
-   * the pinned CTAs on the shortest supported viewport. */
+  /* Hero illustration */
   heroIllustration: {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.sm,
-    height: 110,
+    height: 96,
   },
-  heroDocument: {
+  heroBadge: {
     width: 88,
-    height: 100,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
+    height: 88,
+    borderRadius: Radius.circle,
+    backgroundColor: Colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.sm,
   },
   heroCheck: {
     position: 'absolute',
-    right: -4,
-    bottom: -4,
+    right: 0,
+    bottom: 0,
     width: 26,
     height: 26,
     borderRadius: Radius.circle,
@@ -353,13 +335,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
   },
 
-  /* Request ID card */
+  /* Request number card */
   requestIdCard: {
     marginTop: Spacing.md,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.md,
-    backgroundColor: '#FFF6E6', // warm cream to match the mockup pill
+    backgroundColor: '#FFF6E6', // warm cream, same as the old success pill
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
@@ -388,8 +370,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  /* Copy chip — icon + label instead of icon-only for a clearer
-   * affordance; matches the pattern in the reference mockup. */
+  requestTrip: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+  },
   copyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -410,8 +394,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
 
-  /* Steps card — tight row gaps and no trailing padding on the
-   * last step so all three fit without pushing CTAs off-screen. */
+  /* Steps card */
   stepsCard: {
     marginTop: Spacing.sm,
     padding: Spacing.md,
@@ -451,7 +434,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     backgroundColor: Colors.primary,
     opacity: 0.35,
-    borderStyle: 'dashed',
   },
   stepBody: {
     flex: 1,
@@ -472,9 +454,7 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
 
-  /* CTAs — `marginTop: 'auto'` pins them to the bottom of the flex
-   * container, so any leftover vertical space on taller phones
-   * collects above rather than between sections. */
+  /* CTAs */
   ctaStack: {
     marginTop: 'auto',
     paddingTop: Spacing.md,

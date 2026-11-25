@@ -6,7 +6,7 @@
  * *display* metadata (icon + label) so both consumers render the
  * concept identically:
  *
- *   - RequestQuotationScreen — interactive `TripTypeChip` picker.
+ *   - QuotationCard / QuotationTripCard — trip type on quotation cards.
  *   - QuotationDetailScreen  — read-only badge on the Trip Details
  *     card header.
  *
