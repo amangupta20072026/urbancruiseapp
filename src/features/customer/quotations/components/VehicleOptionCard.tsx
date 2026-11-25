@@ -8,8 +8,8 @@
  *
  *   ┌───────────────────────────────────────────────┐
  *   │ [TIER] [★ Most popular]     ₹17,000  View all ⌄│
- *   │ Model (✓)                per vehicle           │
- *   │ 13 seats                                       │
+ *   │ Model (✓)          ₹20,000 [15% off]           │
+ *   │ 13 seats                 per vehicle           │
  *   └───────────────────────────────────────────────┘
  *
  * Expanded (exactly the full card, with "Collapse ⌃" at the bottom):
@@ -21,8 +21,15 @@
  *   │ 🪑 13 Seats │ ❄ A/C │ ♫ BT Music │ 🛋 Sofa/Bed  │
  *   │ [ actions slot, e.g. ▶ Watch Video | ⇄ Compare ] │
  *   │ ₹17,000          [ − 2 + ]  [ ✓ Selected ]     │
+ *   │ ₹20,000 [15% off]                              │
  *   │ per vehicle                                    │
  *   └───────────────────────────────────────────────┘
+ *
+ * DISCOUNT (shopping-app style):
+ *   When the option has an original price higher than its price,
+ *   the original is shown struck through in grey with a green
+ *   "% off" badge, under the price, in both views. Otherwise only
+ *   the price shows. See getVehicleDiscount (rounds the % down).
  *
  * The spec row sits full-width under the image row (not beside the
  * image) so four chips fit on a 360dp phone.
@@ -81,8 +88,10 @@ import { Colors, Radius, Shadows, Spacing, Typography } from '@theme';
 import {
   DEFAULT_MAX_VEHICLE_QUANTITY,
   VEHICLE_TIER_LABELS,
+  getVehicleDiscount,
   VEHICLE_TIER_PALETTE,
   type VehicleAmenityKind,
+  type VehicleDiscount,
   type VehicleOption,
   type VehicleTierPalette,
 } from '../vehicleTierOptions';
@@ -156,6 +165,12 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
     const tierLabel = VEHICLE_TIER_LABELS[option.tier];
     const maxQty = option.maxQuantity ?? DEFAULT_MAX_VEHICLE_QUANTITY;
     const vehicleName = `${tierLabel} ${option.model}`;
+    const discount = getVehicleDiscount(option);
+    const discountA11y = discount
+      ? `, was ${formatAmount(discount.originalPrice)}, ${
+          discount.percentOff
+        }% off`
+      : '';
 
     const [expanded, setExpanded] = useState(false);
     const expand = useCallback(() => setExpanded(true), []);
@@ -239,6 +254,7 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
                 >
                   {formatAmount(option.pricePerVehicle)}
                 </Text>
+                {discount ? <DiscountLine discount={discount} /> : null}
                 <Text style={styles.priceUnit}>per vehicle</Text>
               </View>
 
@@ -321,7 +337,9 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
               accessibilityState={{ expanded: false, selected }}
               accessibilityLabel={`${vehicleName}, ${
                 option.seats
-              } seats, ${formatAmount(option.pricePerVehicle)} per vehicle${
+              } seats, ${formatAmount(
+                option.pricePerVehicle,
+              )} per vehicle${discountA11y}${
                 selected ? ', selected' : ''
               }. View all details`}
             >
@@ -348,6 +366,9 @@ export const VehicleOptionCard: React.FC<VehicleOptionCardProps> = React.memo(
                 >
                   {formatAmount(option.pricePerVehicle)}
                 </Text>
+                {discount ? (
+                  <DiscountLine discount={discount} inCollapsedCard />
+                ) : null}
                 <Text style={styles.priceUnit}>per vehicle</Text>
               </View>
 
@@ -371,6 +392,41 @@ VehicleOptionCard.displayName = 'VehicleOptionCard';
 /* ================================================================
  * Sub-components
  * ================================================================ */
+
+/**
+ * "₹18,500 [14% off]" — original price struck through in grey and a
+ * green badge. Wraps to two lines on narrow phones instead of cutting
+ * text. In the collapsed card it is hidden from screen readers (the
+ * card's own label already says "was ₹18,500, 14% off"); in the
+ * expanded card it reads as one item, "Was ₹18,500, 14% off".
+ */
+const DiscountLine: React.FC<{
+  discount: VehicleDiscount;
+  /** Collapsed card: right-aligned, hidden from screen readers. */
+  inCollapsedCard?: boolean;
+}> = ({ discount, inCollapsedCard }) => (
+  <View
+    style={[styles.discountRow, inCollapsedCard && styles.discountRowEnd]}
+    {...(inCollapsedCard
+      ? {
+          accessibilityElementsHidden: true,
+          importantForAccessibility: 'no-hide-descendants' as const,
+        }
+      : {
+          accessible: true,
+          accessibilityLabel: `Was ${formatAmount(discount.originalPrice)}, ${
+            discount.percentOff
+          }% off`,
+        })}
+  >
+    <Text style={styles.originalPrice} numberOfLines={1}>
+      {formatAmount(discount.originalPrice)}
+    </Text>
+    <View style={styles.offBadge}>
+      <Text style={styles.offText}>{discount.percentOff}% off</Text>
+    </View>
+  </View>
+);
 
 const TierPill: React.FC<{ label: string; color: string }> = ({
   label,
@@ -672,6 +728,35 @@ const styles = StyleSheet.create({
     height: 14,
     backgroundColor: Colors.border,
     marginHorizontal: Spacing.sm,
+  },
+
+  /* Discount line (original price + % off) */
+  discountRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: Spacing.xs,
+    rowGap: 2,
+    marginTop: 2,
+  },
+  discountRowEnd: {
+    justifyContent: 'flex-end',
+  },
+  originalPrice: {
+    ...Typography.caption,
+    color: Colors.textTertiary,
+    textDecorationLine: 'line-through',
+  },
+  offBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: Radius.xs,
+    backgroundColor: Colors.primaryTint,
+  },
+  offText: {
+    ...Typography.caption,
+    color: Colors.primaryDark,
+    fontWeight: '800',
   },
 
   /* Footer */

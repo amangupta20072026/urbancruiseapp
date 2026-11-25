@@ -118,7 +118,15 @@ export type VehicleOption = {
    * most distinctive amenities first.
    */
   amenities: readonly VehicleAmenity[];
+  /** Price the customer pays per vehicle (Pinaak `discounted_price`). */
   pricePerVehicle: number;
+  /**
+   * Price before discount, per vehicle. When it is higher than
+   * `pricePerVehicle`, the card shows it struck through with a
+   * "% off" badge (see getVehicleDiscount). Leave it out when there
+   * is no discount.
+   */
+  originalPricePerVehicle?: number;
   /** Shows a "Most popular" badge on the card when true. */
   popular?: boolean;
   /** Upper bound for the quantity stepper. Defaults to 10. */
@@ -152,6 +160,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
       { kind: 'music', label: 'Basic' },
     ],
     pricePerVehicle: 15800,
+    originalPricePerVehicle: 18500,
     image: PLACEHOLDER_IMG,
   },
   {
@@ -168,6 +177,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
       { kind: 'charging', label: 'Charging' },
     ],
     pricePerVehicle: 16400,
+    originalPricePerVehicle: 19000,
     image: PLACEHOLDER_IMG,
   },
   {
@@ -184,6 +194,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
       { kind: 'sofa_bed', label: 'Sofa/Bed' },
     ],
     pricePerVehicle: 17000,
+    originalPricePerVehicle: 20000,
     popular: true,
     image: PLACEHOLDER_IMG,
   },
@@ -219,6 +230,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
       { kind: 'tv', label: 'HD TV' },
     ],
     pricePerVehicle: 21200,
+    originalPricePerVehicle: 24500,
     image: PLACEHOLDER_IMG,
   },
   {
@@ -235,6 +247,7 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
       { kind: 'panoramic', label: 'Panoramic' },
     ],
     pricePerVehicle: 30000,
+    originalPricePerVehicle: 34000,
     image: PLACEHOLDER_IMG,
   },
   {
@@ -253,9 +266,37 @@ export const VEHICLE_OPTIONS: readonly VehicleOption[] = [
       { kind: 'panoramic', label: 'Panoramic' },
     ],
     pricePerVehicle: 30000,
+    originalPricePerVehicle: 34000,
     image: PLACEHOLDER_IMG,
   },
 ];
+
+/** Original price and whole-number percentage off, for display. */
+export type VehicleDiscount = {
+  originalPrice: number;
+  percentOff: number;
+};
+
+/**
+ * Discount to show for a vehicle option, or null when there is none.
+ *
+ * The percentage is ROUNDED DOWN, so we never show more discount than
+ * is real (₹18,500 → ₹15,800 is 14.6%, shown as "14% off"). Nothing
+ * is shown when the original price is missing, not higher than the
+ * price, or the discount is below 1%.
+ */
+export function getVehicleDiscount(
+  option: Pick<VehicleOption, 'pricePerVehicle' | 'originalPricePerVehicle'>,
+): VehicleDiscount | null {
+  const original = option.originalPricePerVehicle;
+  const price = option.pricePerVehicle;
+  if (original === undefined || original <= 0 || original <= price) {
+    return null;
+  }
+  const percentOff = Math.floor(((original - price) / original) * 100);
+  if (percentOff < 1) return null;
+  return { originalPrice: original, percentOff };
+}
 
 export function findVehicleOption(id: string): VehicleOption | undefined {
   return VEHICLE_OPTIONS.find(o => o.id === id);
