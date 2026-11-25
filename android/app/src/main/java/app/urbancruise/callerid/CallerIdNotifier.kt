@@ -5,7 +5,6 @@ import android.app.NotificationManager
 import android.content.Context
 import android.graphics.Color
 import android.os.Build
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import app.urbancruise.R
@@ -24,7 +23,6 @@ import app.urbancruise.R
  */
 object CallerIdNotifier {
 
-  private const val TAG = "UCCallerId"
   private const val CHANNEL_ID = "uc_caller_id"
   private const val NOTIFICATION_ID = 4801
   private const val TIMEOUT_MS = 60_000L
@@ -74,7 +72,7 @@ object CallerIdNotifier {
       NotificationManagerCompat.from(app).notify(NOTIFICATION_ID, notification)
     } catch (e: SecurityException) {
       // POST_NOTIFICATIONS revoked between the check and now.
-      Log.w(TAG, "Notification not shown", e)
+      CallerIdReport.error(CallerIdReport.Where.NOTIFICATION, e)
     }
   }
 

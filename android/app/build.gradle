@@ -156,6 +156,17 @@ dependencies {
     // SMS User Consent — https://developers.google.com/identity/sms-retriever/user-consent/request
     implementation("com.google.android.gms:play-services-auth-api-phone:18.3.0")
 
+    // Crashlytics for the native caller-ID code (callerid/CallerIdReport.kt), which
+    // runs on incoming calls even when React Native is not running.
+    // @react-native-firebase/crashlytics keeps its Firebase dependency private
+    // (`implementation`), so the app declares its own. The BOM version is read
+    // from @react-native-firebase/app (sdkVersions.android.firebase) so both
+    // always use the SAME Firebase version, also after an RNFB upgrade.
+    def rnfbAppPackage = new groovy.json.JsonSlurper().parse(
+            file("../../node_modules/@react-native-firebase/app/package.json"))
+    implementation(platform("com.google.firebase:firebase-bom:${rnfbAppPackage.sdkVersions.android.firebase}"))
+    implementation("com.google.firebase:firebase-crashlytics")
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

@@ -106,6 +106,7 @@ class CallerIdModule(reactContext: ReactApplicationContext) :
             }
         promise.resolve(map)
       } catch (e: Exception) {
+        CallerIdReport.error(CallerIdReport.Where.STATUS, e)
         promise.reject("CALLER_ID_STATUS", e)
       }
     }
@@ -142,7 +143,7 @@ class CallerIdModule(reactContext: ReactApplicationContext) :
           REQUEST_ROLE,
       )
     } catch (e: Exception) {
-      Log.w(TAG, "Role dialog not shown", e)
+      CallerIdReport.error(CallerIdReport.Where.ROLE_DIALOG, e)
       pendingRole.compareAndSet(promise, null)
       promise.resolve(false)
     }
@@ -175,7 +176,8 @@ class CallerIdModule(reactContext: ReactApplicationContext) :
         Log.i(TAG, "Caller ID list replaced: $written numbers")
         promise.resolve(written)
       } catch (e: Exception) {
-        Log.w(TAG, "Caller ID list not replaced; previous list kept", e)
+        // The previous list is kept (the transaction rolled back).
+        CallerIdReport.error(CallerIdReport.Where.LIST_REPLACE, e)
         promise.reject("CALLER_ID_REPLACE", e)
       }
     }
@@ -188,6 +190,7 @@ class CallerIdModule(reactContext: ReactApplicationContext) :
         CallerIdStore.get(reactApplicationContext).markChecked(syncedAt)
         promise.resolve(null)
       } catch (e: Exception) {
+        CallerIdReport.error(CallerIdReport.Where.LIST_MARK, e)
         promise.reject("CALLER_ID_MARK", e)
       }
     }
@@ -201,6 +204,7 @@ class CallerIdModule(reactContext: ReactApplicationContext) :
         Log.i(TAG, "Caller ID list cleared")
         promise.resolve(null)
       } catch (e: Exception) {
+        CallerIdReport.error(CallerIdReport.Where.LIST_CLEAR, e)
         promise.reject("CALLER_ID_CLEAR", e)
       }
     }

@@ -12,7 +12,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.text.TextUtils
-import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -62,7 +61,6 @@ import app.urbancruise.R
  */
 object CallerIdOverlay {
 
-  private const val TAG = "UCCallerId"
 
   /** Hard cap: a ring rarely lasts longer than this. */
   private const val MAX_SHOW_MS = 60_000L
@@ -127,8 +125,9 @@ object CallerIdOverlay {
       sawRinging = false
       main.postDelayed(watcher(app), POLL_MS)
     } catch (e: Exception) {
-      // Permission revoked between the check and now, or the OS refused.
-      Log.w(TAG, "Overlay not shown", e)
+      // Permission revoked between the check and now, or the OS refused
+      // (some phone makers block overlays even with the permission).
+      CallerIdReport.error(CallerIdReport.Where.OVERLAY_SHOW, e)
       shown = null
     }
   }
@@ -142,7 +141,7 @@ object CallerIdOverlay {
       val wm = context.applicationContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
       wm.removeViewImmediate(view)
     } catch (e: Exception) {
-      Log.w(TAG, "Overlay remove failed", e)
+      CallerIdReport.error(CallerIdReport.Where.OVERLAY_REMOVE, e)
     }
   }
 

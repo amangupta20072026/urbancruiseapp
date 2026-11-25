@@ -41,7 +41,8 @@ class CallerIdScreeningService : CallScreeningService() {
     try {
       identify(callDetails)
     } catch (e: Exception) {
-      Log.w(TAG, "Caller ID failed; call allowed", e)
+      // The call still goes through (finally below).
+      CallerIdReport.error(CallerIdReport.Where.SCREENING, e)
     } finally {
       // Always allow: default CallResponse = don't block, don't silence.
       respondToCall(callDetails, CallResponse.Builder().build())
