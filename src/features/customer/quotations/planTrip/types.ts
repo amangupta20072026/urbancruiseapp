@@ -2,7 +2,8 @@
  * ------------------------------------------------------------------
  * Plan a Trip — types
  * ------------------------------------------------------------------
- * A "trip request" is the lead a customer creates from the app. In
+ * A "trip request" (shown to the customer as an "enquiry") is the
+ * lead a customer creates from the app. In
  * production it becomes a row in Pinaak's `leads` table, where the
  * presales team calls the customer and the travel advisor prepares
  * the quotation. The app only creates it and shows its status.
@@ -32,7 +33,10 @@ export type TripRequestStatus = 'received';
 
 export type CustomerTripRequest = {
   id: string;
-  /** Human-readable number shown to the customer, e.g. TRIP-2026-00124. */
+  /**
+   * Enquiry number shown to the customer, e.g. ENQ-2026-00124.
+   * Built from the Pinaak lead id, so presales finds it as Lead #124.
+   */
   requestNumber: string;
   tripType: string;
   tripTypeLabel: string;

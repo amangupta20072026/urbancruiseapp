@@ -3,19 +3,19 @@
  * PlanTripSuccessScreen  (Customer)
  * ------------------------------------------------------------------
  * Shown after "Plan a Trip" is submitted. Confirms the request was
- * received, shows the request number and trip, and tells the
+ * received, shows the enquiry number and trip, and tells the
  * customer what happens next: our travel expert calls them, prepares
  * the quotation, and the quotation appears in the Quotations tab.
  *
  * ROUTE CONTRACT:
  *   Registered as "QuotationSuccess". params.requestId is the trip
- *   request id from PlanTripScreen; the request number and trip are
+ *   request id from PlanTripScreen; the enquiry number and trip are
  *   read from the Plan a Trip store. If the request can't be found,
  *   the screen still works and shows the id it was given.
  *
  * CTAs:
- *   "View My Requests" → Quotations tab (the request is listed there)
- *   "Back to Home"     → Home tab
+ *   "View My Enquiries" → Quotations tab (the enquiry is listed there)
+ *   "Back to Home"      → Home tab
  *   Both reset the stack, so Back never returns to this screen.
  *
  * LAYOUT — single viewport, no scroll. CTAs are pinned to the bottom
@@ -157,19 +157,19 @@ const PlanTripSuccessScreen: React.FC = () => {
         </View>
 
         {/* ── Title + copy ───────────────────────────────── */}
-        <Text style={styles.title}>Request Received</Text>
+        <Text style={styles.title}>Enquiry Received</Text>
         <Text style={styles.subtitle}>
           Thank you for choosing Urban Cruise. Our travel expert will call you
           soon to plan your trip.
         </Text>
 
-        {/* ── Request number card ────────────────────────── */}
+        {/* ── Enquiry number card ────────────────────────── */}
         <View style={styles.requestIdCard}>
           <View style={styles.requestIdIcon}>
             <FileText size={22} color={Colors.accent} strokeWidth={2} />
           </View>
           <View style={styles.requestIdBody}>
-            <Text style={styles.requestIdLabel}>Request ID</Text>
+            <Text style={styles.requestIdLabel}>Enquiry ID</Text>
             <Text style={styles.requestIdValue}>{displayNumber}</Text>
             {tripSummary ? (
               <Text style={styles.requestTrip} numberOfLines={1}>
@@ -182,7 +182,7 @@ const PlanTripSuccessScreen: React.FC = () => {
             hitSlop={8}
             style={({ pressed }) => [styles.copyBtn, pressed && styles.pressed]}
             accessibilityRole="button"
-            accessibilityLabel="Copy request id"
+            accessibilityLabel="Copy enquiry ID"
           >
             {copied ? (
               <ClipboardCheck
@@ -234,7 +234,7 @@ const PlanTripSuccessScreen: React.FC = () => {
             ]}
             accessibilityRole="button"
           >
-            <Text style={styles.primaryBtnText}>View My Requests</Text>
+            <Text style={styles.primaryBtnText}>View My Enquiries</Text>
             <ChevronRight
               size={18}
               color={Colors.textOnPrimary}
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
   },
 
-  /* Request number card */
+  /* Enquiry number card */
   requestIdCard: {
     marginTop: Spacing.md,
     paddingVertical: Spacing.sm,

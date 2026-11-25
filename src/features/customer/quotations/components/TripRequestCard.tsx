@@ -2,7 +2,7 @@
  * ------------------------------------------------------------------
  * TripRequestCard  (Customer · Quotations tab)
  * ------------------------------------------------------------------
- * View-only card for a trip request the customer sent with
+ * View-only card for an enquiry the customer sent with
  * "Plan a Trip". Shown above the quotations until the travel expert
  * sends a quotation.
  *
@@ -10,7 +10,7 @@
  *   │ Delhi → Jaipur                    [Received] │
  *   │ Round Trip · 12 Dec, 09:00 am · 4 passengers │
  *   │ Return: 14 Dec 2026                          │
- *   │ TRIP-2026-00124                              │
+ *   │ ENQ-2026-00124                               │
  *   │ ──────────────────────────────────────────── │
  *   │ 📞 Our travel expert will call you           │
  *   └──────────────────────────────────────────────┘
@@ -46,7 +46,7 @@ export const TripRequestCard: React.FC<Props> = ({ request }) => {
     <View
       style={styles.card}
       accessible
-      accessibilityLabel={`Trip request ${request.requestNumber}, ${routeLabel(
+      accessibilityLabel={`Enquiry ${request.requestNumber}, ${routeLabel(
         request,
       )}, ${meta}. Received. Our travel expert will call you.`}
     >

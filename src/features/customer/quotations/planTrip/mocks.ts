@@ -34,7 +34,7 @@ function daysFromNow(days: number, hours: number, minutes = 0): string {
 export const MOCK_TRIP_REQUESTS: readonly CustomerTripRequest[] = [
   {
     id: 'trip_mock_1',
-    requestNumber: 'TRIP-2026-00124',
+    requestNumber: 'ENQ-2026-00124',
     tripType: 'Round Trip',
     tripTypeLabel: 'Round Trip',
     pickupCity: 'Delhi',

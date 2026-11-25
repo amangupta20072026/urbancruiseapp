@@ -9,11 +9,11 @@
  *   [ Plan a trip and view your quotations                       ]
  *   [ All 6 | Pending 2 | Accepted 3 | Expired 1 ]  ← chip strip
  *   [ 🔍 Search…                                    ⚙︎ ]  ← search
- *   [ Trip requests: TripRequestCard × N ]  ← "All", no search only
+ *   [ My enquiries: TripRequestCard × N ]  ← "All", no search only
  *   [ My quotations: QuotationCard × N ]
  *
- * TRIP REQUESTS:
- *   Requests sent with "Plan a Trip" are listed (view only) above the
+ * MY ENQUIRIES:
+ *   Enquiries sent with "Plan a Trip" are listed (view only) above the
  *   quotations, with the status "Received" and "Our travel expert
  *   will call you". They only show on the "All" chip with an empty
  *   search, because the chips and search are about quotations.
@@ -163,7 +163,7 @@ const QuotationsScreen: React.FC = () => {
   const [filter, setFilter] = useState<QuotationFilter>('all');
   const [search, setSearch] = useState('');
 
-  /* Trip requests from "Plan a Trip" (dummy store for now). Shown
+  /* Enquiries from "Plan a Trip" (dummy store for now). Shown
    * only on the "All" chip with no search text. */
   const tripRequests = useTripRequests();
   const showTripRequests =
@@ -388,7 +388,7 @@ const QuotationsScreen: React.FC = () => {
       >
         {showTripRequests ? (
           <>
-            <Text style={styles.sectionTitle}>Trip requests</Text>
+            <Text style={styles.sectionTitle}>My enquiries</Text>
             {tripRequests.map(request => (
               <TripRequestCard key={request.id} request={request} />
             ))}
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
 
-  /* Section titles (Trip requests / My quotations) */
+  /* Section titles (My enquiries / My quotations) */
   sectionTitle: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,

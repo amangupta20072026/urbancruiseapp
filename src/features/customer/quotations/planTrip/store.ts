@@ -36,10 +36,15 @@ function getSnapshot(): readonly CustomerTripRequest[] {
   return requests;
 }
 
-/** Placeholder number in the same shape the backend will use. */
+/**
+ * Placeholder enquiry number in the shape the backend will use:
+ * ENQ-<year>-<Pinaak lead id, 5 digits>, e.g. ENQ-2026-00124 for
+ * Lead #124 (same pattern as Pinaak's QT-2026-00087 quotation
+ * numbers). With dummy data the number part is random.
+ */
 function makeRequestNumber(now: Date): string {
   const n = Math.floor(10_000 + Math.random() * 90_000);
-  return `TRIP-${now.getFullYear()}-${String(n).padStart(5, '0')}`;
+  return `ENQ-${now.getFullYear()}-${String(n).padStart(5, '0')}`;
 }
 
 /** All trip requests of the customer, newest first. */
